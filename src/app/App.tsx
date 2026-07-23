@@ -23,7 +23,7 @@ import {
   PLATFORM_STATS, WORKLOAD_DATA, ROLES, LanguageProvider, LanguageSwitcher, useLanguage, LessonWorkspace, EmptyState, LoadingState, ErrorState
 } from "./shared";
 import { SchoolAdminPortalLive as SchoolAdminPortal } from "./SchoolAdminPortalLive";
-import { TeacherPortal } from "./TeacherPortal";
+import { TeacherPortalLive as TeacherPortal } from "./TeacherPortalLive";
 import { ParentPortal as ParentPortalLive, StudentPortal as StudentPortalLive } from "./StudentParentPortals";
 import { AuthPage, ResetPasswordPage } from "./AuthPages";
 import { useAuth } from "@/hooks/useAuth";

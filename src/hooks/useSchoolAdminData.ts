@@ -387,7 +387,7 @@ export function useSchoolEnrollments(schoolId: string | null) {
           academic_years ( id, name, is_current ),
           grade_levels ( id, name, sort_order )
         ),
-        student_profile:profiles!class_enrollments_student_id_fkey (
+        profiles (
           id,
           email,
           first_name,
@@ -405,7 +405,19 @@ export function useSchoolEnrollments(schoolId: string | null) {
       setError(fetchError.message);
       setEnrollments([]);
     } else {
-      setEnrollments((data as SchoolEnrollment[] | null) ?? []);
+      const rows =
+        ((data as Array<
+          Omit<SchoolEnrollment, "student_profile"> & {
+            profiles?: SchoolEnrollment["student_profile"] | Array<SchoolEnrollment["student_profile"]>;
+          }
+        > | null) ?? []).map((row) => {
+          const relatedProfile = Array.isArray(row.profiles) ? row.profiles[0] ?? null : row.profiles ?? null;
+          return {
+            ...row,
+            student_profile: relatedProfile,
+          };
+        });
+      setEnrollments(rows);
     }
 
     setLoading(false);

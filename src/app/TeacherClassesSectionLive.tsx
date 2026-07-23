@@ -17,6 +17,7 @@ import { useClasses } from "@/hooks/useClasses";
 import { useHomework, type Homework } from "@/hooks/useHomework";
 import { useLessons, type Lesson } from "@/hooks/useLessons";
 import { useSchoolEnrollments } from "@/hooks/useSchoolAdminData";
+import { useStudents } from "@/hooks/useStudents";
 import { useTests, type MonthlyTest } from "@/hooks/useTests";
 import { resolveLessonAttachmentUrl } from "@/lib/storage";
 
@@ -68,6 +69,7 @@ export function TeacherClassesSectionLive({
   const dbAttendance = useAttendance({ schoolId: schoolId ?? null });
   const dbClasses = useClasses(schoolId ?? null);
   const dbEnrollments = useSchoolEnrollments(schoolId ?? null);
+  const dbStudents = useStudents(schoolId ?? null);
 
   const [view, setView] = useState<DetailView>("list");
   const [selectedClassId, setSelectedClassId] = useState<string | null>(null);
@@ -249,6 +251,22 @@ export function TeacherClassesSectionLive({
     return selectedClass.assessments.filter((item) => item.subject_id === selectedLesson.subject_id);
   }, [selectedClass, selectedLesson]);
 
+  const studentDirectory = useMemo(() => {
+    const map = new Map<
+      string,
+      {
+        id: string;
+        email: string;
+        first_name: string | null;
+        last_name: string | null;
+      }
+    >();
+    dbStudents.students.forEach((student) => {
+      map.set(student.id, student);
+    });
+    return map;
+  }, [dbStudents.students]);
+
   const attendanceRows = useMemo(() => {
     if (!selectedClass) return [];
     const classStudentRows = dbEnrollments.enrollments.filter((row) => row.class_id === selectedClass.id);
@@ -258,6 +276,7 @@ export function TeacherClassesSectionLive({
     return classStudentRows
       .map((row) => {
         const studentId = row.student_id;
+        const profile = studentDirectory.get(studentId);
         const studentHomeworkScores = selectedClass.homework.flatMap((item) =>
           (item.homework_submissions ?? [])
             .filter((submission) => submission.student_id === studentId && submission.score != null)
@@ -283,9 +302,9 @@ export function TeacherClassesSectionLive({
         return {
           id: studentId,
           name: formatName(
-            row.student_profile?.first_name,
-            row.student_profile?.last_name,
-            row.student_profile?.email ?? "Student",
+            profile?.first_name ?? row.student_profile?.first_name,
+            profile?.last_name ?? row.student_profile?.last_name,
+            profile?.email ?? row.student_profile?.email ?? "Student",
           ),
           average: allScores.length
             ? Math.round(allScores.reduce((sum, score) => sum + score, 0) / allScores.length)
@@ -295,7 +314,7 @@ export function TeacherClassesSectionLive({
         };
       })
       .sort((left, right) => right.average - left.average || right.attendanceCount - left.attendanceCount || left.name.localeCompare(right.name));
-  }, [dbAttendance.records, dbEnrollments.enrollments, selectedClass]);
+  }, [dbAttendance.records, dbEnrollments.enrollments, selectedClass, studentDirectory]);
 
   const totalStudents = useMemo(
     () => new Set(dbEnrollments.enrollments.map((row) => row.student_id)).size,

@@ -32,6 +32,10 @@ export interface Conversation {
   messages: Message[];
 }
 
+function normalizePartnerProfile<T>(profile: T | T[] | null | undefined) {
+  return Array.isArray(profile) ? profile[0] ?? null : profile ?? null;
+}
+
 export function useMessages(userId: string | null, schoolId: string | null) {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [loading, setLoading] = useState(false);
@@ -39,7 +43,12 @@ export function useMessages(userId: string | null, schoolId: string | null) {
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
 
   const fetchMessages = useCallback(async () => {
-    if (!userId || !schoolId) return;
+    if (!userId || !schoolId) {
+      setConversations([]);
+      setError(null);
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     setError(null);
 
@@ -102,7 +111,12 @@ export function useMessages(userId: string | null, schoolId: string | null) {
     for (const msg of ((sentData as Message[]) ?? [])) {
       const recipients = msg.message_recipients ?? [];
       for (const r of recipients) {
-        const profile = (r as any).profiles as { first_name: string | null; last_name: string | null; avatar_url: string | null } | null;
+        const profile = normalizePartnerProfile(
+          (r as any).profiles as
+            | { first_name: string | null; last_name: string | null; avatar_url: string | null }
+            | Array<{ first_name: string | null; last_name: string | null; avatar_url: string | null }>
+            | null,
+        );
         addMessage(msg, r.recipient_id, profile, true); // sent = always "read" from sender's view
       }
     }
@@ -111,7 +125,7 @@ export function useMessages(userId: string | null, schoolId: string | null) {
     for (const row of ((receivedData as any[]) ?? [])) {
       const msg = row.messages as Message;
       if (!msg) continue;
-      const senderProfile = msg.sender as any;
+      const senderProfile = normalizePartnerProfile(msg.sender as any);
       addMessage(msg, msg.sender_id, senderProfile, row.is_read);
     }
 

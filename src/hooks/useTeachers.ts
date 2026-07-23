@@ -15,13 +15,24 @@ export interface Teacher {
   subjects?: Array<{ id: string; name: string }>;
 }
 
+function normalizeProfile(
+  profile: Partial<Teacher> | Array<Partial<Teacher>> | null | undefined,
+) {
+  return Array.isArray(profile) ? profile[0] ?? null : profile ?? null;
+}
+
 export function useTeachers(schoolId: string | null) {
   const [teachers, setTeachers] = useState<Teacher[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const fetchTeachers = useCallback(async () => {
-    if (!schoolId) return;
+    if (!schoolId) {
+      setTeachers([]);
+      setError(null);
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     setError(null);
     // Join profiles through user_school_roles
@@ -29,6 +40,7 @@ export function useTeachers(schoolId: string | null) {
       .from("user_school_roles")
       .select(`
         id,
+        user_id,
         school_id,
         profiles (
           id, email, first_name, last_name, avatar_url, phone, is_active
@@ -42,14 +54,31 @@ export function useTeachers(schoolId: string | null) {
     // Flatten: each row has a profiles object
     const rows = (data ?? []) as Array<{
       id: string;
+      user_id: string;
       school_id: string;
-      profiles: Teacher;
+      profiles: Partial<Teacher> | Array<Partial<Teacher>> | null;
     }>;
-    const flat = rows.map(r => ({
-      ...r.profiles,
-      role_id: r.id,
-      school_id: r.school_id,
-    }));
+    const seen = new Set<string>();
+    const flat = rows
+      .map((row) => {
+        const profile = normalizeProfile(row.profiles);
+        return {
+          id: profile?.id ?? row.user_id,
+          email: profile?.email ?? "",
+          first_name: profile?.first_name ?? null,
+          last_name: profile?.last_name ?? null,
+          avatar_url: profile?.avatar_url ?? null,
+          phone: profile?.phone ?? null,
+          is_active: profile?.is_active ?? true,
+          role_id: row.id,
+          school_id: row.school_id,
+        } satisfies Teacher;
+      })
+      .filter((teacher) => {
+        if (!teacher.id || seen.has(teacher.id)) return false;
+        seen.add(teacher.id);
+        return true;
+      });
     setTeachers(flat);
     setLoading(false);
   }, [schoolId]);
