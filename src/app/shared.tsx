@@ -61,8 +61,8 @@ const ARABIC_TRANSLATIONS: Record<string, string> = {
   "Delete": "حذف", "Active": "نشط", "Inactive": "غير نشط", "active": "نشط", "inactive": "غير نشط",
   "School Information": "معلومات المدرسة", "Academic Year": "العام الدراسي", "Grade Levels": "المراحل الدراسية",
   "Subjects": "المواد الدراسية", "Classes": "الفصول", "Configure Working Days": "إعداد أيام العمل",
-  "Time Slots & Breaks": "الحصص وفترات الاستراحة", "Semesters": "الفصول الدراسية", "Add Semester": "إضافة فصل دراسي",
-  "Add Slot": "إضافة حصة", "New Time Slot": "حصة جديدة", "Save Working Days": "حفظ أيام العمل",
+  "Time Slots & Breaks": "الحصص وفترات الاستراحة", "Time Slots": "الحصص", "Semesters": "الفصول الدراسية", "Add Semester": "إضافة فصل دراسي",
+  "Add Slot": "إضافة حصة", "New Time Slot": "حصة جديدة", "Edit Time Slot": "تعديل الحصة", "Start Time": "وقت البداية", "End Time": "وقت النهاية", "Mark as break": "تحديدها كاستراحة", "No time slots configured yet.": "لا توجد حصص مهيأة بعد.", "Save Time Slot": "حفظ الحصة", "Save Working Days": "حفظ أيام العمل",
   "Add Teacher": "إضافة معلم", "Add Student": "إضافة طالب", "Add Subject": "إضافة مادة", "Assign": "تعيين",
   "Assign Subjects": "تعيين المواد", "Assign Class Teacher": "تعيين معلم الفصل", "Assigned Teachers": "المعلمون المعيّنون",
   "Employment Info": "بيانات الوظيفة", "Import CSV": "استيراد ملف بيانات", "Export CSV": "تصدير ملف بيانات",
@@ -202,6 +202,11 @@ Object.assign(ARABIC_TRANSLATIONS, {
   "Select an existing thread or choose a recipient to start a new one.": "اختر محادثة موجودة أو حدد مستلمًا لبدء محادثة جديدة.",
   "No message thread selected": "لم يتم اختيار محادثة",
   "Choose a conversation on the left or start one from the recipient picker.": "اختر محادثة من القائمة الجانبية أو ابدأ محادثة جديدة من اختيار المستلم.",
+  "Enter both start and end times.": "أدخل وقت البداية ووقت النهاية.",
+  "End time must be after start time.": "يجب أن يكون وقت النهاية بعد وقت البداية.",
+  "Time slot added": "تمت إضافة الحصة",
+  "Time slot updated": "تم تحديث الحصة",
+  "Time slot removed": "تم حذف الحصة",
   "This student account is connected, but there is no active class enrollment yet in Supabase.": "حساب الطالب متصل، ولكن لا يوجد تسجيل نشط في فصل داخل النظام حتى الآن.",
   "No scored submissions yet": "لا توجد تسليمات مصححة بعد",
   "Homework and test scores from Supabase will populate your progress trend.": "ستظهر درجات الواجبات والاختبارات من النظام في مخطط تقدمك.",
@@ -232,6 +237,57 @@ Object.assign(ARABIC_TRANSLATIONS, {
   "Welcome back!": "مرحبًا بعودتك!",
   "Bring calculators": "أحضروا الآلات الحاسبة",
   "Parent Meeting": "اجتماع أولياء الأمور",
+});
+
+Object.assign(ARABIC_TRANSLATIONS, {
+  "Set Current": "تعيين كالحالي",
+  "Year Name": "اسم السنة",
+  "Start Date": "تاريخ البداية",
+  "End Date": "تاريخ النهاية",
+  "Create Academic Year": "إنشاء عام دراسي",
+  "No semesters saved in the school settings yet.": "لا توجد فصول دراسية محفوظة في إعدادات المدرسة بعد.",
+  "Semester Name": "اسم الفصل الدراسي",
+  "Save Semester": "حفظ الفصل الدراسي",
+  "Term 1": "الفصل الأول",
+  "You need working days, time slots, and class assignments before generating a timetable.": "تحتاج إلى أيام العمل والحصص وتعيينات الفصول قبل إنشاء الجدول الدراسي.",
+  "Invite Teacher": "دعوة معلم",
+  "Invite Student": "دعوة طالب",
+  "Full Name": "الاسم الكامل",
+  "Create Announcement": "إنشاء إعلان",
+  "Body": "المحتوى",
+  "Audience": "الفئة المستهدفة",
+  "Whole School": "المدرسة بالكامل",
+  "Growth": "النمو",
+  "Not assigned": "غير محدد",
+  "No plan": "لا توجد باقة",
+  "Unlimited": "غير محدود",
+  "unknown": "غير معروف",
+  "Class": "الفصل",
+});
+
+Object.assign(ARABIC_TRANSLATIONS, {
+  "Not set": "غير محدد",
+  "Not scheduled": "غير مجدول",
+});
+
+Object.assign(ARABIC_TRANSLATIONS, {
+  "Choose a subject": "اختر مادة",
+  "Back to subjects": "العودة إلى المواد",
+  "Lessons for this class and subject will appear here when teachers publish them.": "ستظهر هنا دروس هذا الفصل وهذه المادة عندما ينشرها المعلمون.",
+  "Homework tied to this class and subject will appear here.": "ستظهر هنا الواجبات المرتبطة بهذا الفصل وهذه المادة.",
+  "Monthly tests for this class and subject will appear here.": "ستظهر هنا الاختبارات الشهرية الخاصة بهذا الفصل وهذه المادة.",
+  "No homework yet": "لا توجد واجبات بعد",
+  "No tests yet": "لا توجد اختبارات بعد",
+});
+
+Object.assign(ARABIC_TRANSLATIONS, {
+  "Back to Teachers": "العودة إلى المعلمين",
+  "Department": "القسم",
+  "Weekly Hours": "الساعات الأسبوعية",
+  "Average Grade": "متوسط الدرجات",
+  "Weekly Schedule": "الجدول الأسبوعي",
+  "No lessons": "لا توجد دروس",
+  "timetable slots": "حصة في الجدول",
 });
 
 Object.assign(ARABIC_WORDS, {
@@ -301,6 +357,7 @@ function translateToArabic(value: string) {
     .replace(/(.+?) is scheduled for (.+?)\./gi, (_, title, target) => `تمت جدولة ${translateToArabic(title)} لـ ${translateToArabic(target)}.`)
     .replace(/(.+?) was posted to targeted groups\./gi, (_, title) => `تم نشر ${translateToArabic(title)} للمجموعات المستهدفة.`)
     .replace(/(.+?) was posted to the whole school\./gi, (_, title) => `تم نشر ${translateToArabic(title)} للمدرسة بالكامل.`)
+    .replace(/Period\s+(\d+)/gi, "الحصة $1")
     .replace(/Grade\s+(\d+)/gi, "الصف $1")
     .replace(/Section\s+([A-Za-z0-9\u0600-\u06FF]+)/gi, "الشعبة $1")
     .replace(/(\d+)\s+active enrollments\b/gi, "$1 تسجيلات نشطة")
@@ -607,11 +664,19 @@ export function Input({ label, type = "text", value, onChange, placeholder, erro
   label: string; type?: string; value: string; onChange: (v: string) => void;
   placeholder?: string; error?: string; required?: boolean;
 }) {
+  const { language } = useLanguage();
+  const isArabic = language === "ar";
+  const isDate = type === "date";
   return (
     <div className="space-y-1.5">
       <label className="block text-sm font-semibold text-foreground">{label}{required && <span className="text-red-500 ml-0.5">*</span>}</label>
       <input
-        type={type} value={value} onChange={e => onChange(e.target.value)} placeholder={placeholder}
+        type={type}
+        value={value}
+        onChange={e => onChange(e.target.value)}
+        placeholder={isDate && isArabic ? "يوم/شهر/سنة" : placeholder}
+        lang={isDate ? (isArabic ? "ar-EG" : "en-US") : undefined}
+        dir={type === "email" ? "ltr" : isArabic ? "rtl" : "ltr"}
         className={`w-full px-3 py-2.5 rounded-xl border text-sm transition-all outline-none focus:ring-2 focus:ring-primary/30 bg-muted ${error ? "border-red-400 focus:ring-red-200" : "border-border focus:border-primary"}`}
       />
       {error && <p className="text-xs text-red-500 flex items-center gap-1"><AlertCircle className="w-3 h-3" />{error}</p>}
@@ -623,11 +688,13 @@ export function Select({ label, value, onChange, options, error, required }: {
   label: string; value: string; onChange: (v: string) => void;
   options: { value: string; label: string }[]; error?: string; required?: boolean;
 }) {
+  const { language } = useLanguage();
+  const isArabic = language === "ar";
   return (
     <div className="space-y-1.5">
       <label className="block text-sm font-semibold text-foreground">{label}{required && <span className="text-red-500 ml-0.5">*</span>}</label>
       <select
-        value={value} onChange={e => onChange(e.target.value)}
+        value={value} onChange={e => onChange(e.target.value)} dir={isArabic ? "rtl" : "ltr"}
         className={`w-full px-3 py-2.5 rounded-xl border text-sm transition-all outline-none focus:ring-2 focus:ring-primary/30 bg-muted ${error ? "border-red-400" : "border-border focus:border-primary"}`}
       >
         <option value="">Select…</option>
@@ -765,6 +832,37 @@ export function AppShell({ children, navItems, activeView, onSelect, onLogout, h
     onLogout: () => void; headerTitle: string; userName: string; userRole: string }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const { language } = useLanguage();
+  const contentRef = useRef<HTMLElement | null>(null);
+  const scrollPositions = useRef<Record<string, number>>({});
+  const previousView = useRef(activeView);
+
+  useEffect(() => {
+    const main = contentRef.current;
+    if (!main) return;
+
+    const handleScroll = () => {
+      scrollPositions.current[activeView] = main.scrollTop;
+    };
+
+    main.addEventListener("scroll", handleScroll, { passive: true });
+    return () => main.removeEventListener("scroll", handleScroll);
+  }, [activeView]);
+
+  useEffect(() => {
+    const main = contentRef.current;
+    if (!main) return;
+
+    scrollPositions.current[previousView.current] = main.scrollTop;
+    previousView.current = activeView;
+
+    const nextScrollTop = scrollPositions.current[activeView] ?? 0;
+    window.requestAnimationFrame(() => {
+      if (contentRef.current) {
+        contentRef.current.scrollTop = nextScrollTop;
+      }
+    });
+  }, [activeView]);
+
   return (
     <div className="flex h-screen bg-background font-[Plus_Jakarta_Sans,sans-serif] overflow-hidden">
       {sidebarOpen && (
@@ -795,7 +893,7 @@ export function AppShell({ children, navItems, activeView, onSelect, onLogout, h
             <Avatar name={userName} size="sm" />
           </div>
         </div>
-        <main className="flex-1 overflow-y-auto p-4 md:p-6">{children}</main>
+        <main ref={contentRef} className="flex-1 overflow-y-auto p-4 md:p-6">{children}</main>
       </div>
     </div>
   );
@@ -803,6 +901,71 @@ export function AppShell({ children, navItems, activeView, onSelect, onLogout, h
 
 
 // ─── Role Selection ───────────────────────────────────────────────────────────
+type LessonVideoSource = {
+  kind: "youtube" | "vimeo" | "file" | "external";
+  src: string;
+};
+
+const DIRECT_VIDEO_FILE_PATTERN = /\.(mp4|webm|ogg|mov|m4v)(?:[?#].*)?$/i;
+
+function getYouTubeEmbedUrl(url: string) {
+  try {
+    const parsed = new URL(url);
+    const host = parsed.hostname.replace(/^www\./, "");
+
+    if (host === "youtu.be") {
+      const id = parsed.pathname.split("/").filter(Boolean)[0];
+      return id ? `https://www.youtube.com/embed/${id}` : null;
+    }
+
+    if (host === "youtube.com" || host.endsWith(".youtube.com")) {
+      if (parsed.pathname === "/watch") {
+        const id = parsed.searchParams.get("v");
+        return id ? `https://www.youtube.com/embed/${id}` : null;
+      }
+
+      const segments = parsed.pathname.split("/").filter(Boolean);
+      if ((segments[0] === "embed" || segments[0] === "shorts" || segments[0] === "live") && segments[1]) {
+        return `https://www.youtube.com/embed/${segments[1]}`;
+      }
+    }
+  } catch {
+    return null;
+  }
+
+  return null;
+}
+
+function getVimeoEmbedUrl(url: string) {
+  try {
+    const parsed = new URL(url);
+    const host = parsed.hostname.replace(/^www\./, "");
+    if (host !== "vimeo.com" && host !== "player.vimeo.com") return null;
+
+    const segments = parsed.pathname.split("/").filter(Boolean);
+    const id = segments[segments.length - 1];
+    return id ? `https://player.vimeo.com/video/${id}` : null;
+  } catch {
+    return null;
+  }
+}
+
+function resolveLessonVideoSource(url: string | null): LessonVideoSource | null {
+  if (!url) return null;
+
+  const youtubeEmbedUrl = getYouTubeEmbedUrl(url);
+  if (youtubeEmbedUrl) return { kind: "youtube", src: youtubeEmbedUrl };
+
+  const vimeoEmbedUrl = getVimeoEmbedUrl(url);
+  if (vimeoEmbedUrl) return { kind: "vimeo", src: vimeoEmbedUrl };
+
+  if (DIRECT_VIDEO_FILE_PATTERN.test(url)) {
+    return { kind: "file", src: url };
+  }
+
+  return { kind: "external", src: url };
+}
+
 type LessonWorkspaceProps = {
   className: string;
   lessonTitle?: string;
@@ -813,20 +976,60 @@ type LessonWorkspaceProps = {
   canCreateAssignments?: boolean;
   onCreateHomework?: () => void;
   onCreateTask?: () => void;
+  videoUrl?: string | null;
+  resourceGroups?: Array<{
+    title: string;
+    items: Array<{
+      title: string;
+      metaOne?: string;
+      metaTwo?: string;
+      href?: string;
+      onClick?: () => void;
+    }>;
+  }>;
+  attendanceRows?: Array<{
+    name: string;
+    rank: string;
+    hours: string;
+    trend?: "up" | "down";
+  }>;
 };
 
 /** Shared visual lesson page. Only the teacher receives an add-lesson action. */
-export function LessonWorkspace({ className, lessonTitle = "Introduction to algebraic equations", onBack, canAddLesson = false, onAddLesson, onOpenHomework, canCreateAssignments = false, onCreateHomework, onCreateTask }: LessonWorkspaceProps) {
-  const attendance = [
+export function LessonWorkspace({
+  className,
+  lessonTitle = "Introduction to algebraic equations",
+  onBack,
+  canAddLesson = false,
+  onAddLesson,
+  onOpenHomework,
+  canCreateAssignments = false,
+  onCreateHomework,
+  onCreateTask,
+  videoUrl = null,
+  resourceGroups,
+  attendanceRows,
+}: LessonWorkspaceProps) {
+  const defaultAttendance = [
     ["Charlie Rawal", "53", "250", "up"], ["Ariana Agarwal", "88", "212", "down"],
     ["Mohamed Salah", "84", "208", "up"], ["Mariam Ahmed", "79", "196", "up"],
     ["Youssef Ali", "74", "189", "down"], ["Salma Hassan", "69", "175", "up"],
   ] as const;
-  const groups = [
+  const defaultGroups = [
     { title: "Articles", items: ["Article 1", "Article 2"], icon: BookOpen },
     { title: "Homework", items: ["Homework 1", "Homework 2"], icon: ClipboardList },
     { title: "Tasks", items: ["Task 1", "Task 2"], icon: CheckSquare },
   ];
+  const attendance = attendanceRows ?? defaultAttendance.map(([name, rank, hours, trend]) => ({ name, rank, hours, trend }));
+  const groups = resourceGroups ?? defaultGroups.map((group) => ({
+    title: group.title,
+    items: group.items.map((item, index) => ({
+      title: item,
+      metaOne: String(index + 3),
+      metaTwo: "99",
+    })),
+  }));
+  const resolvedVideo = resolveLessonVideoSource(videoUrl);
   return (
     <section className="rounded-2xl border border-[#EDE5F4] bg-white p-4 sm:p-7 shadow-sm" style={{ fontFamily: "'Poppins', sans-serif" }}>
       <div className="mb-7 flex flex-wrap items-center gap-3">
@@ -836,10 +1039,65 @@ export function LessonWorkspace({ className, lessonTitle = "Introduction to alge
       </div>
       <div className="grid gap-5 xl:grid-cols-[minmax(0,1.35fr)_minmax(330px,0.9fr)]">
         <div className="min-w-0 space-y-6">
-          <div className="relative flex min-h-64 items-center justify-center overflow-hidden rounded-2xl border border-[#F0EAF5] bg-[radial-gradient(circle_at_30%_25%,#FFFFFF_0%,#F7F0FB_45%,#E9D7F5_100%)] p-8"><div className="absolute inset-x-10 bottom-8 h-14 rounded-2xl bg-[#DAC4E9]/45 blur-xl" /><div className="relative text-center"><div className="mx-auto grid h-20 w-20 place-items-center rounded-full border-4 border-white bg-white/80 shadow-lg"><PlayCircle className="h-11 w-11 text-[#955AC3]" fill="#955AC3" stroke="white" /></div><p className="mt-4 text-sm font-semibold text-[#59456B]">Watch lesson video</p></div></div>
-          {groups.map(group => { const Icon = group.icon; const create = group.title === "Homework" ? onCreateHomework : group.title === "Tasks" ? onCreateTask : undefined; return <div key={group.title}><div className="mb-3 flex items-center justify-between"><h3 className="text-base font-semibold text-[#243767]">{group.title}</h3>{canCreateAssignments && create && <button onClick={create} className="inline-flex items-center gap-1 rounded-lg bg-[#F5F0FF] px-3 py-1.5 text-xs font-bold text-[#955AC3] hover:bg-[#EADAF5]"><Plus className="h-3.5 w-3.5" /> {group.title === "Homework" ? "Add Homework" : "Add Task"}</button>}</div><div className="grid gap-3 sm:grid-cols-2">{group.items.map((item, index) => <button key={item} onClick={group.title === "Homework" ? onOpenHomework : undefined} className="group min-h-36 rounded-xl border border-[#E7D8F4] bg-white p-4 text-left transition hover:-translate-y-0.5 hover:shadow-md"><div className="mb-5 flex h-11 w-11 items-center justify-center rounded-xl bg-[#F7F0FB] text-[#955AC3]"><Icon className="h-5 w-5" /></div><p className="text-sm font-semibold text-[#243767]">{item}</p><div className="mt-2 flex items-center gap-2 text-[11px] text-[#8B8FA3]"><BookOpen className="h-3.5 w-3.5" /> {index + 3} <span className="h-3 w-px bg-[#DCCAE9]" /> <Users className="h-3.5 w-3.5" /> 99</div></button>)}</div></div>; })}
+          <div className="relative overflow-hidden rounded-2xl border border-[#F0EAF5] bg-[radial-gradient(circle_at_30%_25%,#FFFFFF_0%,#F7F0FB_45%,#E9D7F5_100%)] p-4 sm:p-5">
+            <div className="absolute inset-x-10 bottom-8 h-14 rounded-2xl bg-[#DAC4E9]/45 blur-xl" />
+            {resolvedVideo ? (
+              <div className="relative space-y-4">
+                <div className="overflow-hidden rounded-[22px] border border-white/70 bg-[#120C18] shadow-[0_20px_50px_rgba(149,90,195,0.18)]">
+                  <div className="aspect-video w-full">
+                    {(resolvedVideo.kind === "youtube" || resolvedVideo.kind === "vimeo") && (
+                      <iframe
+                        src={resolvedVideo.src}
+                        title={lessonTitle}
+                        className="h-full w-full"
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                        allowFullScreen
+                        loading="lazy"
+                        referrerPolicy="strict-origin-when-cross-origin"
+                      />
+                    )}
+                    {resolvedVideo.kind === "file" && (
+                      <video className="h-full w-full bg-black object-contain" controls playsInline preload="metadata">
+                        <source src={resolvedVideo.src} />
+                      </video>
+                    )}
+                    {resolvedVideo.kind === "external" && (
+                      <a href={resolvedVideo.src} target="_blank" rel="noreferrer" className="flex h-full min-h-64 items-center justify-center p-8 text-center">
+                        <div>
+                          <div className="mx-auto grid h-20 w-20 place-items-center rounded-full border-4 border-white bg-white/80 shadow-lg">
+                            <PlayCircle className="h-11 w-11 text-[#955AC3]" fill="#955AC3" stroke="white" />
+                          </div>
+                          <p className="mt-4 text-sm font-semibold text-white">Watch lesson video</p>
+                        </div>
+                      </a>
+                    )}
+                  </div>
+                </div>
+                <div className="relative flex items-center gap-3 px-1">
+                  <div className="grid h-10 w-10 place-items-center rounded-2xl border border-white/70 bg-white/85 shadow-sm">
+                    <PlayCircle className="h-5 w-5 text-[#955AC3]" fill="#955AC3" stroke="white" />
+                  </div>
+                  <p className="text-sm font-semibold text-[#59456B]">Watch lesson video</p>
+                </div>
+              </div>
+            ) : (
+              <div className="relative flex min-h-64 items-center justify-center p-8">
+                <div className="relative text-center">
+                  <div className="mx-auto grid h-20 w-20 place-items-center rounded-full border-4 border-white bg-white/80 shadow-lg">
+                    <PlayCircle className="h-11 w-11 text-[#955AC3]" fill="#955AC3" stroke="white" />
+                  </div>
+                  <p className="mt-4 text-sm font-semibold text-[#59456B]">Watch lesson video</p>
+                </div>
+              </div>
+            )}
+          </div>
+          {groups.map(group => {
+            const Icon = group.title === "Homework" ? ClipboardList : group.title === "Tasks" ? CheckSquare : BookOpen;
+            const create = group.title === "Homework" ? onCreateHomework : group.title === "Tasks" ? onCreateTask : undefined;
+            return <div key={group.title}><div className="mb-3 flex items-center justify-between"><h3 className="text-base font-semibold text-[#243767]">{group.title}</h3>{canCreateAssignments && create && <button onClick={create} className="inline-flex items-center gap-1 rounded-lg bg-[#F5F0FF] px-3 py-1.5 text-xs font-bold text-[#955AC3] hover:bg-[#EADAF5]"><Plus className="h-3.5 w-3.5" /> {group.title === "Homework" ? "Add Homework" : "Add Task"}</button>}</div><div className="grid gap-3 sm:grid-cols-2">{group.items.map((item, index) => { const handleClick = item.onClick ?? (item.href ? () => window.open(item.href, "_blank", "noopener,noreferrer") : group.title === "Homework" ? onOpenHomework : undefined); return <button key={`${group.title}-${item.title}-${index}`} onClick={handleClick} className="group min-h-36 rounded-xl border border-[#E7D8F4] bg-white p-4 text-left transition hover:-translate-y-0.5 hover:shadow-md"><div className="mb-5 flex h-11 w-11 items-center justify-center rounded-xl bg-[#F7F0FB] text-[#955AC3]"><Icon className="h-5 w-5" /></div><p className="text-sm font-semibold text-[#243767]">{item.title}</p><div className="mt-2 flex items-center gap-2 text-[11px] text-[#8B8FA3]"><BookOpen className="h-3.5 w-3.5" /> {item.metaOne ?? String(index + 3)} <span className="h-3 w-px bg-[#DCCAE9]" /> <Users className="h-3.5 w-3.5" /> {item.metaTwo ?? "99"}</div></button>; })}</div>{group.items.length === 0 && <div className="rounded-xl border border-dashed border-[#E7D8F4] px-4 py-6 text-center text-sm text-[#8B8FA3]">Nothing here yet</div>}</div>;
+          })}
         </div>
-        <aside className="overflow-hidden rounded-2xl border border-[#F0EAF5] bg-white"><div className="border-b border-[#F4EEF7] px-5 py-4"><h3 className="text-base font-semibold text-[#243767]">Attendance</h3><p className="mt-1 text-xs text-[#8B8FA3]">Class activity and participation</p></div><div className="overflow-x-auto"><table className="w-full min-w-[330px] text-left"><thead className="text-[10px] uppercase tracking-wide text-[#9AA0B4]"><tr><th className="px-4 py-3 font-semibold">ID</th><th className="py-3 font-semibold">Student</th><th className="px-3 py-3 font-semibold">Rank</th><th className="px-4 py-3 text-right font-semibold">Hours</th></tr></thead><tbody>{attendance.map(([name, rank, hours, trend], index) => <tr key={name} className="border-t border-[#F7F2F9] text-xs"><td className="px-4 py-3"><span className="rounded bg-[#F5F0FF] px-1.5 py-1 text-[#6E5D8B]">{index + 1}</span></td><td className="py-3 font-semibold text-[#34446E]"><span className="mr-2 inline-block h-2 w-2 rounded-full" style={{ background: trend === "up" ? "#36B7A2" : "#EF7C8E" }} />{name}</td><td className="px-3 py-3 text-[#6B7188]">{rank}</td><td className="px-4 py-3 text-right text-[#6B7188]">{hours}</td></tr>)}</tbody></table></div></aside>
+        <aside className="overflow-hidden rounded-2xl border border-[#F0EAF5] bg-white"><div className="border-b border-[#F4EEF7] px-5 py-4"><h3 className="text-base font-semibold text-[#243767]">Attendance</h3><p className="mt-1 text-xs text-[#8B8FA3]">Class activity and participation</p></div><div className="overflow-x-auto"><table className="w-full min-w-[330px] text-left"><thead className="text-[10px] uppercase tracking-wide text-[#9AA0B4]"><tr><th className="px-4 py-3 font-semibold">ID</th><th className="py-3 font-semibold">Student</th><th className="px-3 py-3 font-semibold">Rank</th><th className="px-4 py-3 text-right font-semibold">Hours</th></tr></thead><tbody>{attendance.map((row, index) => <tr key={`${row.name}-${index}`} className="border-t border-[#F7F2F9] text-xs"><td className="px-4 py-3"><span className="rounded bg-[#F5F0FF] px-1.5 py-1 text-[#6E5D8B]">{index + 1}</span></td><td className="py-3 font-semibold text-[#34446E]"><span className="mr-2 inline-block h-2 w-2 rounded-full" style={{ background: row.trend === "down" ? "#EF7C8E" : "#36B7A2" }} />{row.name}</td><td className="px-3 py-3 text-[#6B7188]">{row.rank}</td><td className="px-4 py-3 text-right text-[#6B7188]">{row.hours}</td></tr>)}</tbody></table></div>{attendance.length === 0 && <div className="px-5 py-6 text-center text-sm text-[#8B8FA3]">Nothing here yet</div>}</aside>
       </div>
     </section>
   );

@@ -40,6 +40,7 @@ import {
   Select,
   StatCard,
   Toast,
+  useTranslation,
 } from "./shared";
 import { useAcademicYears } from "@/hooks/useAcademicYears";
 import { useAnnouncements } from "@/hooks/useAnnouncements";
@@ -62,6 +63,7 @@ import { useTeachers } from "@/hooks/useTeachers";
 import { useTests } from "@/hooks/useTests";
 import { useTimetable, useTimeSlots, useWorkingDays } from "@/hooks/useTimetable";
 import { formatPlanDisplayName } from "@/lib/plans";
+import { resolveLessonAttachmentUrl } from "@/lib/storage";
 
 const SCHOOL_NAV: NavItem[] = [
   { id: "dashboard", label: "Dashboard", icon: <Users className="w-4 h-4" /> },
@@ -123,12 +125,12 @@ function formatName(firstName?: string | null, lastName?: string | null, email?:
 }
 
 function formatShortDate(value?: string | null) {
-  if (!value) return "Not set";
+  if (!value) return "Not assigned";
   return new Date(value).toLocaleDateString();
 }
 
 function formatDateTime(value?: string | null) {
-  if (!value) return "Not scheduled";
+  if (!value) return "Not assigned";
   return new Date(value).toLocaleString();
 }
 
@@ -196,6 +198,7 @@ export function SchoolAdminPortalLive({
   schoolId?: string | null;
   user?: { id?: string; email?: string; first_name?: string; last_name?: string } | null;
 }) {
+  const { language, t } = useTranslation();
   const dbSchool = useSchoolDetails(schoolId ?? null);
   const dbTeachers = useTeachers(schoolId ?? null);
   const dbStudents = useStudents(schoolId ?? null);
@@ -241,6 +244,7 @@ export function SchoolAdminPortalLive({
   const [semesters, setSemesters] = useState<SemesterRow[]>([]);
   const [newSemester, setNewSemester] = useState({ name: "", start: "", end: "" });
   const [timeSlotDraft, setTimeSlotDraft] = useState({ start: "", end: "", isBreak: false });
+  const [editingTimeSlotId, setEditingTimeSlotId] = useState<string | null>(null);
   const [teacherForm, setTeacherForm] = useState({ name: "", email: "" });
   const [studentForm, setStudentForm] = useState({ name: "", email: "", classId: "" });
   const [announcementForm, setAnnouncementForm] = useState({ title: "", body: "", audience: "school" });
@@ -255,21 +259,31 @@ export function SchoolAdminPortalLive({
     window.setTimeout(() => setToast(null), 3000);
   }, []);
 
+  const resetTimeSlotForm = useCallback(() => {
+    setEditingTimeSlotId(null);
+    setTimeSlotDraft({ start: "", end: "", isBreak: false });
+  }, []);
+
   const schoolSettings = useMemo(
     () => ((dbSchool.school?.settings as Record<string, unknown> | null) ?? {}),
     [dbSchool.school?.settings],
   );
 
-  useEffect(() => {
-    setSchoolForm({
+  const schoolFormDefaults = useMemo(
+    () => ({
       name: dbSchool.school?.name ?? "",
       phone: typeof schoolSettings.phone === "string" ? schoolSettings.phone : "",
       address: typeof schoolSettings.address === "string" ? schoolSettings.address : "",
       email: typeof schoolSettings.email === "string" ? schoolSettings.email : user?.email ?? "",
       timezone: dbSchool.school?.timezone ?? "Africa/Cairo",
-    });
+    }),
+    [dbSchool.school?.name, dbSchool.school?.timezone, schoolSettings.address, schoolSettings.email, schoolSettings.phone, user?.email],
+  );
+
+  useEffect(() => {
+    setSchoolForm(schoolFormDefaults);
     setSemesters(toSemesterRows(schoolSettings.semesters));
-  }, [dbSchool.school?.name, dbSchool.school?.timezone, schoolSettings.address, schoolSettings.email, schoolSettings.phone, schoolSettings.semesters, user?.email]);
+  }, [schoolFormDefaults, schoolSettings.semesters]);
 
   useEffect(() => {
     if (dbWorkingDays.workingDays.length > 0) {
@@ -612,6 +626,143 @@ export function SchoolAdminPortalLive({
     [classLessons, selectedLessonId],
   );
 
+  const selectedLessonRecord = useMemo(
+    () =>
+      dbLessons.lessons.find(
+        (lesson) =>
+          lesson.id === selectedLessonId &&
+          lesson.class_id === selectedGradeClass?.classId &&
+          lesson.subject_id === selectedSubject?.id,
+      ) ?? null,
+    [dbLessons.lessons, selectedGradeClass, selectedLessonId, selectedSubject],
+  );
+
+  const selectedLessonHomework = useMemo(() => {
+    if (!selectedLessonRecord) return [];
+    return dbHomework.homework.filter((item) => item.lesson_id === selectedLessonRecord.id);
+  }, [dbHomework.homework, selectedLessonRecord]);
+
+  const selectedLessonTests = useMemo(() => {
+    if (!selectedGradeClass || !selectedSubject) return [];
+    return dbTests.tests.filter(
+      (test) => test.class_id === selectedGradeClass.classId && test.subject_id === selectedSubject.id,
+    );
+  }, [dbTests.tests, selectedGradeClass, selectedSubject]);
+
+  const selectedLessonVideoUrl = useMemo(() => {
+    const directVideoUrl = resolveLessonAttachmentUrl(selectedLessonRecord?.video_url);
+    if (directVideoUrl) return directVideoUrl;
+
+    const videoAttachment = (selectedLessonRecord?.lesson_attachments ?? []).find((attachment) =>
+      attachment.file_kind?.toLowerCase().includes("video") ||
+      /\.(mp4|webm|ogg|mov|m4v)(?:[?#].*)?$/i.test(attachment.file_url),
+    );
+
+    return resolveLessonAttachmentUrl(videoAttachment?.file_url);
+  }, [selectedLessonRecord]);
+
+  const lessonWorkspaceGroups = useMemo(() => {
+    const articleItems = (selectedLessonRecord?.lesson_attachments ?? []).map((attachment) => ({
+      title: attachment.file_name,
+      metaOne: attachment.file_kind || "File",
+      metaTwo: formatShortDate(attachment.uploaded_at),
+      href: resolveLessonAttachmentUrl(attachment.file_url) ?? attachment.file_url,
+    }));
+
+    const homeworkItems = selectedLessonHomework.map((item) => ({
+      title: item.title,
+      metaOne: `${item.homework_questions?.length ?? 0}`,
+      metaTwo: `${item.homework_submissions?.length ?? 0}`,
+      onClick: () => {
+        setSelectedLessonId(null);
+        setGcTab("homework");
+      },
+    }));
+
+    const taskItems = selectedLessonTests.map((item) => ({
+      title: item.title,
+      metaOne: `${item.test_questions?.length ?? 0}`,
+      metaTwo: `${item.test_submissions?.length ?? 0}`,
+    }));
+
+    return [
+      { title: "Articles", items: articleItems },
+      { title: "Homework", items: homeworkItems },
+      { title: "Tasks", items: taskItems },
+    ];
+  }, [selectedLessonHomework, selectedLessonRecord, selectedLessonTests]);
+
+  const lessonWorkspaceAttendanceRows = useMemo(() => {
+    if (!selectedGradeClass || !selectedSubject) return [];
+
+    const classStudents = dbEnrollments.enrollments.filter((row) => row.class_id === selectedGradeClass.classId);
+    const classSubjectLessonIds = new Set(
+      dbLessons.lessons
+        .filter((lesson) => lesson.class_id === selectedGradeClass.classId && lesson.subject_id === selectedSubject.id)
+        .map((lesson) => lesson.id),
+    );
+
+    const attendanceStats = new Map<string, { present: number; absent: number }>();
+    dbAttendance.records.forEach((record) => {
+      if (!classSubjectLessonIds.has(record.lesson_id)) return;
+      const current = attendanceStats.get(record.student_id) ?? { present: 0, absent: 0 };
+      if (record.status === "present" || record.status === "late") current.present += 1;
+      else current.absent += 1;
+      attendanceStats.set(record.student_id, current);
+    });
+
+    const homeworkStats = new Map<string, { submissions: number; scores: number[] }>();
+    selectedLessonHomework.forEach((item) => {
+      (item.homework_submissions ?? []).forEach((submission) => {
+        const current = homeworkStats.get(submission.student_id) ?? { submissions: 0, scores: [] };
+        current.submissions += 1;
+        if (typeof submission.score === "number") current.scores.push(submission.score);
+        homeworkStats.set(submission.student_id, current);
+      });
+    });
+
+    const testStats = new Map<string, { submissions: number; scores: number[] }>();
+    selectedLessonTests.forEach((item) => {
+      (item.test_submissions ?? []).forEach((submission) => {
+        const current = testStats.get(submission.student_id) ?? { submissions: 0, scores: [] };
+        current.submissions += 1;
+        if (typeof submission.score === "number") current.scores.push(submission.score);
+        testStats.set(submission.student_id, current);
+      });
+    });
+
+    return classStudents
+      .map((row) => {
+        const attendance = attendanceStats.get(row.student_id) ?? { present: 0, absent: 0 };
+        const homework = homeworkStats.get(row.student_id) ?? { submissions: 0, scores: [] };
+        const tests = testStats.get(row.student_id) ?? { submissions: 0, scores: [] };
+        const allScores = [...homework.scores, ...tests.scores];
+        const averageScore =
+          allScores.length > 0
+            ? Math.round(allScores.reduce((sum, score) => sum + score, 0) / allScores.length)
+            : 0;
+        return {
+          name: formatName(
+            row.student_profile?.first_name,
+            row.student_profile?.last_name,
+            row.student_profile?.email,
+          ),
+          rank: String(averageScore),
+          hours: String(attendance.present + homework.submissions + tests.submissions),
+          trend: attendance.present >= attendance.absent ? "up" as const : "down" as const,
+        };
+      })
+      .sort((left, right) => Number(right.rank) - Number(left.rank) || Number(right.hours) - Number(left.hours));
+  }, [
+    dbAttendance.records,
+    dbEnrollments.enrollments,
+    dbLessons.lessons,
+    selectedGradeClass,
+    selectedLessonHomework,
+    selectedLessonTests,
+    selectedSubject,
+  ]);
+
   const timetableDays = dbWorkingDays.workingDays;
   const timetableSlots = dbTimeSlots.timeSlots;
   const selectedTimetableEntries = useMemo(
@@ -677,13 +828,18 @@ export function SchoolAdminPortalLive({
   };
 
   const saveSchoolSettings = async () => {
+    if (!schoolForm.name.trim()) {
+      showToast("Enter the school name first.", "error");
+      return;
+    }
+
     const result = await dbSchool.updateSchool({
-      name: schoolForm.name,
-      timezone: schoolForm.timezone,
+      name: schoolForm.name.trim(),
+      timezone: schoolForm.timezone.trim() || "Africa/Cairo",
       settings: {
-        phone: schoolForm.phone,
-        address: schoolForm.address,
-        email: schoolForm.email,
+        phone: schoolForm.phone.trim(),
+        address: schoolForm.address.trim(),
+        email: schoolForm.email.trim(),
         semesters,
         timetablePublished: Boolean(schoolSettings.timetablePublished),
       },
@@ -730,13 +886,13 @@ export function SchoolAdminPortalLive({
         end: newSemester.end,
       },
     ];
-    setSemesters(next);
-    setNewSemester({ name: "", start: "", end: "" });
     const result = await dbSchool.updateSchool({ settings: { semesters: next } });
     if (result.error) {
       showToast(result.error, "error");
       return;
     }
+    setSemesters(next);
+    setNewSemester({ name: "", start: "", end: "" });
     showToast("Semester saved");
   };
 
@@ -761,28 +917,42 @@ export function SchoolAdminPortalLive({
     showToast("Working days updated");
   };
 
-  const addTimeSlot = async () => {
+  const saveTimeSlot = async () => {
     if (!schoolId) return;
     if (!timeSlotDraft.start || !timeSlotDraft.end) {
       showToast("Enter both start and end times.", "error");
       return;
     }
+    if (timeSlotDraft.end <= timeSlotDraft.start) {
+      showToast("End time must be after start time.", "error");
+      return;
+    }
     const label = timeSlotDraft.isBreak
       ? `Break • ${timeSlotDraft.start} - ${timeSlotDraft.end}`
       : `${timeSlotDraft.start} - ${timeSlotDraft.end}`;
-    const result = await dbTimeSlots.createTimeSlot({
-      school_id: schoolId,
-      label,
-      start_time: timeSlotDraft.start,
-      end_time: timeSlotDraft.end,
-      sort_order: dbTimeSlots.timeSlots.length,
-    });
+    const currentSlot = editingTimeSlotId
+      ? dbTimeSlots.timeSlots.find((slot) => slot.id === editingTimeSlotId)
+      : null;
+    const result = editingTimeSlotId
+      ? await dbTimeSlots.updateTimeSlot(editingTimeSlotId, {
+          label,
+          start_time: timeSlotDraft.start,
+          end_time: timeSlotDraft.end,
+          sort_order: currentSlot?.sort_order ?? 0,
+        })
+      : await dbTimeSlots.createTimeSlot({
+          school_id: schoolId,
+          label,
+          start_time: timeSlotDraft.start,
+          end_time: timeSlotDraft.end,
+          sort_order: dbTimeSlots.timeSlots.length,
+        });
     if (result.error) {
       showToast(result.error, "error");
       return;
     }
-    setTimeSlotDraft({ start: "", end: "", isBreak: false });
-    showToast("Time slot added");
+    resetTimeSlotForm();
+    showToast(editingTimeSlotId ? "Time slot updated" : "Time slot added");
   };
 
   const removeTimeSlot = async (id: string) => {
@@ -791,7 +961,21 @@ export function SchoolAdminPortalLive({
       showToast(result.error, "error");
       return;
     }
+    if (editingTimeSlotId === id) {
+      resetTimeSlotForm();
+    }
     showToast("Time slot removed");
+  };
+
+  const editTimeSlot = (id: string) => {
+    const slot = dbTimeSlots.timeSlots.find((item) => item.id === id);
+    if (!slot) return;
+    setEditingTimeSlotId(slot.id);
+    setTimeSlotDraft({
+      start: slot.start_time,
+      end: slot.end_time,
+      isBreak: slot.label.toLowerCase().includes("break"),
+    });
   };
 
   const createSubject = async () => {
@@ -1022,6 +1206,15 @@ export function SchoolAdminPortalLive({
     dbGradeLevels.loading ||
     dbYears.loading ||
     dbSubjects.loading;
+  const [hasLoadedCoreData, setHasLoadedCoreData] = useState(false);
+
+  useEffect(() => {
+    if (!coreLoading) {
+      setHasLoadedCoreData(true);
+    }
+  }, [coreLoading]);
+
+  const showInitialLoader = !hasLoadedCoreData && coreLoading;
 
   const userName = formatName(user?.first_name, user?.last_name, user?.email);
 
@@ -1030,13 +1223,7 @@ export function SchoolAdminPortalLive({
       <AppShell
         navItems={SCHOOL_NAV}
         activeView={view}
-        onSelect={(nextView) => {
-          setView(nextView);
-          setSelectedTeacherId(null);
-          setSelectedGradeClass(null);
-          setSelectedSubject(null);
-          setSelectedLessonId(null);
-        }}
+        onSelect={setView}
         onLogout={onLogout}
         headerTitle={
           selectedTeacher?.name ??
@@ -1045,9 +1232,9 @@ export function SchoolAdminPortalLive({
         userName={userName}
         userRole="School Administrator"
       >
-        {coreLoading && <LoadingState label="Loading school administration data..." />}
+        {showInitialLoader && <LoadingState label="Loading school administration data..." />}
 
-        {!coreLoading && view === "dashboard" && (
+        {!showInitialLoader && view === "dashboard" && (
           <div className="space-y-6">
             <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
               <StatCard icon={<Users className="w-5 h-5" />} label="Total Students" value={String(studentRows.length)} sub={`${dbEnrollments.enrollments.length} active enrollments`} color="#3B82F6" />
@@ -1142,7 +1329,7 @@ export function SchoolAdminPortalLive({
           </div>
         )}
 
-        {!coreLoading && view === "settings" && (
+        {!showInitialLoader && view === "settings" && (
           <div className="max-w-3xl space-y-5">
             <div className="rounded-2xl border border-border bg-card p-6 shadow-sm space-y-4">
               <h3 className="font-bold text-foreground">School Information</h3>
@@ -1157,13 +1344,7 @@ export function SchoolAdminPortalLive({
               <Input label="Address" value={schoolForm.address} onChange={(value) => setSchoolForm((current) => ({ ...current, address: value }))} />
               <div className="flex gap-3">
                 <Btn onClick={() => void saveSchoolSettings()}>Save Changes</Btn>
-                <Btn variant="secondary" onClick={() => setSchoolForm({
-                  name: dbSchool.school?.name ?? "",
-                  phone: typeof schoolSettings.phone === "string" ? schoolSettings.phone : "",
-                  address: typeof schoolSettings.address === "string" ? schoolSettings.address : "",
-                  email: typeof schoolSettings.email === "string" ? schoolSettings.email : user?.email ?? "",
-                  timezone: dbSchool.school?.timezone ?? "Africa/Cairo",
-                })}>Reset</Btn>
+                <Btn variant="secondary" onClick={() => setSchoolForm(schoolFormDefaults)}>Reset</Btn>
               </div>
             </div>
 
@@ -1198,7 +1379,7 @@ export function SchoolAdminPortalLive({
           </div>
         )}
 
-        {!coreLoading && view === "academic" && (
+        {!showInitialLoader && view === "academic" && (
           <div className="space-y-5">
             <div className="flex gap-2 overflow-x-auto pb-1">
               {[
@@ -1244,6 +1425,9 @@ export function SchoolAdminPortalLive({
                 <div className="rounded-2xl border border-border bg-card p-6 shadow-sm space-y-4">
                   <div className="flex items-center justify-between">
                     <h3 className="font-bold text-foreground">Time Slots</h3>
+                    <Btn size="sm" icon={<Plus className="h-4 w-4" />} onClick={resetTimeSlotForm}>
+                      Add Slot
+                    </Btn>
                   </div>
                   <div className="space-y-3">
                     {dbTimeSlots.timeSlots.map((slot, index) => (
@@ -1256,6 +1440,13 @@ export function SchoolAdminPortalLive({
                           <Badge color={slot.label.toLowerCase().includes("break") ? "yellow" : "blue"}>
                             {slot.label.toLowerCase().includes("break") ? "Break" : "Lesson"}
                           </Badge>
+                          <button
+                            onClick={() => editTimeSlot(slot.id)}
+                            className={`rounded-lg p-2 transition ${editingTimeSlotId === slot.id ? "bg-secondary text-primary" : "bg-card text-muted-foreground hover:bg-secondary"}`}
+                            title="Edit"
+                          >
+                            <Edit className="h-3.5 w-3.5" />
+                          </button>
                           <button onClick={() => void removeTimeSlot(slot.id)} className="rounded-lg bg-red-50 p-2 text-red-500 transition hover:bg-red-100">
                             <Trash2 className="h-3.5 w-3.5" />
                           </button>
@@ -1266,7 +1457,14 @@ export function SchoolAdminPortalLive({
                   </div>
                 </div>
                 <div className="rounded-2xl border border-border bg-card p-6 shadow-sm space-y-4">
-                  <h3 className="font-bold text-foreground">Add Time Slot</h3>
+                  <div className="flex items-center justify-between gap-3">
+                    <h3 className="font-bold text-foreground">{editingTimeSlotId ? "Edit Time Slot" : "New Time Slot"}</h3>
+                    {editingTimeSlotId && (
+                      <Btn size="sm" variant="secondary" onClick={resetTimeSlotForm}>
+                        Cancel
+                      </Btn>
+                    )}
+                  </div>
                   <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                     <Input label="Start Time" type="time" value={timeSlotDraft.start} onChange={(value) => setTimeSlotDraft((current) => ({ ...current, start: value }))} />
                     <Input label="End Time" type="time" value={timeSlotDraft.end} onChange={(value) => setTimeSlotDraft((current) => ({ ...current, end: value }))} />
@@ -1275,7 +1473,9 @@ export function SchoolAdminPortalLive({
                     <input type="checkbox" checked={timeSlotDraft.isBreak} onChange={(event) => setTimeSlotDraft((current) => ({ ...current, isBreak: event.target.checked }))} className="h-4 w-4 accent-primary" />
                     Mark as break
                   </label>
-                  <Btn onClick={() => void addTimeSlot()}>Save Time Slot</Btn>
+                  <Btn onClick={() => void saveTimeSlot()}>
+                    {editingTimeSlotId ? "Save Changes" : "Add Slot"}
+                  </Btn>
                 </div>
               </div>
             )}
@@ -1399,9 +1599,13 @@ export function SchoolAdminPortalLive({
           </div>
         )}
 
-        {!coreLoading && view === "grades-classes" && !selectedGradeClass && (
+        {!showInitialLoader && view === "grades-classes" && !selectedGradeClass && (
           <div className="space-y-5">
-            <p className="text-sm text-muted-foreground">Select a class to browse its live lessons, homework, and tests.</p>
+            <p className="text-sm text-muted-foreground">
+              {language === "ar"
+                ? "اختر فصلًا لعرض الدروس والواجبات والاختبارات الخاصة به."
+                : "Select a class to browse its live lessons, homework, and tests."}
+            </p>
             {gradeStructures.map((grade) => (
               <div key={grade.gradeId} className="space-y-3">
                 <div className="border-b border-border bg-muted/40 px-5 py-3">
@@ -1425,7 +1629,9 @@ export function SchoolAdminPortalLive({
                         </div>
                       </div>
                       <p className="text-sm font-bold text-foreground">{schoolClass.name}</p>
-                      <p className="text-xs text-muted-foreground">{grade.grade} • {(enrollmentByClass.get(schoolClass.id) ?? 0)} students</p>
+                      <p className="text-xs text-muted-foreground">
+                        {(language === "ar" ? grade.grade.replace(/Grade\s+/i, "الصف ") : grade.grade)} • {(enrollmentByClass.get(schoolClass.id) ?? 0)} {language === "ar" ? "طلاب" : "students"}
+                      </p>
                     </button>
                   ))}
                 </div>
@@ -1434,17 +1640,21 @@ export function SchoolAdminPortalLive({
           </div>
         )}
 
-        {!coreLoading && view === "grades-classes" && selectedGradeClass && (
+        {!showInitialLoader && view === "grades-classes" && selectedGradeClass && (
           <div className="space-y-5">
             <button onClick={() => { setSelectedGradeClass(null); setSelectedSubject(null); setSelectedLessonId(null); }} className="flex items-center gap-2 text-sm text-muted-foreground transition hover:text-foreground">
-              <ChevronLeft className="h-4 w-4" /> Back to Grades & Classes
+              <ChevronLeft className="h-4 w-4" /> {language === "ar" ? "العودة إلى الصفوف والفصول" : "Back to Grades & Classes"}
             </button>
 
             {!selectedSubject && (
               <div className="space-y-4">
                 <div>
-                  <h3 className="font-bold text-foreground">Choose a subject</h3>
-                  <p className="text-sm text-muted-foreground">Open a subject to see its live lessons, homework, and tests for {selectedGradeClass.cls}.</p>
+                  <h3 className="font-bold text-foreground">{t("Choose a subject")}</h3>
+                  <p className="text-sm text-muted-foreground">
+                    {language === "ar"
+                      ? `افتح مادة لعرض الدروس والواجبات والاختبارات الخاصة بـ ${selectedGradeClass.cls}.`
+                      : `Open a subject to see its live lessons, homework, and tests for ${selectedGradeClass.cls}.`}
+                  </p>
                 </div>
                 <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
                   {classSubjectOptions.map((subject) => {
@@ -1455,7 +1665,9 @@ export function SchoolAdminPortalLive({
                           <BookOpen className="h-5 w-5" />
                         </div>
                         <p className="font-bold text-foreground">{subject.name}</p>
-                        <p className="mt-1 text-xs text-muted-foreground">Teacher: {assignment ? teacherNameById.get(assignment.teacher_id) : "Not assigned"}</p>
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          {t("Teacher")}: {assignment ? teacherNameById.get(assignment.teacher_id) : t("Not assigned")}
+                        </p>
                       </button>
                     );
                   })}
@@ -1466,7 +1678,7 @@ export function SchoolAdminPortalLive({
             {selectedSubject && !selectedLesson && (
               <div className="space-y-5">
                 <button onClick={() => setSelectedSubject(null)} className="flex items-center gap-2 text-sm text-muted-foreground transition hover:text-foreground">
-                  <ChevronLeft className="h-4 w-4" /> Back to subjects
+                  <ChevronLeft className="h-4 w-4" /> {t("Back to subjects")}
                 </button>
 
                 <div className="flex gap-2 overflow-x-auto">
@@ -1492,7 +1704,12 @@ export function SchoolAdminPortalLive({
                         <p className="mt-1 text-xs text-muted-foreground">{lesson.date} • {lesson.status}</p>
                       </button>
                     ))}
-                    {classLessons.length === 0 && <EmptyState title="No lessons yet" description="Lessons for this class and subject will appear here when teachers publish them." />}
+                    {classLessons.length === 0 && (
+                      <EmptyState
+                        title={t("No lessons yet")}
+                        description={t("Lessons for this class and subject will appear here when teachers publish them.")}
+                      />
+                    )}
                   </div>
                 )}
 
@@ -1515,7 +1732,12 @@ export function SchoolAdminPortalLive({
                         </div>
                       </div>
                     ))}
-                    {classHomework.length === 0 && <EmptyState title="No homework yet" description="Homework tied to this class and subject will appear here." />}
+                    {classHomework.length === 0 && (
+                      <EmptyState
+                        title={t("No homework yet")}
+                        description={t("Homework tied to this class and subject will appear here.")}
+                      />
+                    )}
                   </div>
                 )}
 
@@ -1530,7 +1752,12 @@ export function SchoolAdminPortalLive({
                         <Badge color={test.status === "Scheduled" ? "purple" : "green"}>{test.status}</Badge>
                       </div>
                     ))}
-                    {classTests.length === 0 && <EmptyState title="No tests yet" description="Monthly tests for this class and subject will appear here." />}
+                    {classTests.length === 0 && (
+                      <EmptyState
+                        title={t("No tests yet")}
+                        description={t("Monthly tests for this class and subject will appear here.")}
+                      />
+                    )}
                   </div>
                 )}
               </div>
@@ -1542,12 +1769,15 @@ export function SchoolAdminPortalLive({
                 lessonTitle={selectedLesson.title}
                 onBack={() => setSelectedLessonId(null)}
                 onOpenHomework={() => setGcTab("homework")}
+                videoUrl={selectedLessonVideoUrl}
+                resourceGroups={lessonWorkspaceGroups}
+                attendanceRows={lessonWorkspaceAttendanceRows}
               />
             )}
           </div>
         )}
 
-        {!coreLoading && view === "teachers" && !selectedTeacher && (
+        {!showInitialLoader && view === "teachers" && !selectedTeacher && (
           <div className="space-y-5">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <Btn icon={<UserPlus className="w-4 h-4" />} onClick={() => setShowAddTeacher(true)}>Add Teacher</Btn>
@@ -1597,10 +1827,10 @@ export function SchoolAdminPortalLive({
           </div>
         )}
 
-        {!coreLoading && view === "teachers" && selectedTeacher && teacherDetailStats && (
+        {!showInitialLoader && view === "teachers" && selectedTeacher && teacherDetailStats && (
           <div className="space-y-5">
             <button onClick={() => setSelectedTeacherId(null)} className="flex items-center gap-2 text-sm text-muted-foreground transition hover:text-foreground">
-              <ChevronLeft className="h-4 w-4" /> Back to Teachers
+              <ChevronLeft className="h-4 w-4" /> {language === "ar" ? "العودة إلى المعلمين" : "Back to Teachers"}
             </button>
             <div className="grid gap-5 lg:grid-cols-3">
               <div className="rounded-2xl border border-border bg-card p-6 shadow-sm text-center">
@@ -1615,11 +1845,11 @@ export function SchoolAdminPortalLive({
                 </div>
               </div>
               <div className="rounded-2xl border border-border bg-card p-6 shadow-sm space-y-3">
-                <h3 className="font-bold text-foreground">Employment Info</h3>
+                <h3 className="font-bold text-foreground">{t("Employment Info")}</h3>
                 {[
-                  { label: "Department", value: selectedTeacher.subject },
-                  { label: "Classes", value: selectedTeacher.classes.join(", ") || "Not assigned" },
-                  { label: "Weekly Hours", value: `${selectedTeacher.weeklyHours} timetable slots` },
+                  { label: language === "ar" ? "القسم" : "Department", value: selectedTeacher.subject === "Not assigned" ? t("Not assigned") : selectedTeacher.subject },
+                  { label: t("Classes"), value: selectedTeacher.classes.join(", ") || t("Not assigned") },
+                  { label: language === "ar" ? "الساعات الأسبوعية" : "Weekly Hours", value: language === "ar" ? `${selectedTeacher.weeklyHours} حصة في الجدول` : `${selectedTeacher.weeklyHours} timetable slots` },
                 ].map((row) => (
                   <div key={row.label} className="flex items-center justify-between border-b border-border py-1.5 last:border-0">
                     <span className="text-xs text-muted-foreground">{row.label}</span>
@@ -1628,12 +1858,12 @@ export function SchoolAdminPortalLive({
                 ))}
               </div>
               <div className="rounded-2xl border border-border bg-card p-6 shadow-sm space-y-3">
-                <h3 className="font-bold text-foreground">Workload</h3>
+                <h3 className="font-bold text-foreground">{t("Workload")}</h3>
                 {[
-                  { label: "Lessons", value: String(teacherDetailStats.lessons) },
-                  { label: "Homework", value: String(teacherDetailStats.homework) },
-                  { label: "Tests", value: String(teacherDetailStats.tests) },
-                  { label: "Average Grade", value: teacherDetailStats.averageGrade === null ? "Pending" : `${Math.round(teacherDetailStats.averageGrade)}%` },
+                  { label: t("Lessons"), value: String(teacherDetailStats.lessons) },
+                  { label: t("Homework"), value: String(teacherDetailStats.homework) },
+                  { label: t("Tests"), value: String(teacherDetailStats.tests) },
+                  { label: language === "ar" ? "متوسط الدرجات" : "Average Grade", value: teacherDetailStats.averageGrade === null ? t("Pending") : `${Math.round(teacherDetailStats.averageGrade)}%` },
                 ].map((row) => (
                   <div key={row.label} className="flex items-center justify-between border-b border-border py-1.5 last:border-0">
                     <span className="text-xs text-muted-foreground">{row.label}</span>
@@ -1644,7 +1874,7 @@ export function SchoolAdminPortalLive({
             </div>
 
             <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
-              <h3 className="mb-4 font-bold text-foreground">Weekly Schedule</h3>
+              <h3 className="mb-4 font-bold text-foreground">{language === "ar" ? "الجدول الأسبوعي" : "Weekly Schedule"}</h3>
               <div className="grid gap-3 md:grid-cols-5">
                 {dbWorkingDays.workingDays.map((day) => (
                   <div key={day.id} className="rounded-xl bg-muted p-3">
@@ -1659,7 +1889,7 @@ export function SchoolAdminPortalLive({
                             <p className="text-[10px] text-muted-foreground">{entry.classes?.name} • {entry.time_slots?.label}</p>
                           </div>
                         ))}
-                      {teacherDetailStats.schedule.filter((entry) => entry.working_days?.id === day.id).length === 0 && <p className="text-xs text-muted-foreground">No lessons</p>}
+                      {teacherDetailStats.schedule.filter((entry) => entry.working_days?.id === day.id).length === 0 && <p className="text-xs text-muted-foreground">{language === "ar" ? "لا توجد دروس" : "No lessons"}</p>}
                     </div>
                   </div>
                 ))}
@@ -1668,7 +1898,7 @@ export function SchoolAdminPortalLive({
           </div>
         )}
 
-        {!coreLoading && view === "students" && (
+        {!showInitialLoader && view === "students" && (
           <div className="space-y-5">
             <div className="flex justify-end">
               <Btn icon={<UserPlus className="w-4 h-4" />} onClick={() => setShowAddStudent(true)}>Add Student</Btn>
@@ -1708,7 +1938,7 @@ export function SchoolAdminPortalLive({
           </div>
         )}
 
-        {!coreLoading && view === "timetable" && (
+        {!showInitialLoader && view === "timetable" && (
           <div className="space-y-5">
             <div className="flex flex-wrap items-end gap-3">
               <Select label="Class" value={timetableClassId} onChange={setTimetableClassId} options={classOptions} />
@@ -1758,7 +1988,7 @@ export function SchoolAdminPortalLive({
           </div>
         )}
 
-        {!coreLoading && view === "final-grades" && (
+        {!showInitialLoader && view === "final-grades" && (
           <div className="space-y-5">
             <div className="rounded-2xl border border-border bg-card p-4 shadow-sm">
               <div className="flex flex-wrap items-end gap-4">
@@ -1831,7 +2061,7 @@ export function SchoolAdminPortalLive({
           </div>
         )}
 
-        {!coreLoading && view === "announcements" && (
+        {!showInitialLoader && view === "announcements" && (
           <div className="space-y-5">
             <div className="flex justify-end">
               <Btn icon={<Plus className="w-4 h-4" />} onClick={() => setShowAnnouncement(true)}>New Announcement</Btn>
@@ -1859,7 +2089,7 @@ export function SchoolAdminPortalLive({
           </div>
         )}
 
-        {!coreLoading && view === "messages" && (
+        {!showInitialLoader && view === "messages" && (
           <div className="h-[calc(100vh-180px)] overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
             <div className="flex h-full">
               <div className="flex w-80 flex-col border-r border-border">

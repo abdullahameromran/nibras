@@ -95,11 +95,15 @@ export function useStudents(schoolId: string | null, classId?: string | null) {
     if (result.error) return { error: result.error };
     // If class_id provided, enroll in class
     if (payload.class_id && result.user_id) {
-      await supabase.from("class_enrollments").insert({
+      const { error: enrollError } = await supabase.from("class_enrollments").insert({
         school_id: schoolId,
         class_id: payload.class_id,
         student_id: result.user_id,
       });
+      if (enrollError) {
+        await fetchStudents();
+        return { error: `Student account created, but class enrollment failed: ${enrollError.message}` };
+      }
     }
     await fetchStudents();
     return { error: null };

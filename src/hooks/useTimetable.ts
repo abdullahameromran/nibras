@@ -106,7 +106,8 @@ export function useWorkingDays(schoolId: string | null) {
 
   const saveWorkingDays = useCallback(async (days: Omit<WorkingDay, "id">[]) => {
     // Delete existing then insert new
-    await supabase.from("working_days").delete().eq("school_id", schoolId!);
+    const { error: deleteError } = await supabase.from("working_days").delete().eq("school_id", schoolId!);
+    if (deleteError) return { error: deleteError.message };
     if (days.length === 0) { await fetchWorkingDays(); return { error: null }; }
     const { error: err } = await supabase.from("working_days").insert(days);
     if (err) return { error: err.message };
@@ -152,6 +153,18 @@ export function useTimeSlots(schoolId: string | null) {
     return { error: null, data };
   }, [fetchTimeSlots]);
 
+  const updateTimeSlot = useCallback(async (id: string, slot: Partial<Omit<TimeSlot, "id" | "school_id">>) => {
+    const { data, error: err } = await supabase
+      .from("time_slots")
+      .update(slot)
+      .eq("id", id)
+      .select()
+      .single();
+    if (err) return { error: err.message, data: null };
+    await fetchTimeSlots();
+    return { error: null, data };
+  }, [fetchTimeSlots]);
+
   const deleteTimeSlot = useCallback(async (id: string) => {
     const { error: err } = await supabase.from("time_slots").delete().eq("id", id);
     if (err) return { error: err.message };
@@ -159,5 +172,5 @@ export function useTimeSlots(schoolId: string | null) {
     return { error: null };
   }, [fetchTimeSlots]);
 
-  return { timeSlots, loading, fetchTimeSlots, createTimeSlot, deleteTimeSlot };
+  return { timeSlots, loading, fetchTimeSlots, createTimeSlot, updateTimeSlot, deleteTimeSlot };
 }

@@ -111,20 +111,49 @@ export function useSchoolDetails(schoolId: string | null) {
       ? { ...(school?.settings ?? {}), ...updates.settings }
       : school?.settings ?? {};
 
-    const payload: Record<string, unknown> = {
-      settings: nextSettings,
+    const rpcArgs: Record<string, unknown> = {
+      p_school_id: schoolId,
+      p_settings: nextSettings,
     };
 
-    if (typeof updates.name === "string") payload.name = updates.name;
-    if (typeof updates.timezone === "string") payload.timezone = updates.timezone;
-    if ("logo_url" in updates) payload.logo_url = updates.logo_url;
+    if (typeof updates.name === "string") rpcArgs.p_name = updates.name;
+    if (typeof updates.timezone === "string") rpcArgs.p_timezone = updates.timezone;
+    if ("logo_url" in updates) rpcArgs.p_logo_url = updates.logo_url;
 
-    const { error: updateError } = await supabase
-      .from("schools")
-      .update(payload)
-      .eq("id", schoolId);
+    const { error: rpcError } = await supabase.rpc("update_my_school_details", rpcArgs);
 
-    if (updateError) return { error: updateError.message };
+    if (rpcError) {
+      const rpcUnavailable =
+        rpcError.message.includes("Could not find the function public.update_my_school_details") ||
+        rpcError.message.includes("Could not find the function update_my_school_details") ||
+        rpcError.message.includes("PGRST202");
+
+      if (!rpcUnavailable) {
+        return { error: rpcError.message };
+      }
+
+      const payload: Record<string, unknown> = {
+        settings: nextSettings,
+      };
+
+      if (typeof updates.name === "string") payload.name = updates.name;
+      if (typeof updates.timezone === "string") payload.timezone = updates.timezone;
+      if ("logo_url" in updates) payload.logo_url = updates.logo_url;
+
+      const { error: updateError } = await supabase
+        .from("schools")
+        .update(payload)
+        .eq("id", schoolId);
+
+      if (updateError) {
+        return {
+          error:
+            updateError.message.includes("row-level security")
+              ? "School settings update is blocked by Supabase policy. Apply the latest migration, then try again."
+              : updateError.message,
+        };
+      }
+    }
 
     await fetchSchoolDetails();
     return { error: null };

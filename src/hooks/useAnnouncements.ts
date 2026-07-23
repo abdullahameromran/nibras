@@ -76,9 +76,13 @@ export function useAnnouncements(schoolId: string | null) {
     if (annErr) return { error: annErr.message, data: null };
 
     if (targets.length > 0) {
-      await supabase.from("announcement_targets").insert(
+      const { error: targetsError } = await supabase.from("announcement_targets").insert(
         targets.map(t => ({ announcement_id: ann.id, ...t }))
       );
+      if (targetsError) {
+        await supabase.from("announcements").delete().eq("id", ann.id);
+        return { error: targetsError.message, data: null };
+      }
     }
 
     // If published, trigger send-announcement edge function

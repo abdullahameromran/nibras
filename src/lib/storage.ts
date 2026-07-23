@@ -1,6 +1,45 @@
 import supabase from "./supabase";
 
 const EDGE_URL = import.meta.env.VITE_SUPABASE_URL + "/functions/v1";
+const STORAGE_PUBLIC_PREFIX = "/storage/v1/object/public/";
+
+function hasAbsoluteScheme(value: string) {
+  return /^[a-z][a-z\d+.-]*:/i.test(value);
+}
+
+function buildPublicStorageUrl(bucket: string, rawPath: string) {
+  const cleanedPath = rawPath.replace(/^\/+/, "");
+  const bucketPath = cleanedPath.startsWith(`${bucket}/`)
+    ? cleanedPath.slice(bucket.length + 1)
+    : cleanedPath;
+  const { data } = supabase.storage.from(bucket).getPublicUrl(bucketPath);
+  return data.publicUrl;
+}
+
+export function resolveStoragePublicUrl(bucket: string, rawUrl?: string | null): string | null {
+  if (!rawUrl) return null;
+
+  const trimmed = rawUrl.trim();
+  if (!trimmed) return null;
+  if (hasAbsoluteScheme(trimmed)) return trimmed;
+  if (trimmed.startsWith("//")) return `https:${trimmed}`;
+
+  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL?.replace(/\/+$/, "") ?? "";
+  if (trimmed.startsWith(STORAGE_PUBLIC_PREFIX)) {
+    return supabaseUrl ? `${supabaseUrl}${trimmed}` : trimmed;
+  }
+
+  const cleaned = trimmed.replace(/^\/+/, "");
+  if (cleaned.startsWith(STORAGE_PUBLIC_PREFIX.slice(1))) {
+    return supabaseUrl ? `${supabaseUrl}/${cleaned}` : `/${cleaned}`;
+  }
+
+  return buildPublicStorageUrl(bucket, cleaned);
+}
+
+export function resolveLessonAttachmentUrl(rawUrl?: string | null) {
+  return resolveStoragePublicUrl("lesson-attachments", rawUrl);
+}
 
 /** Get the Authorization header for the current user session. */
 async function authHeader(): Promise<Record<string, string>> {

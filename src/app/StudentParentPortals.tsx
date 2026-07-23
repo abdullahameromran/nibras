@@ -50,6 +50,7 @@ import {
 import { useProfile } from "@/hooks/useProfile";
 import { MonthlyTest, TestSubmission, useTests } from "@/hooks/useTests";
 import { TimetableEntry, useTimetable } from "@/hooks/useTimetable";
+import { resolveLessonAttachmentUrl } from "@/lib/storage";
 import {
   AppShell,
   Avatar,
@@ -787,6 +788,15 @@ export function StudentPortal({ view, setView, onLogout, schoolId, user }: Stude
   );
   const selectedCourse = selectedCourseKey ? courses.find(course => course.key === selectedCourseKey) ?? null : null;
   const selectedLesson = selectedCourse?.lessons.find(lesson => lesson.id === selectedLessonId) ?? null;
+  const selectedLessonVideoUrl =
+    resolveLessonAttachmentUrl(selectedLesson?.video_url) ??
+    resolveLessonAttachmentUrl(
+      selectedLesson?.lesson_attachments?.find(
+        attachment =>
+          attachment.file_kind?.toLowerCase().includes("video") ||
+          /\.(mp4|webm|ogg|mov|m4v)(?:[?#].*)?$/i.test(attachment.file_url),
+      )?.file_url,
+    );
   const teacherContacts = buildContacts(assignmentsQuery.assignments, messagesQuery.conversations);
   const activeConversation = messagesQuery.conversations.find(conversation => conversation.partnerId === selectedPartnerId) ?? null;
   const pendingHomework = homeworkQuery.homework.filter(item => !getHomeworkSubmission(item, userId));
@@ -1293,8 +1303,8 @@ export function StudentPortal({ view, setView, onLogout, schoolId, user }: Stude
                         <p className="text-sm text-muted-foreground mt-1">{formatDate(selectedLesson.lesson_date)}</p>
                       </div>
                       <div className="flex gap-3">
-                        {selectedLesson.video_url && (
-                          <a href={selectedLesson.video_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-secondary text-primary text-sm font-semibold hover:brightness-95">
+                        {selectedLessonVideoUrl && (
+                          <a href={selectedLessonVideoUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-secondary text-primary text-sm font-semibold hover:brightness-95">
                             <PlayCircle className="w-4 h-4" />
                             Watch video
                           </a>
@@ -1307,7 +1317,7 @@ export function StudentPortal({ view, setView, onLogout, schoolId, user }: Stude
                       <h4 className="text-sm font-bold text-foreground mb-3">Attachments</h4>
                       <div className="space-y-2">
                         {selectedLesson.lesson_attachments?.map(attachment => (
-                          <a key={attachment.id} href={attachment.file_url} target="_blank" rel="noreferrer" className="flex items-center justify-between rounded-xl border border-border px-4 py-3 hover:bg-muted transition-colors">
+                          <a key={attachment.id} href={resolveLessonAttachmentUrl(attachment.file_url) ?? attachment.file_url} target="_blank" rel="noreferrer" className="flex items-center justify-between rounded-xl border border-border px-4 py-3 hover:bg-muted transition-colors">
                             <div>
                               <p className="text-sm font-semibold text-foreground">{attachment.file_name}</p>
                               <p className="text-xs text-muted-foreground mt-1">{attachment.file_kind}</p>

@@ -21,6 +21,7 @@ import {
   HOMEWORK, TESTS, GRADES_DATA, ATTENDANCE_DATA, PERF_TREND, WORKLOAD_DATA
 } from "./shared";
 import { PublishQuestionModal } from "./SchoolAdminPortal";
+import { TeacherClassesSectionLive } from "./TeacherClassesSectionLive";
 import { useLessons } from "@/hooks/useLessons";
 import { useHomework } from "@/hooks/useHomework";
 import { useTests } from "@/hooks/useTests";
@@ -1585,7 +1586,7 @@ export function TeacherPortal({ view, setView, onLogout, schoolId, user }: { vie
         )}
 
         {view === "classes" && (
-          <TeacherClassesSection showToast={showToast} />
+          <TeacherClassesSectionLive schoolId={schoolId ?? null} teacherId={user?.id ?? null} />
         )}
       </AppShell>
 
