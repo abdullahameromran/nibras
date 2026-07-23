@@ -18,4 +18,23 @@ select:not(:disabled),
 summary,
 label[for],
 [role="button"]:not([aria-disabled="true"]),
-input[type="button"]:
+input[type="button"]:not(:disabled),
+input[type="submit"]:not(:disabled),
+input[type="reset"]:not(:disabled),
+input[type="checkbox"]:not(:disabled),
+input[type="radio"]:not(:disabled) {
+  cursor: pointer;
+}
+
+button:disabled,
+select:disabled,
+input:disabled,
+[aria-disabled="true"] {
+  cursor: not-allowed;
+}
+
+@media (min-width: 768px) {
+  .nibras-shell-content { margin-inline-start: 220px; }
+}
+
+[dir="rtl"] .nibras-shell-content { text-align: start; }

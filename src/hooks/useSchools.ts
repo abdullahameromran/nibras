@@ -13,6 +13,8 @@ export interface School {
   deleted_at: string | null;
   created_at: string;
   updated_at: string;
+  admin_name?: string | null;
+  admin_email?: string | null;
   student_count?: number;
   teacher_count?: number;
   school_subscriptions?: Array<{
@@ -53,8 +55,17 @@ export function useSchools() {
         .order("created_at", { ascending: false }),
       supabase
         .from("user_school_roles")
-        .select("school_id, user_id, role")
-        .in("role", ["teacher", "student"])
+        .select(`
+          school_id,
+          user_id,
+          role,
+          profiles (
+            email,
+            first_name,
+            last_name
+          )
+        `)
+        .in("role", ["teacher", "student", "school_admin"])
         .eq("is_active", true),
     ]);
 
@@ -67,14 +78,31 @@ export function useSchools() {
 
     const teacherIdsBySchool = new Map<string, Set<string>>();
     const studentIdsBySchool = new Map<string, Set<string>>();
+    const adminProfilesBySchool = new Map<string, { name: string | null; email: string | null }>();
     const roleRows = (rolesData ?? []) as Array<{
       school_id: string | null;
       user_id: string;
       role: string;
+      profiles?: {
+        email?: string | null;
+        first_name?: string | null;
+        last_name?: string | null;
+      } | null;
     }>;
 
     roleRows.forEach((row) => {
       if (!row.school_id) return;
+      if (row.role === "school_admin") {
+        const firstName = row.profiles?.first_name?.trim() ?? "";
+        const lastName = row.profiles?.last_name?.trim() ?? "";
+        const email = row.profiles?.email?.trim() || null;
+        const fullName = [firstName, lastName].filter(Boolean).join(" ").trim();
+        adminProfilesBySchool.set(row.school_id, {
+          name: fullName || email,
+          email,
+        });
+        return;
+      }
       const targetMap = row.role === "teacher" ? teacherIdsBySchool : studentIdsBySchool;
       const ids = targetMap.get(row.school_id) ?? new Set<string>();
       ids.add(row.user_id);
@@ -83,11 +111,20 @@ export function useSchools() {
 
     const schoolRows = ((data as School[]) ?? []).map((school) => {
       const settings = (school.settings ?? {}) as Record<string, unknown>;
+      const liveAdmin = adminProfilesBySchool.get(school.id);
+      const fallbackAdminName = typeof settings.admin_name === "string" && settings.admin_name.trim()
+        ? settings.admin_name.trim()
+        : null;
+      const fallbackAdminEmail = typeof settings.admin_email === "string" && settings.admin_email.trim()
+        ? settings.admin_email.trim()
+        : null;
       const fallbackStudentCount = typeof settings.student_count === "number" ? settings.student_count : 0;
       const fallbackTeacherCount = typeof settings.teacher_count === "number" ? settings.teacher_count : 0;
 
       return {
         ...school,
+        admin_name: liveAdmin?.name ?? fallbackAdminName,
+        admin_email: liveAdmin?.email ?? fallbackAdminEmail,
         student_count: studentIdsBySchool.get(school.id)?.size ?? fallbackStudentCount,
         teacher_count: teacherIdsBySchool.get(school.id)?.size ?? fallbackTeacherCount,
       };

@@ -396,15 +396,22 @@ function SuperAdminPortal({ view, setView, onLogout }: { view: string; setView: 
     const preferredPlan = typeof settings.preferred_plan === "string" && settings.preferred_plan.trim()
       ? settings.preferred_plan
       : null;
-    const adminName = typeof settings.admin_name === "string" && settings.admin_name.trim()
+    const adminName = typeof school.admin_name === "string" && school.admin_name.trim()
+      ? school.admin_name
+      : typeof settings.admin_name === "string" && settings.admin_name.trim()
       ? settings.admin_name
       : "-";
+    const adminEmail = typeof school.admin_email === "string" && school.admin_email.trim()
+      ? school.admin_email
+      : typeof settings.admin_email === "string"
+      ? settings.admin_email
+      : "";
 
     return {
       id: school.id,
       name: school.name,
       admin: adminName,
-      adminEmail: typeof settings.admin_email === "string" ? settings.admin_email : "",
+      adminEmail,
       phone: typeof settings.phone === "string" ? settings.phone : "",
       address: typeof settings.address === "string" ? settings.address : "",
       plan: school.school_subscriptions?.[0]?.subscription_plans?.name || preferredPlan || "-",
@@ -2264,4 +2271,112 @@ function ParentPortal({ view, setView, onLogout }: { view: string; setView: (v: 
                 <div className="p-4 border-b border-border">
                   <Btn icon={<Plus className="w-4 h-4" />} className="w-full justify-center" size="sm">Message Teacher</Btn>
                 </div>
-                <div className="flex-1 overflow-y-a
+                <div className="flex-1 overflow-y-auto">
+                  {TEACHERS.slice(0, 3).map(t => (
+                    <div key={t.id} className="p-3 border-b border-border hover:bg-muted cursor-pointer transition-colors">
+                      <div className="flex items-center gap-3">
+                        <Avatar name={t.name} size="sm" />
+                        <div>
+                          <p className="text-sm font-semibold text-foreground">{t.name}</p>
+                          <p className="text-xs text-muted-foreground">{t.subject}</p>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div className="flex-1 flex items-center justify-center text-muted-foreground">
+                <div className="text-center">
+                  <MessageSquare className="w-12 h-12 mx-auto mb-3 opacity-30" />
+                  <p className="text-sm font-semibold">Select a teacher to message</p>
+                  <p className="text-xs mt-1">or start a new conversation</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+      </AppShell>
+      {toast && <Toast message={toast.msg} type={toast.type} onClose={() => setToast(null)} />}
+    </>
+  );
+}
+
+// ─── Main App ─────────────────────────────────────────────────────────────────
+export default function App() {
+  const auth = useAuth();
+  const [view, setView] = useState("dashboard");
+  const [currentPath, setCurrentPath] = useState(() => normalizeAppPath(window.location.pathname));
+  const isResetRoute = currentPath === "/reset";
+
+  useEffect(() => {
+    const handlePopState = () => {
+      setCurrentPath(normalizeAppPath(window.location.pathname));
+    };
+
+    window.addEventListener("popstate", handlePopState);
+    return () => window.removeEventListener("popstate", handlePopState);
+  }, []);
+
+  useEffect(() => {
+    if (auth.loading || isResetRoute) return;
+
+    if (auth.portal === "login") {
+      const desiredAuthPath = currentPath === "/signup" ? "/signup" : "/login";
+      if (currentPath !== desiredAuthPath) {
+        window.history.replaceState(null, "", desiredAuthPath);
+        setCurrentPath(desiredAuthPath);
+      }
+      if (view !== "dashboard") {
+        setView("dashboard");
+      }
+      return;
+    }
+
+    const nextView = getViewFromPath(currentPath, auth.portal as DashboardPortal);
+    if (view !== nextView) {
+      setView(nextView);
+    }
+
+    const desiredPath = getDashboardPath(nextView);
+    if (currentPath !== desiredPath) {
+      window.history.replaceState(null, "", desiredPath);
+      setCurrentPath(desiredPath);
+    }
+  }, [auth.loading, auth.portal, currentPath, isResetRoute, view]);
+
+  const handleLogout = async () => {
+    await auth.signOut();
+    setView("dashboard");
+  };
+
+  const handleViewChange = (v: string) => {
+    setView(v);
+    if (auth.portal !== "login") {
+      const nextPath = getDashboardPath(v);
+      if (currentPath !== nextPath) {
+        window.history.pushState(null, "", nextPath);
+        setCurrentPath(nextPath);
+      }
+    }
+  };
+
+  return (
+    <LanguageProvider>
+      <div style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
+        {auth.loading && <LoadingState title="Connecting to your workspace" description="Fetching your account, school context, and role permissions." />}
+        {!auth.loading && isResetRoute && <ResetPasswordPage />}
+        {!auth.loading && !isResetRoute && auth.portal === "login" && (
+          <AuthPage
+            onLogin={auth.signIn}
+            onSignUpSchool={auth.signUpSchool}
+          />
+        )}
+        {!auth.loading && !isResetRoute && auth.portal === "super-admin" && <SuperAdminPortal view={view} setView={handleViewChange} onLogout={handleLogout} />}
+        {!auth.loading && !isResetRoute && auth.portal === "school-admin" && <SchoolAdminPortal view={view} setView={handleViewChange} onLogout={handleLogout} schoolId={auth.activeSchoolId} user={auth.user} />}
+        {!auth.loading && !isResetRoute && auth.portal === "teacher" && <TeacherPortal view={view} setView={handleViewChange} onLogout={handleLogout} schoolId={auth.activeSchoolId} user={auth.user} />}
+        {!auth.loading && !isResetRoute && auth.portal === "student" && <StudentPortalLive view={view} setView={handleViewChange} onLogout={handleLogout} schoolId={auth.activeSchoolId} user={auth.user} />}
+        {!auth.loading && !isResetRoute && auth.portal === "parent" && <ParentPortalLive view={view} setView={handleViewChange} onLogout={handleLogout} schoolId={auth.activeSchoolId} user={auth.user} />}
+      </div>
+    </LanguageProvider>
+  );
+}

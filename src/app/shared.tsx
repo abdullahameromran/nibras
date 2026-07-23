@@ -142,6 +142,17 @@ Object.assign(ARABIC_TRANSLATIONS, {
   "Across all schools": "في جميع المدارس",
   "Converted Leads": "العملاء المحتملون المحولون",
   "Subscription Plans": "باقات الاشتراك",
+  "Loading data...": "جارٍ تحميل البيانات...",
+  "Loading data…": "جارٍ تحميل البيانات...",
+  "Loading platform overview...": "جارٍ تحميل نظرة عامة على المنصة...",
+  "Loading platform overview…": "جارٍ تحميل نظرة عامة على المنصة...",
+  "Loading school administration data...": "جارٍ تحميل بيانات إدارة المدرسة...",
+  "Connecting your student portal...": "جارٍ تجهيز بوابة الطالب...",
+  "Loading your student data from Supabase...": "جارٍ تحميل بيانات الطالب من سوبابيس...",
+  "Connecting your parent portal...": "جارٍ تجهيز بوابة ولي الأمر...",
+  "Loading your parent portal from Supabase...": "جارٍ تحميل بيانات بوابة ولي الأمر من سوبابيس...",
+  "Connecting to your workspace": "جارٍ ربط مساحة العمل الخاصة بك",
+  "Fetching your account, school context, and role permissions.": "جارٍ جلب حسابك وسياق المدرسة وصلاحيات الدور.",
 });
 
 Object.assign(ARABIC_TRANSLATIONS, {
@@ -158,6 +169,69 @@ Object.assign(ARABIC_TRANSLATIONS, {
   "This action cannot be undone.": "لا يمكن التراجع عن هذا الإجراء.",
   "You can reactivate at any time.": "يمكنك إعادة التفعيل في أي وقت.",
   "The school admin will be notified by email.": "سيتم إشعار مدير المدرسة عبر البريد الإلكتروني.",
+});
+
+Object.assign(ARABIC_TRANSLATIONS, {
+  "Active Classes": "الفصول النشطة",
+  "Attendance This Week": "الحضور هذا الأسبوع",
+  "Enrollment by Class": "التسجيل حسب الفصل",
+  "Working Days": "أيام العمل",
+  "Time Slots": "الحصص",
+  "Academic Years": "الأعوام الدراسية",
+  "Grade Structure": "هيكل الصفوف",
+  "Post Announcement": "نشر إعلان",
+  "Open Timetable": "فتح الجدول الدراسي",
+  "Review Final Grades": "مراجعة الدرجات النهائية",
+  "Configured in Supabase": "تم الإعداد في النظام",
+  "Attendance records will appear here after classes are marked.": "ستظهر سجلات الحضور هنا بعد تسجيل الحضور للفصول.",
+  "New lessons, tests, homework, and announcements will appear here.": "ستظهر هنا الدروس والاختبارات والواجبات والإعلانات الجديدة.",
+  "No recent messages from Supabase yet.": "لا توجد رسائل حديثة في النظام بعد.",
+  "Class averages will appear after students submit homework or tests.": "ستظهر متوسطات الفصول بعد تسليم الطلاب للواجبات أو الاختبارات.",
+  "Conversations and teacher contacts from Supabase": "المحادثات وجهات اتصال المعلمين من النظام",
+  "No contacts yet": "لا توجد جهات اتصال بعد",
+  "Teacher contacts will appear once subjects are assigned to this class.": "ستظهر جهات اتصال المعلمين بعد تعيين المواد لهذا الفصل.",
+  "No messages yet": "لا توجد رسائل بعد",
+  "Start the conversation and your message will be sent through Supabase.": "ابدأ المحادثة وسيتم إرسال رسالتك عبر النظام.",
+  "Type your message": "اكتب رسالتك",
+  "Choose a teacher contact to read messages or send a new one.": "اختر جهة اتصال من المعلمين لقراءة الرسائل أو إرسال رسالة جديدة.",
+  "No timetable published": "لم يتم نشر الجدول الدراسي بعد",
+  "Timetable entries from Supabase will appear here once the school publishes them.": "ستظهر حصص الجدول هنا بعد أن تنشرها المدرسة في النظام.",
+  "Start New Conversation": "بدء محادثة جديدة",
+  "No conversations yet": "لا توجد محادثات بعد",
+  "Messages are synced from Supabase.": "الرسائل متزامنة من النظام.",
+  "Select an existing thread or choose a recipient to start a new one.": "اختر محادثة موجودة أو حدد مستلمًا لبدء محادثة جديدة.",
+  "No message thread selected": "لم يتم اختيار محادثة",
+  "Choose a conversation on the left or start one from the recipient picker.": "اختر محادثة من القائمة الجانبية أو ابدأ محادثة جديدة من اختيار المستلم.",
+  "This student account is connected, but there is no active class enrollment yet in Supabase.": "حساب الطالب متصل، ولكن لا يوجد تسجيل نشط في فصل داخل النظام حتى الآن.",
+  "No scored submissions yet": "لا توجد تسليمات مصححة بعد",
+  "Homework and test scores from Supabase will populate your progress trend.": "ستظهر درجات الواجبات والاختبارات من النظام في مخطط تقدمك.",
+  "No courses found": "لا توجد مقررات",
+  "Lessons, tests, and grades from Supabase will build the course list automatically.": "سيتم إنشاء قائمة المقررات تلقائيًا من الدروس والاختبارات والدرجات الموجودة في النظام.",
+  "Lesson details are available from Supabase.": "تفاصيل الدرس متاحة من النظام.",
+  "No homework assigned": "لا توجد واجبات مسندة",
+  "Homework created in Supabase for this subject will appear here.": "ستظهر هنا الواجبات التي تم إنشاؤها لهذه المادة في النظام.",
+  "No final grade yet": "لا توجد درجة نهائية بعد",
+  "Approved final grades from Supabase will appear here once they are entered.": "ستظهر هنا الدرجات النهائية المعتمدة من النظام بعد إدخالها.",
+  "No tests found": "لا توجد اختبارات",
+  "Try another course or month filter, or publish a new test in Supabase.": "جرّب مقررًا آخر أو شهرًا آخر، أو انشر اختبارًا جديدًا في النظام.",
+  "No grades available": "لا توجد درجات متاحة",
+  "Final grades from Supabase will appear here when teachers submit them.": "ستظهر هنا الدرجات النهائية من النظام عند اعتمادها من المعلمين.",
+  "This parent account is connected, but there are no child records linked in Supabase yet.": "حساب ولي الأمر متصل، ولكن لا توجد سجلات أبناء مرتبطة في النظام حتى الآن.",
+  "No scored work yet": "لا توجد أعمال مصححة بعد",
+  "Homework and test scores from Supabase will populate the trend here.": "ستظهر هنا درجات الواجبات والاختبارات من النظام في المخطط.",
+  "No grade data yet": "لا توجد بيانات درجات بعد",
+  "Final grades for this child will appear here once they are approved in Supabase.": "ستظهر هنا الدرجات النهائية لهذا الابن بعد اعتمادها في النظام.",
+  "No attendance records yet": "لا توجد سجلات حضور بعد",
+  "Attendance recorded in Supabase will appear here for the selected child.": "ستظهر هنا سجلات الحضور المسجلة في النظام للابن المحدد.",
+  "No homework records": "لا توجد سجلات واجبات",
+  "Homework and submission scores from Supabase will appear here.": "ستظهر هنا الواجبات ودرجات التسليم من النظام.",
+  "No test records": "لا توجد سجلات اختبارات",
+  "Monthly tests and child submissions from Supabase will appear here.": "ستظهر هنا الاختبارات الشهرية وتسليمات الابن من النظام.",
+  "No announcements yet": "لا توجد إعلانات بعد",
+  "Parent-targeted announcements from Supabase will appear here.": "ستظهر هنا الإعلانات الموجهة لأولياء الأمور من النظام.",
+  "Welcome back!": "مرحبًا بعودتك!",
+  "Bring calculators": "أحضروا الآلات الحاسبة",
+  "Parent Meeting": "اجتماع أولياء الأمور",
 });
 
 Object.assign(ARABIC_WORDS, {
@@ -181,6 +255,29 @@ Object.assign(ARABIC_WORDS, {
   account: "حساب",
 });
 
+Object.assign(ARABIC_WORDS, {
+  Admin: "المدير",
+  Section: "الشعبة",
+  Sunday: "الأحد",
+  Saturday: "السبت",
+  Supabase: "النظام",
+  Conversation: "محادثة",
+  Thread: "محادثة",
+  Recipient: "المستلم",
+  Contacts: "جهات الاتصال",
+  Contact: "جهة اتصال",
+  synced: "متزامنة",
+  enrollments: "تسجيلات",
+  enrollment: "تسجيل",
+  Working: "العمل",
+  Slots: "الحصص",
+  Years: "الأعوام",
+  Structure: "الهيكل",
+  Configured: "مُعد",
+  PM: "م",
+  AM: "ص",
+});
+
 function translateToArabic(value: string) {
   const text = value.trim();
   if (!text) return value;
@@ -196,6 +293,24 @@ function translateToArabic(value: string) {
     .replace(/This will permanently delete/gi, "سيؤدي هذا إلى حذف")
     .replace(/and all associated data\. This action cannot be undone\./gi, "وجميع البيانات المرتبطة بها. لا يمكن التراجع عن هذا الإجراء.")
     .replace(/Across all schools/gi, "في جميع المدارس")
+    .replace(/Configured in Supabase/gi, "تم الإعداد في النظام")
+    .replace(/Messages are synced from Supabase\./gi, "الرسائل متزامنة من النظام.")
+    .replace(/Conversations and teacher contacts from Supabase/gi, "المحادثات وجهات اتصال المعلمين من النظام")
+    .replace(/(.+?) was published for (.+?)\./gi, (_, title, target) => `تم نشر ${translateToArabic(title)} لـ ${translateToArabic(target)}.`)
+    .replace(/(.+?) is due on (.+?)\./gi, (_, title, dueDate) => `موعد تسليم ${translateToArabic(title)} هو ${translateToArabic(dueDate)}.`)
+    .replace(/(.+?) is scheduled for (.+?)\./gi, (_, title, target) => `تمت جدولة ${translateToArabic(title)} لـ ${translateToArabic(target)}.`)
+    .replace(/(.+?) was posted to targeted groups\./gi, (_, title) => `تم نشر ${translateToArabic(title)} للمجموعات المستهدفة.`)
+    .replace(/(.+?) was posted to the whole school\./gi, (_, title) => `تم نشر ${translateToArabic(title)} للمدرسة بالكامل.`)
+    .replace(/Grade\s+(\d+)/gi, "الصف $1")
+    .replace(/Section\s+([A-Za-z0-9\u0600-\u06FF]+)/gi, "الشعبة $1")
+    .replace(/(\d+)\s+active enrollments\b/gi, "$1 تسجيلات نشطة")
+    .replace(/(\d+)\s+grade levels\b/gi, "$1 مراحل دراسية")
+    .replace(/from Supabase/gi, "من النظام")
+    .replace(/through Supabase/gi, "عبر النظام")
+    .replace(/in Supabase/gi, "في النظام")
+    .replace(/Supabase-backed/gi, "المرتبطة بالنظام")
+    .replace(/live Supabase inbox/gi, "صندوق الوارد المباشر في النظام")
+    .replace(/Supabase inbox/gi, "صندوق الوارد في النظام")
     .replace(/(\d+)\s+total leads\b/gi, "إجمالي $1 عميل محتمل")
     .replace(/(\d+) students\b/gi, "$1 طلاب")
     .replace(/(\d+) teachers\b/gi, "$1 معلمين")
@@ -461,8 +576,23 @@ export function Toast({ message, type = "success", onClose }: { message: string;
   );
 }
 
-export function LoadingState({ label = "Loading data…" }: { label?: string }) {
-  return <div className="flex min-h-40 flex-col items-center justify-center rounded-2xl border border-dashed border-border bg-card p-8 text-center"><LoaderCircle className="mb-3 h-7 w-7 animate-spin text-primary" /><p className="text-sm font-medium text-foreground">{label}</p></div>;
+export function LoadingState({
+  label,
+  title,
+  description,
+}: {
+  label?: string;
+  title?: string;
+  description?: string;
+}) {
+  const heading = title ?? label ?? "Loading data...";
+  return (
+    <div className="flex min-h-40 flex-col items-center justify-center rounded-2xl border border-dashed border-border bg-card p-8 text-center">
+      <LoaderCircle className="mb-3 h-7 w-7 animate-spin text-primary" />
+      <p className="text-sm font-medium text-foreground">{heading}</p>
+      {description && <p className="mt-1 max-w-sm text-xs text-muted-foreground">{description}</p>}
+    </div>
+  );
 }
 
 export function EmptyState({ title = "Nothing here yet", description = "New items will appear here when available.", action }: { title?: string; description?: string; action?: React.ReactNode }) {
@@ -1363,4 +1493,38 @@ function SuperAdminPortal({ view, setView, onLogout }: { view: string; setView: 
                   <textarea rows={4} className="w-full px-3 py-2 rounded-xl border border-border bg-muted text-sm outline-none focus:ring-2 focus:ring-primary/30 resize-none" defaultValue={`Dear ${l.owner},\n\nWe would like to discuss how Nibras can serve ${l.schoolName}…`} />
                 </div>
                 <div className="flex gap-3 pt-2">
-                  <Btn icon=
+                  <Btn icon={<Send className="w-4 h-4" />} onClick={() => { changeLeadStatus(l.id, "Contacted"); setShowContactModal(null); showToast("Message sent and status updated to Contacted."); }} className="flex-1">Send Message</Btn>
+                  <Btn variant="secondary" onClick={() => setShowContactModal(null)}>Cancel</Btn>
+                </div>
+              </div>
+            ) : null; })()}
+          </div>
+        </Modal>
+      )}
+
+      {/* Plan Create/Edit Modal */}
+      {showPlanModal && (
+        <Modal title={editingPlan ? "Edit Plan" : "Create New Plan"} onClose={() => setShowPlanModal(false)}>
+          <div className="space-y-4">
+            <Input label="Plan Name" value={planForm.name} onChange={v => setPlanForm(p => ({ ...p, name: v }))} placeholder="e.g. Enterprise" required />
+            <Input label="Monthly Price (USD)" value={planForm.price} onChange={v => setPlanForm(p => ({ ...p, price: v }))} placeholder="e.g. 799" required />
+            <div className="grid grid-cols-2 gap-3">
+              <Input label="Max Students" value={planForm.maxStudents} onChange={v => setPlanForm(p => ({ ...p, maxStudents: v }))} placeholder="e.g. 5000" />
+              <Input label="Max Teachers" value={planForm.maxTeachers} onChange={v => setPlanForm(p => ({ ...p, maxTeachers: v }))} placeholder="e.g. 300" />
+            </div>
+            <div>
+              <label className="text-xs font-semibold text-muted-foreground block mb-1.5">Features <span className="font-normal">(comma-separated)</span></label>
+              <textarea rows={3} value={planForm.features} onChange={e => setPlanForm(p => ({ ...p, features: e.target.value }))} className="w-full px-3 py-2 rounded-xl border border-border bg-muted text-sm outline-none focus:ring-2 focus:ring-primary/30 resize-none" placeholder="All Standard features, Custom branding, API access" />
+            </div>
+            <div className="flex gap-3 pt-2">
+              <Btn onClick={savePlan} className="flex-1">{editingPlan ? "Save Changes" : "Create Plan"}</Btn>
+              <Btn variant="secondary" onClick={() => setShowPlanModal(false)}>Cancel</Btn>
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {toast && <Toast message={toast.msg} type={toast.type} onClose={() => setToast(null)} />}
+    </>
+  );
+}
