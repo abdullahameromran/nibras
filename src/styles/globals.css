@@ -1,0 +1,21 @@
+[dir="rtl"] .text-left { text-align: right; }
+[dir="rtl"] .text-right { text-align: left; }
+[dir="rtl"] .left-3 { left: auto; right: 0.75rem; }
+[dir="rtl"] .right-3 { right: auto; left: 0.75rem; }
+[dir="rtl"] .left-0 { left: auto; right: 0; }
+[dir="rtl"] .right-0 { right: auto; left: 0; }
+[dir="rtl"] .pl-9 { padding-left: 1rem; padding-right: 2.75rem; }
+[dir="rtl"] .pl-12 { padding-left: 0.75rem; padding-right: 3.5rem; }
+[dir="rtl"] .pr-10 { padding-right: 0.75rem; padding-left: 2.5rem; }
+[dir="rtl"] .pr-4 { padding-right: 0.75rem; padding-left: 1rem; }
+[dir="rtl"] .mr-2 { margin-right: 0; margin-left: 0.5rem; }
+[dir="rtl"] .ml-0 { margin-left: auto; margin-right: 0; }
+[dir="rtl"] input[type="email"], [dir="rtl"] input[type="password"], [dir="rtl"] input[type="url"] { direction: ltr; text-align: left; }
+
+button:not(:disabled),
+a[href],
+select:not(:disabled),
+summary,
+label[for],
+[role="button"]:not([aria-disabled="true"]),
+input[type="button"]:
