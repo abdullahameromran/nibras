@@ -49,10 +49,29 @@ Deno.serve(async (req) => {
       return json({ error: "school_name, plan_id, and admin_email are required" }, 400);
     }
 
+    // If the caller supplied an explicit slug, it still must be ASCII/slug-safe
+    // (slugs are used in URLs), so we validate & slugify that as before.
+    // But when we're deriving the slug from school_name (e.g. an Arabic name),
+    // slugify() may legitimately return "" — that's not an error, it just means
+    // we can't derive a readable slug from the name, so we generate one instead.
     const requestedSlug = typeof slug === "string" ? slug.trim() : "";
-    const baseSlug = slugify(requestedSlug || school_name);
-    if (!baseSlug) {
-      return json({ error: "Provide a valid school name or slug." }, 400);
+
+    let baseSlug: string;
+    let derivedFromName = false;
+
+    if (requestedSlug) {
+      baseSlug = slugify(requestedSlug);
+      if (!baseSlug) {
+        return json({ error: `Slug "${requestedSlug}" must contain at least one letter or number (a-z, 0-9).` }, 400);
+      }
+    } else {
+      baseSlug = slugify(school_name);
+      if (!baseSlug) {
+        // Name has no ASCII letters/numbers (e.g. Arabic, Chinese, emoji-only, etc.)
+        // Fall back to a generated slug rather than rejecting the school.
+        baseSlug = `school-${randomSlugSuffix()}`;
+      }
+      derivedFromName = true;
     }
 
     let finalSlug = baseSlug;
@@ -126,7 +145,7 @@ Deno.serve(async (req) => {
       action: "provision_school",
       entity_type: "schools",
       entity_id: school.id,
-      metadata: { admin_email, plan_id },
+      metadata: { admin_email, plan_id, slug_derived_from_name: derivedFromName },
     });
 
     return json({ school, admin_user_id: adminUserId }, 200);
@@ -156,12 +175,26 @@ async function generateUniqueSchoolSlug(baseSlug: string) {
   }
 }
 
+// Slugs stay ASCII because they're used in URLs (e.g. app.example.com/s/<slug>).
+// The school's display `name` column keeps the original text (Arabic, etc.)
+// untouched — only the URL-safe slug is derived/generated here.
 function slugify(value: string) {
   return value
     .trim()
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "");
+}
+
+function randomSlugSuffix(length = 8) {
+  const chars = "abcdefghijklmnopqrstuvwxyz0123456789";
+  let out = "";
+  const bytes = new Uint8Array(length);
+  crypto.getRandomValues(bytes);
+  for (let i = 0; i < length; i++) {
+    out += chars[bytes[i] % chars.length];
+  }
+  return out;
 }
 
 const corsHeaders = {

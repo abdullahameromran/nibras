@@ -87,9 +87,13 @@ export function useAttendance(filters: {
     status: AttendanceStatus;
     recorded_by: string;
   }) => {
+    const payload = {
+      ...record,
+      recorded_at: new Date().toISOString(),
+    };
     const { error: err } = await supabase
       .from("attendance_records")
-      .upsert(record, { onConflict: "lesson_id,student_id" });
+      .upsert(payload, { onConflict: "lesson_id,student_id" });
     if (err) return { error: err.message };
     await fetchAttendance();
     return { error: null };
@@ -103,9 +107,14 @@ export function useAttendance(filters: {
     recorded_by: string;
   }>) => {
     if (records.length === 0) return { error: null };
+    const now = new Date().toISOString();
+    const payload = records.map((rec) => ({
+      ...rec,
+      recorded_at: now,
+    }));
     const { error: err } = await supabase
       .from("attendance_records")
-      .upsert(records, { onConflict: "lesson_id,student_id" });
+      .upsert(payload, { onConflict: "lesson_id,student_id" });
     if (err) return { error: err.message };
     await fetchAttendance();
     return { error: null };

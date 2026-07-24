@@ -357,7 +357,10 @@ function normalizeAppPath(path: string) {
 function getViewFromPath(path: string, portal: DashboardPortal) {
   const segments = normalizeAppPath(path).split("/").filter(Boolean);
   if (segments[0] !== "dashboard") return "dashboard";
-  const candidate = segments[1] || "dashboard";
+  let candidate = segments[1] || "dashboard";
+  if (portal === "school-admin" && candidate === "classes") {
+    candidate = "grades-classes";
+  }
   return PORTAL_VIEWS[portal].includes(candidate) ? candidate : "dashboard";
 }
 

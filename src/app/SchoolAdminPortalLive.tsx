@@ -266,12 +266,88 @@ export function SchoolAdminPortalLive({
   const [existingParentLinkForm, setExistingParentLinkForm] = useState({ parentId: "", relationship: "parent" });
   const [announcementForm, setAnnouncementForm] = useState({ title: "", body: "", audience: "school" });
   const [newClassName, setNewClassName] = useState("");
+  const [gradeLevelModal, setGradeLevelModal] = useState<{ open: boolean; mode: "create" | "edit"; id?: string; name: string; sortOrder: number } | null>(null);
+  const [deletingGradeLevel, setDeletingGradeLevel] = useState<{ id: string; name: string } | null>(null);
+  const [classEditModal, setClassEditModal] = useState<{ open: boolean; mode: "create" | "edit"; id?: string; gradeId: string; gradeName: string; name: string } | null>(null);
+  const [deletingClass, setDeletingClass] = useState<{ id: string; name: string } | null>(null);
   const [assignmentDraft, setAssignmentDraft] = useState<Record<string, string>>({});
   const [timetableEditor, setTimetableEditor] = useState<TimetableEditorState | null>(null);
   const [timetableEntryForm, setTimetableEntryForm] = useState({ subjectId: "", teacherId: "" });
   const [selectedConversationId, setSelectedConversationId] = useState<string | null>(null);
   const [composeRecipientId, setComposeRecipientId] = useState("");
   const [messageDraft, setMessageDraft] = useState("");
+
+  const saveGradeLevel = async () => {
+    if (!gradeLevelModal || !gradeLevelModal.name.trim() || !schoolId) return;
+    if (gradeLevelModal.mode === "create") {
+      const res = await dbGradeLevels.createGradeLevel({
+        school_id: schoolId,
+        name: gradeLevelModal.name.trim(),
+        sort_order: gradeLevelModal.sortOrder,
+      });
+      if (res.error) setToast({ msg: res.error, type: "error" });
+      else {
+        setToast({ msg: t("Grade level created successfully"), type: "success" });
+        setGradeLevelModal(null);
+      }
+    } else if (gradeLevelModal.mode === "edit" && gradeLevelModal.id) {
+      const res = await dbGradeLevels.updateGradeLevel(gradeLevelModal.id, {
+        name: gradeLevelModal.name.trim(),
+        sort_order: gradeLevelModal.sortOrder,
+      });
+      if (res.error) setToast({ msg: res.error, type: "error" });
+      else {
+        setToast({ msg: t("Grade level updated successfully"), type: "success" });
+        setGradeLevelModal(null);
+      }
+    }
+  };
+
+  const confirmDeleteGradeLevel = async () => {
+    if (!deletingGradeLevel) return;
+    const res = await dbGradeLevels.deleteGradeLevel(deletingGradeLevel.id);
+    if (res.error) setToast({ msg: res.error, type: "error" });
+    else {
+      setToast({ msg: t("Grade level deleted successfully"), type: "success" });
+      setDeletingGradeLevel(null);
+    }
+  };
+
+  const saveClassEdit = async () => {
+    if (!classEditModal || !classEditModal.name.trim() || !schoolId) return;
+    if (classEditModal.mode === "create") {
+      const res = await dbClasses.createClass({
+        school_id: schoolId,
+        grade_level_id: classEditModal.gradeId,
+        academic_year_id: dbYears.currentYear?.id ?? "",
+        name: classEditModal.name.trim(),
+      });
+      if (res.error) setToast({ msg: res.error, type: "error" });
+      else {
+        setToast({ msg: t("Class created successfully"), type: "success" });
+        setClassEditModal(null);
+      }
+    } else if (classEditModal.mode === "edit" && classEditModal.id) {
+      const res = await dbClasses.updateClass(classEditModal.id, {
+        name: classEditModal.name.trim(),
+      });
+      if (res.error) setToast({ msg: res.error, type: "error" });
+      else {
+        setToast({ msg: t("Class updated successfully"), type: "success" });
+        setClassEditModal(null);
+      }
+    }
+  };
+
+  const confirmDeleteClass = async () => {
+    if (!deletingClass) return;
+    const res = await dbClasses.deleteClass(deletingClass.id);
+    if (res.error) setToast({ msg: res.error, type: "error" });
+    else {
+      setToast({ msg: t("Class deleted successfully"), type: "success" });
+      setDeletingClass(null);
+    }
+  };
 
   const showToast = useCallback((msg: string, type: "success" | "error" = "success") => {
     setToast({ msg, type });
@@ -1818,58 +1894,116 @@ export function SchoolAdminPortalLive({
 
             {academicTab === "grades" && (
               <div className="space-y-4">
-                {gradeStructures.map((grade) => (
-                  <div key={grade.gradeId} className="rounded-2xl border border-border bg-card shadow-sm overflow-hidden">
-                    <div className="flex items-center justify-between border-b border-border bg-muted/40 px-5 py-3">
-                      <span className="font-bold text-foreground">{grade.grade}</span>
-                      <div className="flex gap-2">
-                        <Badge color="purple">{grade.classes.length} classes</Badge>
-                        <Badge color="blue">{grade.subjects.length} subjects</Badge>
-                      </div>
-                    </div>
-                    <div className="grid gap-5 p-5 md:grid-cols-3">
-                      <div>
-                        <p className="mb-2 text-xs font-semibold text-muted-foreground">Classes</p>
-                        <div className="space-y-2">
-                          {grade.classes.map((schoolClass) => (
-                            <div key={schoolClass.id} className="flex items-center justify-between rounded-lg bg-muted px-3 py-2">
-                              <span className="text-sm text-foreground">{schoolClass.name}</span>
-                              <button onClick={() => openAssignmentEditor({ gradeId: grade.gradeId, grade: grade.grade, classId: schoolClass.id, cls: schoolClass.name })} className="text-xs font-semibold text-primary hover:underline">
-                                Assign
-                              </button>
-                            </div>
-                          ))}
-                          <button onClick={() => setShowAddClassForGrade({ gradeId: grade.gradeId, grade: grade.grade })} className="flex w-full items-center gap-2 rounded-lg border border-dashed border-border px-3 py-2 text-xs text-muted-foreground transition hover:border-primary hover:text-primary">
-                            <Plus className="h-3 w-3" /> Add Class
+                <div className="flex items-center justify-between">
+                  <h3 className="text-lg font-bold text-foreground">{t("Grade Structure")}</h3>
+                  <Btn icon={<Plus className="h-4 w-4" />} onClick={() => setGradeLevelModal({ open: true, mode: "create", name: "", sortOrder: dbGradeLevels.gradeLevels.length + 1 })}>
+                    {t("Add Grade Level")}
+                  </Btn>
+                </div>
+
+                {gradeStructures.length === 0 && (
+                  <div className="rounded-2xl border border-border bg-card p-8 text-center shadow-sm">
+                    <Layers className="mx-auto h-12 w-12 text-muted-foreground/40 mb-3" />
+                    <p className="font-semibold text-foreground">{t("No grade levels configured yet.")}</p>
+                    <p className="text-sm text-muted-foreground mt-1 mb-4">{t("Add grade levels and classes to build your school structure.")}</p>
+                    <Btn icon={<Plus className="h-4 w-4" />} onClick={() => setGradeLevelModal({ open: true, mode: "create", name: "", sortOrder: 1 })}>
+                      {t("Add Grade Level")}
+                    </Btn>
+                  </div>
+                )}
+
+                {gradeStructures.map((grade) => {
+                  const targetGradeLevel = dbGradeLevels.gradeLevels.find((gl) => gl.id === grade.gradeId);
+                  return (
+                    <div key={grade.gradeId} className="rounded-2xl border border-border bg-card shadow-sm overflow-hidden">
+                      <div className="flex items-center justify-between border-b border-border bg-muted/40 px-5 py-3">
+                        <div className="flex items-center gap-3">
+                          <span className="font-bold text-foreground text-base">{grade.grade}</span>
+                          <div className="flex gap-2">
+                            <Badge color="purple">{grade.classes.length} {t("classes")}</Badge>
+                            <Badge color="blue">{grade.subjects.length} {t("subjects")}</Badge>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => setGradeLevelModal({ open: true, mode: "edit", id: grade.gradeId, name: grade.grade, sortOrder: targetGradeLevel?.sort_order ?? 1 })}
+                            className="rounded-lg p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground transition"
+                            title={t("Edit Grade Level")}
+                          >
+                            <Edit className="h-4 w-4" />
+                          </button>
+                          <button
+                            onClick={() => setDeletingGradeLevel({ id: grade.gradeId, name: grade.grade })}
+                            className="rounded-lg p-1.5 text-red-500 hover:bg-red-50 transition"
+                            title={t("Delete Grade Level")}
+                          >
+                            <Trash2 className="h-4 w-4" />
                           </button>
                         </div>
                       </div>
-                      <div>
-                        <p className="mb-2 text-xs font-semibold text-muted-foreground">Subjects</p>
-                        <div className="space-y-2">
-                          {grade.subjects.map((subject) => (
-                            <div key={`${grade.gradeId}-${subject}`} className="flex items-center gap-2 rounded-lg bg-muted px-3 py-2">
-                              <Book className="h-3 w-3 text-primary" />
-                              <span className="text-sm text-foreground">{subject}</span>
-                            </div>
-                          ))}
+                      <div className="grid gap-5 p-5 md:grid-cols-3">
+                        <div>
+                          <p className="mb-2 text-xs font-semibold text-muted-foreground">{t("Classes")}</p>
+                          <div className="space-y-2">
+                            {grade.classes.map((schoolClass) => (
+                              <div key={schoolClass.id} className="flex items-center justify-between rounded-lg bg-muted px-3 py-2">
+                                <span className="text-sm font-medium text-foreground">{schoolClass.name}</span>
+                                <div className="flex items-center gap-2">
+                                  <button onClick={() => openAssignmentEditor({ gradeId: grade.gradeId, grade: grade.grade, classId: schoolClass.id, cls: schoolClass.name })} className="text-xs font-semibold text-primary hover:underline">
+                                    {t("Assign")}
+                                  </button>
+                                  <button
+                                    onClick={() => setClassEditModal({ open: true, mode: "edit", id: schoolClass.id, gradeId: grade.gradeId, gradeName: grade.grade, name: schoolClass.name })}
+                                    className="text-muted-foreground hover:text-foreground transition"
+                                    title={t("Edit Class")}
+                                  >
+                                    <Edit className="h-3.5 w-3.5" />
+                                  </button>
+                                  <button
+                                    onClick={() => setDeletingClass({ id: schoolClass.id, name: schoolClass.name })}
+                                    className="text-red-500 hover:text-red-700 transition"
+                                    title={t("Delete Class")}
+                                  >
+                                    <Trash2 className="h-3.5 w-3.5" />
+                                  </button>
+                                </div>
+                              </div>
+                            ))}
+                            <button
+                              onClick={() => setClassEditModal({ open: true, mode: "create", gradeId: grade.gradeId, gradeName: grade.grade, name: "" })}
+                              className="flex w-full items-center gap-2 rounded-lg border border-dashed border-border px-3 py-2 text-xs text-muted-foreground transition hover:border-primary hover:text-primary"
+                            >
+                              <Plus className="h-3 w-3" /> {t("Add Class")}
+                            </button>
+                          </div>
                         </div>
-                      </div>
-                      <div>
-                        <p className="mb-2 text-xs font-semibold text-muted-foreground">Assigned Teachers</p>
-                        <div className="space-y-2">
-                          {grade.teachers.map((teacher) => (
-                            <div key={`${grade.gradeId}-${teacher}`} className="flex items-center gap-2 rounded-lg bg-muted px-3 py-2">
-                              <Avatar name={teacher} size="sm" />
-                              <span className="text-xs text-foreground">{teacher}</span>
-                            </div>
-                          ))}
-                          {grade.teachers.length === 0 && <p className="text-sm text-muted-foreground">No teacher assignments yet.</p>}
+                        <div>
+                          <p className="mb-2 text-xs font-semibold text-muted-foreground">{t("Subjects")}</p>
+                          <div className="space-y-2">
+                            {grade.subjects.map((subject) => (
+                              <div key={`${grade.gradeId}-${subject}`} className="flex items-center gap-2 rounded-lg bg-muted px-3 py-2">
+                                <Book className="h-3 w-3 text-primary" />
+                                <span className="text-sm text-foreground">{t(subject, subject)}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                        <div>
+                          <p className="mb-2 text-xs font-semibold text-muted-foreground">{t("Assigned Teachers")}</p>
+                          <div className="space-y-2">
+                            {grade.teachers.map((teacher) => (
+                              <div key={`${grade.gradeId}-${teacher}`} className="flex items-center gap-2 rounded-lg bg-muted px-3 py-2">
+                                <Avatar name={teacher} size="sm" />
+                                <span className="text-xs text-foreground">{teacher}</span>
+                              </div>
+                            ))}
+                            {grade.teachers.length === 0 && <p className="text-sm text-muted-foreground">{t("No teacher assignments yet.")}</p>}
+                          </div>
                         </div>
                       </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
 
@@ -2710,6 +2844,94 @@ export function SchoolAdminPortalLive({
               )}
               <Btn variant="secondary" onClick={closeTimetableEditor}>
                 Cancel
+              </Btn>
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {gradeLevelModal && (
+        <Modal title={gradeLevelModal.mode === "create" ? t("Add Grade Level") : t("Edit Grade Level")} onClose={() => setGradeLevelModal(null)}>
+          <div className="space-y-4">
+            <Input
+              label="Grade Level Name"
+              value={gradeLevelModal.name}
+              onChange={(value) => setGradeLevelModal((current) => current ? { ...current, name: value } : null)}
+              placeholder="e.g. Grade 1 or الصف الأول الابتدائي"
+              required
+            />
+            <Input
+              label="Sort Order"
+              type="number"
+              value={String(gradeLevelModal.sortOrder)}
+              onChange={(value) => setGradeLevelModal((current) => current ? { ...current, sortOrder: parseInt(value, 10) || 1 } : null)}
+              required
+            />
+            <div className="flex gap-3">
+              <Btn onClick={() => void saveGradeLevel()} className="flex-1">
+                {gradeLevelModal.mode === "create" ? t("Add Grade Level") : t("Save Changes")}
+              </Btn>
+              <Btn variant="secondary" onClick={() => setGradeLevelModal(null)}>
+                {t("Cancel")}
+              </Btn>
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {deletingGradeLevel && (
+        <Modal title={t("Confirm Grade Level Deletion")} onClose={() => setDeletingGradeLevel(null)}>
+          <div className="space-y-4">
+            <p className="text-sm text-foreground">
+              {t("Are you sure you want to delete this grade level?")} <strong className="font-bold">{deletingGradeLevel.name}</strong>?
+            </p>
+            <p className="text-xs text-muted-foreground">{t("This will also delete associated classes and assignments.")}</p>
+            <div className="flex gap-3">
+              <Btn variant="danger" onClick={() => void confirmDeleteGradeLevel()} className="flex-1">
+                {t("Delete")}
+              </Btn>
+              <Btn variant="secondary" onClick={() => setDeletingGradeLevel(null)}>
+                {t("Cancel")}
+              </Btn>
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {classEditModal && (
+        <Modal title={classEditModal.mode === "create" ? `${t("Add Class")} • ${classEditModal.gradeName}` : `${t("Edit Class")} • ${classEditModal.gradeName}`} onClose={() => setClassEditModal(null)}>
+          <div className="space-y-4">
+            <Input
+              label="Class Name"
+              value={classEditModal.name}
+              onChange={(value) => setClassEditModal((current) => current ? { ...current, name: value } : null)}
+              placeholder="e.g. Class A or فصل أ"
+              required
+            />
+            <div className="flex gap-3">
+              <Btn onClick={() => void saveClassEdit()} className="flex-1">
+                {classEditModal.mode === "create" ? t("Add Class") : t("Save Changes")}
+              </Btn>
+              <Btn variant="secondary" onClick={() => setClassEditModal(null)}>
+                {t("Cancel")}
+              </Btn>
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {deletingClass && (
+        <Modal title={t("Confirm Class Deletion")} onClose={() => setDeletingClass(null)}>
+          <div className="space-y-4">
+            <p className="text-sm text-foreground">
+              {t("Are you sure you want to delete this class?")} <strong className="font-bold">{deletingClass.name}</strong>?
+            </p>
+            <div className="flex gap-3">
+              <Btn variant="danger" onClick={() => void confirmDeleteClass()} className="flex-1">
+                {t("Delete")}
+              </Btn>
+              <Btn variant="secondary" onClick={() => setDeletingClass(null)}>
+                {t("Cancel")}
               </Btn>
             </div>
           </div>

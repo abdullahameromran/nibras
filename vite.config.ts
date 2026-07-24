@@ -73,6 +73,8 @@ export default defineConfig({
   assetsInclude: ['**/*.svg', '**/*.csv'],
 
   server: {
+    port: 5173,
+    strictPort: false,
     // Figma Make uses secure HMR; plain HTTP works for local development.
     hmr: process.env.FIGMA_MAKE
       ? { protocol: 'wss' }

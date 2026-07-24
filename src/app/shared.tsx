@@ -273,6 +273,53 @@ Object.assign(ARABIC_TRANSLATIONS, {
 Object.assign(ARABIC_TRANSLATIONS, {
   "Not set": "غير محدد",
   "Not scheduled": "غير مجدول",
+  "Click any teaching cell to add, edit, or remove a live timetable entry for the selected class.": "اضغط على أي حصة في الجدول للإضافة أو التعديل أو الحذف للفصل المحدد.",
+  "Choose a teacher or student above to start messaging from the live Supabase inbox.": "اختر معلمًا أو طالبًا من الأعلى لبدء المراسلات عبر صندوق الوارد المباشر في النظام.",
+  "Published announcements for this school will appear here.": "ستظهر الإعلانات المنشورة لهذه المدرسة هنا.",
+  "Start New Conversation": "بدء محادثة جديدة",
+  "Choose a conversation": "اختر محادثة",
+  "No message thread selected": "لم يتم اختيار محادثة",
+  "Select an existing thread or choose a recipient to start a new one.": "اختر محادثة من القائمة الجانبية أو حدد مستلمًا لبدء محادثة جديدة.",
+  "Choose a conversation on the left or start one from the recipient picker.": "اختر محادثة من القائمة الجانبية أو ابدأ محادثة جديدة من اختيار المستلم.",
+  "Messages are synced from Supabase.": "الرسائل متزامنة مع النظام.",
+  "Type a message...": "اكتب رسالة...",
+  "No announcements yet": "لا توجد إعلانات بعد",
+  "New Announcement": "إعلان جديد",
+  "Publish Timetable": "نشر الجدول",
+  "Unpublish Timetable": "إلغاء نشر الجدول",
+  "Auto Generate": "إنشاء تلقائي",
+  "Grade Structure": "هيكل الصفوف",
+  "Add Grade Level": "إضافة مرحلة دراسية",
+  "Edit Grade Level": "تعديل المرحلة الدراسية",
+  "Delete Grade Level": "حذف المرحلة الدراسية",
+  "Grade Level Name": "اسم المرحلة الدراسية",
+  "Sort Order": "ترتيب العرض",
+  "Add Class": "إضافة فصل",
+  "Edit Class": "تعديل الفصل",
+  "Delete Class": "حذف الفصل",
+  "Class Name": "اسم الفصل",
+  "Save Grade Level": "حفظ المرحلة الدراسية",
+  "Save Class": "حفظ الفصل",
+  "Confirm Deletion": "تأكيد الحذف",
+  "Confirm Grade Level Deletion": "تأكيد حذف المرحلة الدراسية",
+  "Confirm Class Deletion": "تأكيد حذف الفصل",
+  "Are you sure you want to delete this grade level?": "هل أنت متاكد من حذف هذه المرحلة الدراسية؟",
+  "Are you sure you want to delete this class?": "هل أنت متاكد من حذف هذا الفصل؟",
+  "This will also delete associated classes and assignments.": "سيؤدي هذا أيضًا إلى حذف الفصول والتكليفات المرتبطة بها.",
+  "No grade levels configured yet.": "لم يتم إعداد مراحل دراسية بعد.",
+  "Add grade levels and classes to build your school structure.": "أضف المراحل الدراسية والفصول لبناء هيكل مدرستك.",
+  "Grade level created successfully": "تمت إضافة المرحلة الدراسية بنجاح",
+  "Grade level updated successfully": "تم تعديل المرحلة الدراسية بنجاح",
+  "Grade level deleted successfully": "تم حذف المرحلة الدراسية بنجاح",
+  "Class created successfully": "تمت إضافة الفصل بنجاح",
+  "Class updated successfully": "تم تعديل الفصل بنجاح",
+  "Class deleted successfully": "تم حذف الفصل بنجاح",
+  "or start a new conversation": "أو ابدأ محادثة جديدة",
+  "Select a teacher to message": "اختر معلمًا للمراسلة",
+  "No conversations yet": "لا توجد محادثات بعد",
+  "Assign": "تعيين",
+  "Assigned Teachers": "المعلمون المعينون",
+  "No teacher assignments yet.": "لا توجد تعيينات للمعلمين بعد.",
 });
 
 Object.assign(ARABIC_TRANSLATIONS, {
@@ -517,9 +564,15 @@ function translateToArabic(value: string) {
     .replace(/(\d+) students\b/gi, "$1 طلاب")
     .replace(/(\d+) teachers\b/gi, "$1 معلمين")
     .replace(/(\d+) schools\b/gi, "$1 مدارس")
-    .replace(/out of (\d+)/gi, "من $1")
-    .replace(/[A-Za-z]+/g, word => ARABIC_WORDS[word] ?? ARABIC_WORDS[word[0]?.toUpperCase() + word.slice(1).toLowerCase()] ?? word);
-  return arabized.replace(/¤(\d+)¤/g, (_, index) => protectedTokens[Number(index)] ?? "");
+    .replace(/out of (\d+)/gi, "من $1");
+
+  const isMultiWordSentence = arabized.trim().split(/\s+/).length >= 3 && /[a-zA-Z]{3,}/.test(arabized);
+  if (isMultiWordSentence) {
+    return arabized.replace(/¤(\d+)¤/g, (_, index) => protectedTokens[Number(index)] ?? "");
+  }
+
+  const finalArabized = arabized.replace(/[A-Za-z]+/g, word => ARABIC_WORDS[word] ?? ARABIC_WORDS[word[0]?.toUpperCase() + word.slice(1).toLowerCase()] ?? word);
+  return finalArabized.replace(/¤(\d+)¤/g, (_, index) => protectedTokens[Number(index)] ?? "");
 }
 
 /** Central translation API for all new and refactored screens. */
@@ -722,7 +775,7 @@ export function Avatar({ name, size = "md" }: { name: string; size?: "sm" | "md"
   const sz = size === "sm" ? "w-8 h-8 text-xs" : size === "lg" ? "w-12 h-12 text-base" : "w-10 h-10 text-sm";
   const initials = getDisplayInitials(name);
   return (
-    <div className={`${sz} rounded-full flex items-center justify-center text-white font-semibold shrink-0`} style={{ background: avatarColor(name) }}>
+    <div data-no-translate className={`${sz} rounded-full flex items-center justify-center text-white font-semibold shrink-0`} style={{ background: avatarColor(name) }}>
       {initials}
     </div>
   );
@@ -848,13 +901,13 @@ export function Select({ label, value, onChange, options, error, required }: {
   const isArabic = language === "ar";
   return (
     <div className="space-y-1.5">
-      <label className="block text-sm font-semibold text-foreground">{t(label, label)}{required && <span className="text-red-500 ml-0.5">*</span>}</label>
+      <label className="block text-sm font-semibold text-foreground mb-1">{t(label, label)}{required && <span className="text-red-500 ml-0.5">*</span>}</label>
       <select
         value={value} onChange={e => onChange(e.target.value)} dir={isArabic ? "rtl" : "ltr"}
         className={`w-full px-3 py-2.5 rounded-xl border text-sm transition-all outline-none focus:ring-2 focus:ring-primary/30 bg-muted ${error ? "border-red-400" : "border-border focus:border-primary"}`}
       >
-        <option value="">Select…</option>
-        {options.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+        <option value="">{t("Select…", "Select…")}</option>
+        {options.map(o => <option key={o.value} value={o.value}>{t(o.label, o.label)}</option>)}
       </select>
       {error && <p className="text-xs text-red-500 flex items-center gap-1"><AlertCircle className="w-3 h-3" />{t(error, error)}</p>}
     </div>
