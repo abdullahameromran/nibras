@@ -97,6 +97,13 @@ type MessageTarget = {
   subtitle: string;
 };
 
+function currentLocale() {
+  if (typeof document !== "undefined" && document.documentElement.lang === "ar") {
+    return "ar-EG";
+  }
+  return "en-US";
+}
+
 function formatName(
   firstName?: string | null,
   lastName?: string | null,
@@ -113,13 +120,13 @@ function isGenericContactName(value?: string | null) {
 }
 
 function formatDate(value?: string | null) {
-  if (!value) return "Not scheduled";
-  return new Date(value).toLocaleDateString();
+  if (!value) return "-";
+  return new Date(value).toLocaleDateString(currentLocale());
 }
 
 function formatDateTime(value?: string | null) {
-  if (!value) return "Not scheduled";
-  return new Date(value).toLocaleString();
+  if (!value) return "-";
+  return new Date(value).toLocaleString(currentLocale());
 }
 
 function average(values: number[]) {
@@ -485,7 +492,7 @@ export function TeacherPortalLive({
       date.setDate(now.getDate() - index);
       const key = `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`;
       map.set(key, {
-        day: date.toLocaleDateString(undefined, { weekday: "short" }),
+        day: date.toLocaleDateString(currentLocale(), { weekday: "short" }),
         lessons: 0,
         ts: date.getTime(),
       });
@@ -566,7 +573,7 @@ export function TeacherPortalLive({
         id: conversation.partnerId,
         from: conversation.partnerName,
         time: conversation.lastTime
-          ? new Date(conversation.lastTime).toLocaleTimeString(undefined, {
+          ? new Date(conversation.lastTime).toLocaleTimeString(currentLocale(), {
               hour: "numeric",
               minute: "2-digit",
             })

@@ -6,18 +6,36 @@ export function useStorageObjectUrl(bucket: string, rawUrl?: string | null) {
 
   useEffect(() => {
     let cancelled = false;
+    let createdBlobUrl: string | null = null;
 
     const resolveUrl = async () => {
       const nextUrl = await getStorageObjectUrl(bucket, rawUrl);
-      if (!cancelled) {
-        setResolvedUrl(nextUrl);
+      if (cancelled) {
+        if (nextUrl?.startsWith("blob:")) {
+          URL.revokeObjectURL(nextUrl);
+        }
+        return;
       }
+
+      if (nextUrl?.startsWith("blob:")) {
+        createdBlobUrl = nextUrl;
+      }
+
+      setResolvedUrl((currentUrl) => {
+        if (currentUrl?.startsWith("blob:") && currentUrl !== nextUrl) {
+          URL.revokeObjectURL(currentUrl);
+        }
+        return nextUrl;
+      });
     };
 
     void resolveUrl();
 
     return () => {
       cancelled = true;
+      if (createdBlobUrl) {
+        URL.revokeObjectURL(createdBlobUrl);
+      }
     };
   }, [bucket, rawUrl]);
 
@@ -47,11 +65,19 @@ export function useStorageObjectUrlMap(
 
   useEffect(() => {
     let cancelled = false;
+    let createdBlobUrls: string[] = [];
 
     const resolveUrls = async () => {
       if (uniqueUrls.length === 0) {
         if (!cancelled) {
-          setResolvedMap({});
+          setResolvedMap((currentMap) => {
+            Object.values(currentMap).forEach((url) => {
+              if (url.startsWith("blob:")) {
+                URL.revokeObjectURL(url);
+              }
+            });
+            return {};
+          });
         }
         return;
       }
@@ -62,10 +88,22 @@ export function useStorageObjectUrlMap(
 
       if (cancelled) return;
 
+      createdBlobUrls = entries
+        .map((entry) => entry[1])
+        .filter((url): url is string => Boolean(url?.startsWith("blob:")));
+
       setResolvedMap(
-        Object.fromEntries(
-          entries.filter((entry): entry is readonly [string, string] => Boolean(entry[1])),
-        ),
+        (currentMap) => {
+          Object.values(currentMap).forEach((url) => {
+            if (url.startsWith("blob:") && !createdBlobUrls.includes(url)) {
+              URL.revokeObjectURL(url);
+            }
+          });
+
+          return Object.fromEntries(
+            entries.filter((entry): entry is readonly [string, string] => Boolean(entry[1])),
+          );
+        },
       );
     };
 
@@ -73,6 +111,7 @@ export function useStorageObjectUrlMap(
 
     return () => {
       cancelled = true;
+      createdBlobUrls.forEach((url) => URL.revokeObjectURL(url));
     };
   }, [bucket, uniqueUrls]);
 

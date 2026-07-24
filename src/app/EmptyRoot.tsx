@@ -1,4 +1,5 @@
 import App from "./App";
+import NibrasLandingPage from "./NibrasLandingPage";
 
 function normalizePath(pathname: string) {
   const trimmed = pathname.replace(/\/+$/, "");
@@ -17,7 +18,7 @@ export default function EmptyRoot() {
   const pathname = normalizePath(window.location.pathname);
 
   if (pathname === "/") {
-    return <main className="min-h-screen bg-white" />;
+    return <NibrasLandingPage />;
   }
 
   if (isAuthAppPath(pathname)) {

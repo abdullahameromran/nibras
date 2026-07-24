@@ -54,6 +54,34 @@ function buildPublicStorageUrl(bucket: string, rawPath: string) {
   return data.publicUrl;
 }
 
+async function findExistingStoragePath(bucket: string, rawPath: string) {
+  const cleanedPath = rawPath.replace(/^\/+/, "");
+  const segments = cleanedPath.split("/").filter(Boolean);
+  if (segments.length < 2) return null;
+
+  const expectedName = segments.pop();
+  if (!expectedName) return null;
+
+  const folderPath = segments.join("/");
+  const { data, error } = await supabase.storage.from(bucket).list(folderPath, {
+    limit: 100,
+    search: expectedName,
+    sortBy: { column: "name", order: "asc" },
+  });
+
+  if (error) {
+    console.error("findExistingStoragePath list:", error);
+    return null;
+  }
+
+  const match =
+    data?.find((item) => item.name === expectedName) ??
+    data?.find((item) => item.name.endsWith(`_${expectedName}`)) ??
+    data?.find((item) => item.name.includes(expectedName));
+
+  return match ? `${folderPath}/${match.name}` : null;
+}
+
 export function resolveStoragePublicUrl(bucket: string, rawUrl?: string | null): string | null {
   if (!rawUrl) return null;
 
@@ -104,7 +132,37 @@ export async function getStorageObjectUrl(
   const { data, error } = await supabase.storage.from(bucket).createSignedUrl(storagePath, expiresIn);
   if (error) {
     console.error("getStorageObjectUrl:", error);
-    return hasAbsoluteScheme(trimmed) ? trimmed : resolveStoragePublicUrl(bucket, storagePath);
+
+    const fallbackPath = await findExistingStoragePath(bucket, storagePath);
+    if (fallbackPath && fallbackPath !== storagePath) {
+      const { data: fallbackSignedData, error: fallbackSignedError } = await supabase.storage
+        .from(bucket)
+        .createSignedUrl(fallbackPath, expiresIn);
+
+      if (!fallbackSignedError && fallbackSignedData?.signedUrl) {
+        return fallbackSignedData.signedUrl;
+      }
+
+      const { data: fallbackDownloadData, error: fallbackDownloadError } = await supabase.storage
+        .from(bucket)
+        .download(fallbackPath);
+
+      if (!fallbackDownloadError) {
+        return URL.createObjectURL(fallbackDownloadData);
+      }
+
+      console.error("getStorageObjectUrl fallback path download:", fallbackDownloadError);
+    }
+
+    const { data: downloadData, error: downloadError } = await supabase.storage
+      .from(bucket)
+      .download(storagePath);
+    if (downloadError) {
+      console.error("getStorageObjectUrl download fallback:", downloadError);
+      return null;
+    }
+
+    return URL.createObjectURL(downloadData);
   }
 
   return data?.signedUrl ?? null;

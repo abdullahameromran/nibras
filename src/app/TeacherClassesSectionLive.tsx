@@ -470,7 +470,7 @@ export function TeacherClassesSectionLive({
                     {selectedLesson ? `${formatDate(selectedLesson.lesson_date, locale)} • ${selectedClass.subjectLabel}` : t("Choose a lesson from the left to view its live data.")}
                   </p>
                 </div>
-                {selectedLesson && <Badge color="purple">{lessonKind(selectedLesson) === "video" ? t("Video") : lessonKind(selectedLesson) === "pdf" ? "PDF" : t("Lesson")}</Badge>}
+                {selectedLesson && <Badge color="purple">{lessonKind(selectedLesson) === "video" ? (language === "ar" ? "فيديو" : "Video") : lessonKind(selectedLesson) === "pdf" ? "PDF" : t("Lesson")}</Badge>}
               </div>
               {selectedLesson?.description && (
                 <p className="mt-4 rounded-xl bg-gray-50 px-4 py-3 text-sm leading-6 text-[#344054]">
@@ -525,7 +525,7 @@ export function TeacherClassesSectionLive({
                     <div key={item.id} className="rounded-xl border border-[#DFF6EC] bg-[#F3FFF8] p-3">
                       <p className="truncate text-sm font-semibold text-[#0E1B4A]">{item.title}</p>
                       <div className="mt-2 flex items-center justify-between text-xs text-[#2B7A5E]">
-                        <span>{item.homework_questions?.length ?? 0} {t("Questions")}</span>
+                        <span>{item.homework_questions?.length ?? 0} {language === "ar" ? "أسئلة" : "questions"}</span>
                         <span>{item.homework_submissions?.length ?? 0} {t("Submitted")}</span>
                       </div>
                       <p className="mt-2 text-xs text-[#5D7A70]">{t("Due")} {formatDateTime(item.due_date, locale)}</p>
@@ -547,7 +547,7 @@ export function TeacherClassesSectionLive({
                     <div key={item.id} className="rounded-xl border border-[#FDE7C2] bg-[#FFF9EE] p-3">
                       <p className="truncate text-sm font-semibold text-[#0E1B4A]">{item.title}</p>
                       <div className="mt-2 flex items-center justify-between text-xs text-[#9A6A15]">
-                        <span>{item.test_questions?.length ?? 0} {t("Questions")}</span>
+                        <span>{item.test_questions?.length ?? 0} {language === "ar" ? "أسئلة" : "questions"}</span>
                         <span>{item.test_submissions?.length ?? 0} {t("Submitted")}</span>
                       </div>
                       <p className="mt-2 text-xs text-[#8B6A34]">{formatDateTime(item.test_date, locale)}</p>
