@@ -469,13 +469,12 @@ function Navbar({ onCTAClick }: { onCTAClick: () => void }) {
     >
       <div
         className="mx-auto flex h-[76px] w-full max-w-[1440px] flex-row-reverse items-center justify-between gap-4 px-4 sm:px-6 lg:px-10"
-        style={{}}
       >
-        <div className="order-3 flex min-w-[180px] items-center justify-start">
+        <div className="order-3 flex md:min-w-[180px] items-center justify-start shrink-0">
           <ImageWithFallback
             src={nibrasLogo}
             alt="شعار نبراس"
-            className="h-11 w-auto object-contain md:h-12"
+            className="h-10 w-auto object-contain md:h-12"
           />
         </div>
 
@@ -492,7 +491,7 @@ function Navbar({ onCTAClick }: { onCTAClick: () => void }) {
           ))}
         </div>
 
-        <div className="order-1 flex min-w-[180px] items-center justify-end gap-3">
+        <div className="order-1 flex md:min-w-[180px] items-center justify-start md:justify-end gap-3 shrink-0">
           <button
             onClick={onCTAClick}
             className="hidden md:flex items-center rounded-2xl px-6 py-3 font-bold text-sm text-white transition-all hover:-translate-y-0.5 hover:opacity-90 hover:shadow-lg"
@@ -504,31 +503,41 @@ function Navbar({ onCTAClick }: { onCTAClick: () => void }) {
             احجز عرضك المجاني
           </button>
           <button
-            className="md:hidden flex h-11 w-11 items-center justify-center rounded-2xl"
-            style={{ background: "rgba(124,58,237,0.1)", color: PURPLE }}
+            className="md:hidden flex h-11 w-11 items-center justify-center rounded-2xl transition-colors hover:bg-purple-50 active:scale-95"
+            style={{ color: PURPLE }}
             onClick={() => setMenuOpen(!menuOpen)}
+            aria-label="Toggle Navigation Menu"
           >
-            <Menu size={22} />
+            {menuOpen ? <X size={26} /> : <Menu size={26} />}
           </button>
         </div>
       </div>
 
       {menuOpen && (
         <div
-          className="border-t bg-white/95 px-6 py-4 backdrop-blur md:hidden"
+          className="border-t bg-white/95 px-6 py-5 backdrop-blur-md md:hidden shadow-lg transition-all animate-in fade-in slide-in-from-top-2"
           style={{ borderColor: "rgba(124,58,237,0.1)" }}
         >
-          <div className="flex flex-col gap-3">
+          <div className="flex flex-col items-center gap-4 text-center">
             {links.map(l => (
-              <a key={l.href} href={l.href} className="font-semibold text-sm py-1" style={{ color: "#1e0f3e" }} onClick={() => setMenuOpen(false)}>
+              <a
+                key={l.href}
+                href={l.href}
+                className="font-bold text-[16px] py-1.5 transition-colors hover:text-purple-600 text-center w-full"
+                style={{ color: "#1e0f3e" }}
+                onClick={() => setMenuOpen(false)}
+              >
                 {l.label}
               </a>
             ))}
           </div>
           <button
             onClick={() => { setMenuOpen(false); onCTAClick(); }}
-            className="mt-4 w-full py-3 rounded-2xl font-bold text-sm text-white"
-            style={{ background: `linear-gradient(135deg, ${PURPLE_DARK}, ${PURPLE})` }}
+            className="mt-5 w-full py-3.5 rounded-2xl font-bold text-base text-white shadow-md active:scale-[0.99] transition-all flex items-center justify-center"
+            style={{
+              background: `linear-gradient(135deg, ${PURPLE_DARK}, ${PURPLE})`,
+              boxShadow: "0 8px 20px rgba(124,58,237,0.25)",
+            }}
           >
             احجز عرضك المجاني
           </button>
@@ -2085,8 +2094,8 @@ function FAQ() {
   const [open, setOpen] = useState<string | undefined>(undefined);
 
   return (
-    <section id="faq" className="py-24 px-6 md:px-10" style={{ background: "#f8f6ff" }}>
-      <div className="max-w-3xl mx-auto">
+    <section id="faq" className="py-24 px-6 md:px-10 text-right" dir="rtl" style={{ background: "#f8f6ff" }}>
+      <div className="max-w-3xl mx-auto" dir="rtl">
         <div className="text-center mb-14">
           <h2 className="text-3xl md:text-5xl font-black mb-4" style={{ color: "#1e0f3e" }}>
             أسئلة <span style={{ color: PURPLE }}>شائعة</span>
@@ -2102,37 +2111,44 @@ function FAQ() {
           value={open}
           onValueChange={setOpen}
           className="flex flex-col gap-3"
+          dir="rtl"
         >
           {faqs.map((faq, i) => (
             <AccordionPrimitive.Item
               key={i}
               value={String(i)}
-              className="rounded-2xl border overflow-hidden transition-all"
+              className="rounded-2xl border overflow-hidden transition-all text-right"
               style={{
                 borderColor: open === String(i) ? `${PURPLE}30` : "rgba(124,58,237,0.1)",
                 background: "#fff",
+                direction: "rtl",
               }}
             >
-              <AccordionPrimitive.Trigger
-                className="w-full flex items-center justify-between p-6 text-right gap-4 font-bold text-base transition-colors"
-                style={{ color: "#1e0f3e" }}
-              >
-                <span className="text-right flex-1">{faq.q}</span>
-                <ChevronDown
-                  size={18}
-                  className="shrink-0 transition-transform duration-200"
-                  style={{
-                    color: PURPLE,
-                    transform: open === String(i) ? "rotate(180deg)" : "rotate(0deg)",
-                  }}
-                />
-              </AccordionPrimitive.Trigger>
+              <AccordionPrimitive.Header className="flex w-full">
+                <AccordionPrimitive.Trigger
+                  className="w-full flex flex-row items-center justify-between p-6 text-right gap-4 font-bold text-base transition-colors hover:bg-purple-50/50 cursor-pointer"
+                  style={{ color: "#1e0f3e", direction: "rtl", textAlign: "right" }}
+                >
+                  <span className="text-right flex-1 font-bold text-[16px] md:text-[18px]" style={{ direction: "rtl", textAlign: "right" }}>
+                    {faq.q}
+                  </span>
+                  <ChevronDown
+                    size={20}
+                    className="shrink-0 transition-transform duration-200"
+                    style={{
+                      color: PURPLE,
+                      transform: open === String(i) ? "rotate(180deg)" : "rotate(0deg)",
+                    }}
+                  />
+                </AccordionPrimitive.Trigger>
+              </AccordionPrimitive.Header>
               <AccordionPrimitive.Content
-                className="overflow-hidden data-[state=open]:animate-accordion-down data-[state=closed]:animate-accordion-up"
+                className="overflow-hidden data-[state=open]:animate-accordion-down data-[state=closed]:animate-accordion-up text-right"
+                style={{ direction: "rtl", textAlign: "right" }}
               >
                 <p
-                  className="px-6 pb-6 text-sm leading-relaxed"
-                  style={{ color: "#6b5c8a" }}
+                  className="px-6 pb-6 text-sm md:text-base leading-relaxed text-right"
+                  style={{ color: "#6b5c8a", direction: "rtl", textAlign: "right" }}
                 >
                   {faq.a}
                 </p>

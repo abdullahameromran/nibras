@@ -1199,8 +1199,8 @@ export function AppShell({ children, navItems, activeView, onSelect, onLogout, h
       <div className="nibras-shell-content relative z-0 flex-1 flex flex-col min-w-0 overflow-hidden">
         <div className="h-16 bg-card border-b border-border flex items-center justify-between px-4 sticky top-0 z-10">
           <div className="flex items-center gap-3">
-            <button className="md:hidden w-9 h-9 rounded-xl bg-muted flex items-center justify-center" onClick={() => setSidebarOpen(p => !p)}>
-              <Menu className="w-4 h-4 text-muted-foreground" />
+            <button className="md:hidden w-10 h-10 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center hover:bg-purple-100 active:scale-95 transition-all" onClick={() => setSidebarOpen(p => !p)} aria-label="Toggle Sidebar">
+              <Menu className="w-5 h-5 text-purple-600" />
             </button>
             <h1 className="text-base font-bold text-foreground">{headerTitle}</h1>
           </div>
