@@ -14,13 +14,46 @@ export interface Notification {
   sent_at: string | null;
 }
 
+const NOTIFICATIONS_LAST_READ_AT_STORAGE_KEY = "school-platform-notifications-last-read-at";
+
+function readStoredLastReadAt(userId: string | null) {
+  if (!userId || typeof window === "undefined") return null;
+
+  try {
+    const raw = window.localStorage.getItem(`${NOTIFICATIONS_LAST_READ_AT_STORAGE_KEY}:${userId}`);
+    return raw && raw.trim() ? raw : null;
+  } catch {
+    return null;
+  }
+}
+
+function persistLastReadAt(userId: string | null, value: string | null) {
+  if (!userId || typeof window === "undefined") return;
+
+  try {
+    const key = `${NOTIFICATIONS_LAST_READ_AT_STORAGE_KEY}:${userId}`;
+    if (!value) {
+      window.localStorage.removeItem(key);
+      return;
+    }
+    window.localStorage.setItem(key, value);
+  } catch {
+    // Ignore localStorage failures and continue with in-memory state.
+  }
+}
+
 export function useNotifications(userId: string | null) {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(false);
+  const [lastReadAt, setLastReadAt] = useState<string | null>(() => readStoredLastReadAt(userId));
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
 
   const fetchNotifications = useCallback(async () => {
-    if (!userId) return;
+    if (!userId) {
+      setNotifications([]);
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     const { data } = await supabase
       .from("notifications")
@@ -30,6 +63,10 @@ export function useNotifications(userId: string | null) {
       .limit(50);
     setNotifications((data as Notification[]) ?? []);
     setLoading(false);
+  }, [userId]);
+
+  useEffect(() => {
+    setLastReadAt(readStoredLastReadAt(userId));
   }, [userId]);
 
   useEffect(() => { fetchNotifications(); }, [fetchNotifications]);
@@ -52,7 +89,23 @@ export function useNotifications(userId: string | null) {
     return () => { channel.unsubscribe(); };
   }, [userId]);
 
-  const unreadCount = notifications.filter(n => n.status === "pending").length;
+  const isUnread = useCallback((notification: Notification) => {
+    if (notification.status !== "pending") return false;
+    if (!lastReadAt) return true;
 
-  return { notifications, loading, fetchNotifications, unreadCount };
+    return new Date(notification.created_at).getTime() > new Date(lastReadAt).getTime();
+  }, [lastReadAt]);
+
+  const markAllAsRead = useCallback(async () => {
+    if (!userId) return { error: "Not authenticated" };
+
+    const nextReadAt = new Date().toISOString();
+    setLastReadAt(nextReadAt);
+    persistLastReadAt(userId, nextReadAt);
+    return { error: null };
+  }, [userId]);
+
+  const unreadCount = notifications.filter(isUnread).length;
+
+  return { notifications, loading, fetchNotifications, unreadCount, isUnread, markAllAsRead };
 }

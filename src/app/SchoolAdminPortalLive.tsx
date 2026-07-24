@@ -57,12 +57,14 @@ import {
   useSchoolParentLinks,
   useSchoolTeacherAssignments,
 } from "@/hooks/useSchoolAdminData";
+import { useParents } from "@/hooks/useParents";
 import { useStudents } from "@/hooks/useStudents";
 import { useSubjects } from "@/hooks/useSubjects";
 import { useTeachers } from "@/hooks/useTeachers";
 import { useStorageObjectUrl, useStorageObjectUrlMap } from "@/hooks/useStorageUrls";
 import { useTests } from "@/hooks/useTests";
 import { useTimetable, useTimeSlots, useWorkingDays } from "@/hooks/useTimetable";
+import { formatDisplayName } from "@/lib/display";
 import { formatPlanDisplayName } from "@/lib/plans";
 
 const SCHOOL_NAV: NavItem[] = [
@@ -120,8 +122,18 @@ type StudentRow = {
   points: number;
 };
 
+type ParentManagerState = {
+  studentId: string;
+};
+
+type TimetableEditorState = {
+  dayId: string;
+  slotId: string;
+  entryId: string | null;
+};
+
 function formatName(firstName?: string | null, lastName?: string | null, email?: string | null) {
-  return [firstName, lastName].filter(Boolean).join(" ") || email || "Unknown";
+  return formatDisplayName([firstName, lastName], email, "Unknown");
 }
 
 function formatShortDate(value?: string | null) {
@@ -202,6 +214,7 @@ export function SchoolAdminPortalLive({
   const dbSchool = useSchoolDetails(schoolId ?? null);
   const dbTeachers = useTeachers(schoolId ?? null);
   const dbStudents = useStudents(schoolId ?? null);
+  const dbParents = useParents(schoolId ?? null);
   const dbAnnouncements = useAnnouncements(schoolId ?? null);
   const dbGradeLevels = useGradeLevels(schoolId ?? null);
   const dbYears = useAcademicYears(schoolId ?? null);
@@ -224,6 +237,7 @@ export function SchoolAdminPortalLive({
   const [academicTab, setAcademicTab] = useState("working-days");
   const [showAddTeacher, setShowAddTeacher] = useState(false);
   const [showAddStudent, setShowAddStudent] = useState(false);
+  const [parentManager, setParentManager] = useState<ParentManagerState | null>(null);
   const [showAnnouncement, setShowAnnouncement] = useState(false);
   const [showAddClassForGrade, setShowAddClassForGrade] = useState<{ gradeId: string; grade: string } | null>(null);
   const [showAssignmentEditor, setShowAssignmentEditor] = useState<GradeClassSelection | null>(null);
@@ -248,9 +262,13 @@ export function SchoolAdminPortalLive({
   const [editingTimeSlotId, setEditingTimeSlotId] = useState<string | null>(null);
   const [teacherForm, setTeacherForm] = useState({ name: "", email: "" });
   const [studentForm, setStudentForm] = useState({ name: "", email: "", classId: "" });
+  const [parentInviteForm, setParentInviteForm] = useState({ name: "", email: "", relationship: "parent" });
+  const [existingParentLinkForm, setExistingParentLinkForm] = useState({ parentId: "", relationship: "parent" });
   const [announcementForm, setAnnouncementForm] = useState({ title: "", body: "", audience: "school" });
   const [newClassName, setNewClassName] = useState("");
   const [assignmentDraft, setAssignmentDraft] = useState<Record<string, string>>({});
+  const [timetableEditor, setTimetableEditor] = useState<TimetableEditorState | null>(null);
+  const [timetableEntryForm, setTimetableEntryForm] = useState({ subjectId: "", teacherId: "" });
   const [selectedConversationId, setSelectedConversationId] = useState<string | null>(null);
   const [composeRecipientId, setComposeRecipientId] = useState("");
   const [messageDraft, setMessageDraft] = useState("");
@@ -319,7 +337,13 @@ export function SchoolAdminPortalLive({
   const parentNameByStudentId = useMemo(() => {
     const map = new Map<string, string>();
     dbParentLinks.links.forEach((link) => {
-      map.set(link.student_id, formatName(link.parent_profile?.first_name, link.parent_profile?.last_name, link.parent_profile?.email) || "Not linked");
+      const parentName = formatName(
+        link.parent_profile?.first_name,
+        link.parent_profile?.last_name,
+        link.parent_profile?.email,
+      ) || "Not linked";
+      const existing = map.get(link.student_id);
+      map.set(link.student_id, existing ? `${existing}, ${parentName}` : parentName);
     });
     return map;
   }, [dbParentLinks.links]);
@@ -390,6 +414,26 @@ export function SchoolAdminPortalLive({
       };
     });
   }, [attendanceCountByStudentId, averageFinalGradeByStudentId, dbStudents.students, latestEnrollmentByStudentId, parentNameByStudentId]);
+
+  const managedStudent = useMemo(
+    () => studentRows.find((student) => student.id === parentManager?.studentId) ?? null,
+    [parentManager?.studentId, studentRows],
+  );
+
+  const managedStudentParentLinks = useMemo(
+    () => (parentManager?.studentId ? dbParentLinks.links.filter((link) => link.student_id === parentManager.studentId) : []),
+    [dbParentLinks.links, parentManager?.studentId],
+  );
+
+  const availableParentOptions = useMemo(() => {
+    const linkedParentIds = new Set(managedStudentParentLinks.map((link) => link.parent_id));
+    return dbParents.parents
+      .filter((parent) => !linkedParentIds.has(parent.id))
+      .map((parent) => ({
+        value: parent.id,
+        label: formatName(parent.first_name, parent.last_name, parent.email),
+      }));
+  }, [dbParents.parents, managedStudentParentLinks]);
 
   const gradeStructures = useMemo(() => {
     return dbGradeLevels.gradeLevels.map((gradeLevel) => {
@@ -507,6 +551,13 @@ export function SchoolAdminPortalLive({
   useEffect(() => {
     if (!timetableClassId && classOptions.length > 0) setTimetableClassId(classOptions[0].value);
   }, [classOptions, timetableClassId]);
+
+  useEffect(() => {
+    if (!parentManager) return;
+    if (parentManager.studentId) return;
+    if (studentRows.length === 0) return;
+    setParentManager({ studentId: studentRows[0].id });
+  }, [parentManager, studentRows]);
 
   useEffect(() => {
     if (selectedConversationId) return;
@@ -774,6 +825,77 @@ export function SchoolAdminPortalLive({
     () => dbTimetable.entries.filter((entry) => entry.class_id === timetableClassId),
     [dbTimetable.entries, timetableClassId],
   );
+  const timetableSubjectOptions = useMemo(() => {
+    if (!timetableClassId) return [];
+    const assignedSubjectIds = new Set(
+      dbTeacherAssignments.assignments
+        .filter((assignment) => assignment.class_id === timetableClassId)
+        .map((assignment) => assignment.subject_id),
+    );
+    const source = assignedSubjectIds.size > 0
+      ? dbSubjects.subjects.filter((subject) => assignedSubjectIds.has(subject.id))
+      : dbSubjects.subjects;
+    return source.map((subject) => ({ value: subject.id, label: subject.name }));
+  }, [dbSubjects.subjects, dbTeacherAssignments.assignments, timetableClassId]);
+
+  const timetableTeacherOptions = useMemo(() => {
+    if (!timetableEntryForm.subjectId) {
+      return teacherRows.map((teacher) => ({ value: teacher.id, label: teacher.name }));
+    }
+    const assignedTeacherIds = new Set(
+      dbTeacherAssignments.assignments
+        .filter(
+          (assignment) =>
+            assignment.class_id === timetableClassId &&
+            assignment.subject_id === timetableEntryForm.subjectId,
+        )
+        .map((assignment) => assignment.teacher_id),
+    );
+    const source = assignedTeacherIds.size > 0
+      ? teacherRows.filter((teacher) => assignedTeacherIds.has(teacher.id))
+      : teacherRows;
+    return source.map((teacher) => ({ value: teacher.id, label: teacher.name }));
+  }, [dbTeacherAssignments.assignments, teacherRows, timetableClassId, timetableEntryForm.subjectId]);
+
+  const activeTimetableEntry = useMemo(
+    () =>
+      timetableEditor?.entryId
+        ? dbTimetable.entries.find((entry) => entry.id === timetableEditor.entryId) ?? null
+        : null,
+    [dbTimetable.entries, timetableEditor?.entryId],
+  );
+
+  useEffect(() => {
+    if (!timetableEditor) return;
+    const entry = timetableEditor.entryId
+      ? dbTimetable.entries.find((item) => item.id === timetableEditor.entryId) ?? null
+      : null;
+    const nextSubjectId =
+      entry?.subject_id ??
+      timetableSubjectOptions[0]?.value ??
+      "";
+    setTimetableEntryForm((current) => ({
+      subjectId: current.subjectId || nextSubjectId,
+      teacherId: entry?.teacher_id ?? current.teacherId,
+    }));
+  }, [dbTimetable.entries, timetableEditor, timetableSubjectOptions]);
+
+  useEffect(() => {
+    if (!timetableEditor) return;
+    if (!timetableEntryForm.subjectId && timetableSubjectOptions.length > 0) {
+      setTimetableEntryForm((current) => ({ ...current, subjectId: timetableSubjectOptions[0].value }));
+    }
+  }, [timetableEditor, timetableEntryForm.subjectId, timetableSubjectOptions]);
+
+  useEffect(() => {
+    if (!timetableEditor) return;
+    if (!timetableTeacherOptions.some((option) => option.value === timetableEntryForm.teacherId)) {
+      setTimetableEntryForm((current) => ({
+        ...current,
+        teacherId: timetableTeacherOptions[0]?.value ?? "",
+      }));
+    }
+  }, [timetableEditor, timetableEntryForm.teacherId, timetableTeacherOptions]);
 
   const finalGradeStructures = gradeStructures;
 
@@ -1047,6 +1169,74 @@ export function SchoolAdminPortalLive({
     showToast("Student invited successfully");
   };
 
+  const openParentManager = (studentId?: string) => {
+    setParentInviteForm({ name: "", email: "", relationship: "parent" });
+    setExistingParentLinkForm({ parentId: "", relationship: "parent" });
+    setParentManager({ studentId: studentId ?? studentRows[0]?.id ?? "" });
+  };
+
+  const inviteParentForStudent = async () => {
+    if (!parentManager?.studentId) {
+      showToast("Choose a student first.", "error");
+      return;
+    }
+    const [firstName = "", ...rest] = parentInviteForm.name.trim().split(" ");
+    if (!parentInviteForm.name.trim() || !parentInviteForm.email.trim()) {
+      showToast("Enter the parent name and email.", "error");
+      return;
+    }
+    const inviteResult = await dbParents.inviteParent({
+      email: parentInviteForm.email.trim(),
+      first_name: firstName,
+      last_name: rest.join(" ") || undefined,
+    });
+    if (inviteResult.error || !inviteResult.user_id) {
+      showToast(inviteResult.error ?? "Could not invite the parent.", "error");
+      return;
+    }
+    const linkResult = await dbParents.linkParentToStudent({
+      parent_id: inviteResult.user_id,
+      student_id: parentManager.studentId,
+      relationship: parentInviteForm.relationship,
+    });
+    if (linkResult.error) {
+      showToast(linkResult.error, "error");
+      return;
+    }
+    await dbParentLinks.fetchLinks();
+    setParentInviteForm({ name: "", email: "", relationship: "parent" });
+    showToast("Parent invited and linked successfully");
+  };
+
+  const linkExistingParentToStudent = async () => {
+    if (!parentManager?.studentId || !existingParentLinkForm.parentId) {
+      showToast("Choose a student and parent first.", "error");
+      return;
+    }
+    const result = await dbParents.linkParentToStudent({
+      parent_id: existingParentLinkForm.parentId,
+      student_id: parentManager.studentId,
+      relationship: existingParentLinkForm.relationship,
+    });
+    if (result.error) {
+      showToast(result.error, "error");
+      return;
+    }
+    await dbParentLinks.fetchLinks();
+    setExistingParentLinkForm({ parentId: "", relationship: "parent" });
+    showToast("Parent linked successfully");
+  };
+
+  const unlinkParentFromStudent = async (linkId: string) => {
+    const result = await dbParents.unlinkParentFromStudent(linkId);
+    if (result.error) {
+      showToast(result.error, "error");
+      return;
+    }
+    await dbParentLinks.fetchLinks();
+    showToast("Parent link removed");
+  };
+
   const publishAnnouncement = async () => {
     if (!schoolId || !user?.id) return;
     if (!announcementForm.title.trim() || !announcementForm.body.trim()) {
@@ -1166,6 +1356,77 @@ export function SchoolAdminPortalLive({
     showToast("Timetable generated from live assignments");
   };
 
+  const openTimetableEditor = (dayId: string, slotId: string, entryId: string | null = null) => {
+    const existingEntry = entryId
+      ? dbTimetable.entries.find((entry) => entry.id === entryId) ?? null
+      : null;
+    const assignedTeacherIds = new Set(
+      dbTeacherAssignments.assignments
+        .filter(
+          (assignment) =>
+            assignment.class_id === timetableClassId &&
+            assignment.subject_id === (existingEntry?.subject_id ?? ""),
+        )
+        .map((assignment) => assignment.teacher_id),
+    );
+    const fallbackTeacherId =
+      existingEntry?.teacher_id ??
+      (assignedTeacherIds.size > 0
+        ? teacherRows.find((teacher) => assignedTeacherIds.has(teacher.id))?.id
+        : teacherRows[0]?.id) ??
+      "";
+    setTimetableEditor({ dayId, slotId, entryId });
+    setTimetableEntryForm({
+      subjectId: existingEntry?.subject_id ?? timetableSubjectOptions[0]?.value ?? "",
+      teacherId: fallbackTeacherId,
+    });
+  };
+
+  const closeTimetableEditor = () => {
+    setTimetableEditor(null);
+    setTimetableEntryForm({ subjectId: "", teacherId: "" });
+  };
+
+  const saveManualTimetableEntry = async () => {
+    if (!schoolId || !dbYears.currentYear || !timetableClassId || !timetableEditor) {
+      showToast("Choose a class and current academic year first.", "error");
+      return;
+    }
+    if (!timetableEntryForm.subjectId || !timetableEntryForm.teacherId) {
+      showToast("Choose the subject and teacher first.", "error");
+      return;
+    }
+    const payload = {
+      school_id: schoolId,
+      academic_year_id: dbYears.currentYear.id,
+      working_day_id: timetableEditor.dayId,
+      time_slot_id: timetableEditor.slotId,
+      class_id: timetableClassId,
+      subject_id: timetableEntryForm.subjectId,
+      teacher_id: timetableEntryForm.teacherId,
+    };
+    const result = timetableEditor.entryId
+      ? await dbTimetable.updateEntry(timetableEditor.entryId, payload)
+      : await dbTimetable.createEntry(payload);
+    if (result.error) {
+      showToast(result.error, "error");
+      return;
+    }
+    closeTimetableEditor();
+    showToast(timetableEditor.entryId ? "Timetable entry updated" : "Timetable entry created");
+  };
+
+  const deleteManualTimetableEntry = async () => {
+    if (!timetableEditor?.entryId) return;
+    const result = await dbTimetable.deleteEntry(timetableEditor.entryId);
+    if (result.error) {
+      showToast(result.error, "error");
+      return;
+    }
+    closeTimetableEditor();
+    showToast("Timetable entry removed");
+  };
+
   const toggleTimetablePublished = async () => {
     const result = await dbSchool.updateSchool({
       settings: { timetablePublished: !Boolean(schoolSettings.timetablePublished) },
@@ -1207,23 +1468,44 @@ export function SchoolAdminPortalLive({
     messages: "Messages",
   };
 
-  const coreLoading =
+  const dashboardLoading =
     dbSchool.loading ||
     dbTeachers.loading ||
     dbStudents.loading ||
     dbClasses.loading ||
     dbGradeLevels.loading ||
     dbYears.loading ||
-    dbSubjects.loading;
-  const [hasLoadedCoreData, setHasLoadedCoreData] = useState(false);
+    dbSubjects.loading ||
+    dbEnrollments.loading ||
+    dbAnnouncements.loading ||
+    dbLessons.loading ||
+    dbHomework.loading ||
+    dbTests.loading ||
+    dbAttendance.loading;
+  const [hasStartedInitialLoad, setHasStartedInitialLoad] = useState(false);
+  const [hasLoadedInitialDashboardData, setHasLoadedInitialDashboardData] = useState(false);
 
   useEffect(() => {
-    if (!coreLoading) {
-      setHasLoadedCoreData(true);
-    }
-  }, [coreLoading]);
+    setHasStartedInitialLoad(false);
+    setHasLoadedInitialDashboardData(false);
+  }, [schoolId]);
 
-  const showInitialLoader = !hasLoadedCoreData && coreLoading;
+  useEffect(() => {
+    if (!schoolId) return;
+    if (dashboardLoading) {
+      setHasStartedInitialLoad(true);
+    }
+  }, [dashboardLoading, schoolId]);
+
+  useEffect(() => {
+    if (!schoolId || !hasStartedInitialLoad) return;
+    if (!dashboardLoading) {
+      setHasLoadedInitialDashboardData(true);
+    }
+  }, [dashboardLoading, hasStartedInitialLoad, schoolId]);
+
+  const showInitialLoader =
+    Boolean(schoolId) && (!hasStartedInitialLoad || !hasLoadedInitialDashboardData);
 
   const userName = formatName(user?.first_name, user?.last_name, user?.email);
 
@@ -1240,6 +1522,7 @@ export function SchoolAdminPortalLive({
         }
         userName={userName}
         userRole="School Administrator"
+        userId={user?.id ?? null}
       >
         {showInitialLoader && <LoadingState label="Loading school administration data..." />}
 
@@ -1922,7 +2205,10 @@ export function SchoolAdminPortalLive({
 
         {!showInitialLoader && view === "students" && (
           <div className="space-y-5">
-            <div className="flex justify-end">
+            <div className="flex flex-wrap justify-end gap-3">
+              <Btn variant="secondary" icon={<Users className="w-4 h-4" />} onClick={() => openParentManager()}>
+                Manage Parents
+              </Btn>
               <Btn icon={<UserPlus className="w-4 h-4" />} onClick={() => setShowAddStudent(true)}>Add Student</Btn>
             </div>
             <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
@@ -1930,7 +2216,7 @@ export function SchoolAdminPortalLive({
                 <table className="w-full min-w-[720px]">
                   <thead>
                     <tr className="border-b border-border bg-muted/40">
-                      {["Student", "Class", "Parent / Guardian", "Grade", "Attendance Points"].map((heading) => (
+                      {["Student", "Class", "Parent / Guardian", "Grade", "Attendance Points", "Actions"].map((heading) => (
                         <th key={heading} className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground">{heading}</th>
                       ))}
                     </tr>
@@ -1951,6 +2237,11 @@ export function SchoolAdminPortalLive({
                         <td className="px-4 py-3 text-sm text-foreground">{student.parentName}</td>
                         <td className="px-4 py-3"><Badge color={student.grade === "A" ? "green" : student.grade === "B" ? "blue" : student.grade === "Pending" ? "gray" : "yellow"}>{student.grade}</Badge></td>
                         <td className="px-4 py-3 text-sm font-medium text-foreground">{student.points}</td>
+                        <td className="px-4 py-3">
+                          <Btn size="sm" variant="secondary" onClick={() => openParentManager(student.id)}>
+                            Manage Parents
+                          </Btn>
+                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -1971,6 +2262,10 @@ export function SchoolAdminPortalLive({
               {Boolean(schoolSettings.timetablePublished) && <Badge color="green">Published</Badge>}
             </div>
 
+            <div className="rounded-2xl border border-border bg-card px-4 py-3 text-sm text-muted-foreground shadow-sm">
+              Click any teaching cell to add, edit, or remove a live timetable entry for the selected class.
+            </div>
+
             <div className="overflow-auto rounded-2xl border border-border bg-card shadow-sm">
               <table className="w-full min-w-[760px]">
                 <thead>
@@ -1988,18 +2283,31 @@ export function SchoolAdminPortalLive({
                       {timetableDays.map((day) => {
                         const entry = selectedTimetableEntries.find((item) => item.time_slot_id === slot.id && item.working_day_id === day.id);
                         return (
-                          <td key={day.id} className="px-4 py-3">
+                          <td key={`${day.id}-${slot.id}`} className="px-4 py-3">
                             {slot.label.toLowerCase().includes("break") ? (
                               <span className="rounded-lg bg-amber-50 px-2 py-1 text-xs font-medium text-amber-700">Break</span>
-                            ) : entry ? (
-                              <div className="rounded-lg bg-secondary px-2 py-1.5">
-                                <p className="text-xs font-semibold text-primary">{entry.subjects?.name}</p>
-                                <p className="text-[10px] text-muted-foreground">{teacherNameById.get(entry.teacher_id)}</p>
-                              </div>
                             ) : (
+                              <button
+                                type="button"
+                                onClick={() => openTimetableEditor(day.id, slot.id, entry?.id ?? null)}
+                                className={`flex w-full cursor-pointer items-start rounded-lg border px-3 py-2 text-left transition ${
+                                  entry
+                                    ? "border-primary/20 bg-secondary hover:border-primary/40"
+                                    : "border-dashed border-border hover:border-primary/40 hover:bg-muted"
+                                }`}
+                              >
+                                {entry ? (
+                                  <div>
+                                    <p className="text-xs font-semibold text-primary">{entry.subjects?.name}</p>
+                                    <p className="text-[10px] text-muted-foreground">{teacherNameById.get(entry.teacher_id)}</p>
+                                  </div>
+                                ) : (
+                                  <span className="text-xs text-muted-foreground">Add lesson</span>
+                                )}
+                              </button>
+                            )}{false && (
                               <span className="text-xs text-muted-foreground">—</span>
-                            )}
-                          </td>
+                          )}</td>
                         );
                       })}
                     </tr>
@@ -2014,7 +2322,7 @@ export function SchoolAdminPortalLive({
           <div className="space-y-5">
             <div className="rounded-2xl border border-border bg-card p-4 shadow-sm">
               <div className="flex flex-wrap items-end gap-4">
-                <Select label="Grade" value={finalGradeLevelId} onChange={setFinalGradeLevelId} options={finalGradeStructures.map((item) => ({ value: item.gradeId, label: item.grade }))} />
+                <Select label="Grade Level" value={finalGradeLevelId} onChange={setFinalGradeLevelId} options={finalGradeStructures.map((item) => ({ value: item.gradeId, label: item.grade }))} />
                 <Select label="Class" value={finalClassId} onChange={setFinalClassId} options={finalGradeClassOptions} />
                 <Select label="Subject" value={finalSubjectId} onChange={setFinalSubjectId} options={finalGradeSubjectOptions} />
                 <Btn
@@ -2035,7 +2343,7 @@ export function SchoolAdminPortalLive({
                     )
                   }
                 >
-                  Export CSV
+                  {t("Export CSV", "Export CSV")}
                 </Btn>
               </div>
             </div>
@@ -2043,7 +2351,7 @@ export function SchoolAdminPortalLive({
             <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
               <div className="border-b border-border bg-muted/40 px-5 py-3">
                 <span className="text-sm font-semibold text-foreground">
-                  {gradeLevelNameById.get(finalGradeLevelId) ?? "Grade"} • {classNameById.get(finalClassId) ?? "Class"} • {finalGradeSubjectOptions.find((item) => item.value === finalSubjectId)?.label ?? "Subject"}
+                  {gradeLevelNameById.get(finalGradeLevelId) ?? t("Grade Level", "Grade")} • {classNameById.get(finalClassId) ?? t("Class", "Class")} • {finalGradeSubjectOptions.find((item) => item.value === finalSubjectId)?.label ?? t("Subject", "Subject")}
                 </span>
               </div>
               <div className="overflow-x-auto">
@@ -2051,7 +2359,7 @@ export function SchoolAdminPortalLive({
                   <thead>
                     <tr className="border-b border-border">
                       {["#", "Student Name", "Final Grade", "Letter", "Remarks", "Status"].map((heading) => (
-                        <th key={heading} className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground">{heading}</th>
+                        <th key={heading} className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground">{heading === "#" ? heading : t(heading, heading)}</th>
                       ))}
                     </tr>
                   </thead>
@@ -2065,14 +2373,14 @@ export function SchoolAdminPortalLive({
                             <span className="text-sm font-semibold text-foreground">{row.student.name}</span>
                           </div>
                         </td>
-                        <td className="px-4 py-3 text-sm text-foreground">{row.grade?.grade_value ?? "Pending"}</td>
+                        <td className="px-4 py-3 text-sm text-foreground">{row.grade?.grade_value ?? t("Pending", "Pending")}</td>
                         <td className="px-4 py-3">
                           <Badge color={row.grade?.grade_letter?.startsWith("A") ? "green" : row.grade?.grade_letter?.startsWith("B") ? "blue" : "gray"}>
-                            {row.grade?.grade_letter ?? "Pending"}
+                            {row.grade?.grade_letter ?? t("Pending", "Pending")}
                           </Badge>
                         </td>
                         <td className="px-4 py-3 text-sm text-foreground">{row.grade?.remarks ?? "—"}</td>
-                        <td className="px-4 py-3"><Badge color={row.grade?.status === "approved" ? "green" : row.grade?.status === "submitted" ? "blue" : "gray"}>{row.grade?.status ?? "draft"}</Badge></td>
+                        <td className="px-4 py-3"><Badge color={row.grade?.status === "approved" ? "green" : row.grade?.status === "submitted" ? "blue" : "gray"}>{t(row.grade?.status ?? "draft", row.grade?.status ?? "draft")}</Badge></td>
                       </tr>
                     ))}
                   </tbody>
@@ -2200,6 +2508,117 @@ export function SchoolAdminPortalLive({
         </Modal>
       )}
 
+      {parentManager && (
+        <Modal title="Manage Parent Links" onClose={() => setParentManager(null)}>
+          <div className="space-y-5">
+            <Select
+              label="Student"
+              value={parentManager.studentId}
+              onChange={(value) => setParentManager({ studentId: value })}
+              options={studentRows.map((student) => ({
+                value: student.id,
+                label: `${student.name} • ${student.className}`,
+              }))}
+              required
+            />
+
+            <div className="space-y-3 rounded-2xl border border-border bg-muted/40 p-4">
+              <div>
+                <p className="text-sm font-bold text-foreground">Linked Parents</p>
+                <p className="text-xs text-muted-foreground">
+                  {managedStudent ? `Parent accounts linked to ${managedStudent.name}.` : "Choose a student to review linked parents."}
+                </p>
+              </div>
+              <div className="space-y-2">
+                {managedStudentParentLinks.map((link) => (
+                  <div key={link.id} className="flex items-center justify-between rounded-xl bg-card px-3 py-2.5">
+                    <div>
+                      <p className="text-sm font-semibold text-foreground">
+                        {formatName(link.parent_profile?.first_name, link.parent_profile?.last_name, link.parent_profile?.email)}
+                      </p>
+                      <p className="text-xs text-muted-foreground">{link.relationship}</p>
+                    </div>
+                    <Btn size="sm" variant="danger" onClick={() => void unlinkParentFromStudent(link.id)}>
+                      Remove Link
+                    </Btn>
+                  </div>
+                ))}
+                {managedStudentParentLinks.length === 0 && (
+                  <p className="text-sm text-muted-foreground">No parents are linked to this student yet.</p>
+                )}
+              </div>
+            </div>
+
+            <div className="grid gap-4 lg:grid-cols-2">
+              <div className="space-y-4 rounded-2xl border border-border bg-card p-4">
+                <div>
+                  <p className="text-sm font-bold text-foreground">Link Existing Parent</p>
+                  <p className="text-xs text-muted-foreground">Attach an existing parent account from this school.</p>
+                </div>
+                <Select
+                  label="Parent"
+                  value={existingParentLinkForm.parentId}
+                  onChange={(value) => setExistingParentLinkForm((current) => ({ ...current, parentId: value }))}
+                  options={availableParentOptions}
+                />
+                <Select
+                  label="Relationship"
+                  value={existingParentLinkForm.relationship}
+                  onChange={(value) => setExistingParentLinkForm((current) => ({ ...current, relationship: value }))}
+                  options={[
+                    { value: "parent", label: "Parent" },
+                    { value: "mother", label: "Mother" },
+                    { value: "father", label: "Father" },
+                    { value: "guardian", label: "Guardian" },
+                  ]}
+                />
+                <Btn
+                  onClick={() => void linkExistingParentToStudent()}
+                  className="w-full"
+                  disabled={!parentManager.studentId || availableParentOptions.length === 0}
+                >
+                  Link Existing Parent
+                </Btn>
+              </div>
+
+              <div className="space-y-4 rounded-2xl border border-border bg-card p-4">
+                <div>
+                  <p className="text-sm font-bold text-foreground">Invite New Parent</p>
+                  <p className="text-xs text-muted-foreground">Create a parent account, then link it immediately.</p>
+                </div>
+                <Input
+                  label="Full Name"
+                  value={parentInviteForm.name}
+                  onChange={(value) => setParentInviteForm((current) => ({ ...current, name: value }))}
+                  required
+                />
+                <Input
+                  label="Email"
+                  type="email"
+                  value={parentInviteForm.email}
+                  onChange={(value) => setParentInviteForm((current) => ({ ...current, email: value }))}
+                  required
+                />
+                <Select
+                  label="Relationship"
+                  value={parentInviteForm.relationship}
+                  onChange={(value) => setParentInviteForm((current) => ({ ...current, relationship: value }))}
+                  options={[
+                    { value: "parent", label: "Parent" },
+                    { value: "mother", label: "Mother" },
+                    { value: "father", label: "Father" },
+                    { value: "guardian", label: "Guardian" },
+                  ]}
+                />
+                <Btn onClick={() => void inviteParentForStudent()} className="w-full" disabled={!parentManager.studentId}>
+                  Invite and Link Parent
+                </Btn>
+              </div>
+            </div>
+          </div>
+        </Modal>
+      )}
+
       {showAnnouncement && (
         <Modal title="Create Announcement" onClose={() => setShowAnnouncement(false)}>
           <div className="space-y-4">
@@ -2244,6 +2663,54 @@ export function SchoolAdminPortalLive({
             <div className="flex gap-3">
               <Btn onClick={() => void saveAssignments()} className="flex-1">Save Assignments</Btn>
               <Btn variant="secondary" onClick={() => setShowAssignmentEditor(null)}>Cancel</Btn>
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {timetableEditor && (
+        <Modal title={activeTimetableEntry ? "Edit Timetable Entry" : "Add Timetable Entry"} onClose={closeTimetableEditor}>
+          <div className="space-y-4">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="rounded-xl bg-muted p-3">
+                <p className="text-xs text-muted-foreground">Day</p>
+                <p className="text-sm font-semibold text-foreground">
+                  {timetableDays.find((day) => day.id === timetableEditor.dayId)?.label ?? "Not assigned"}
+                </p>
+              </div>
+              <div className="rounded-xl bg-muted p-3">
+                <p className="text-xs text-muted-foreground">Time Slot</p>
+                <p className="text-sm font-semibold text-foreground">
+                  {timetableSlots.find((slot) => slot.id === timetableEditor.slotId)?.label ?? "Not assigned"}
+                </p>
+              </div>
+            </div>
+            <Select
+              label="Subject"
+              value={timetableEntryForm.subjectId}
+              onChange={(value) => setTimetableEntryForm((current) => ({ ...current, subjectId: value }))}
+              options={timetableSubjectOptions}
+              required
+            />
+            <Select
+              label="Teacher"
+              value={timetableEntryForm.teacherId}
+              onChange={(value) => setTimetableEntryForm((current) => ({ ...current, teacherId: value }))}
+              options={timetableTeacherOptions}
+              required
+            />
+            <div className="flex flex-wrap gap-3">
+              <Btn onClick={() => void saveManualTimetableEntry()} className="flex-1">
+                {activeTimetableEntry ? "Save Changes" : "Create Entry"}
+              </Btn>
+              {activeTimetableEntry && (
+                <Btn variant="danger" onClick={() => void deleteManualTimetableEntry()}>
+                  Delete
+                </Btn>
+              )}
+              <Btn variant="secondary" onClick={closeTimetableEditor}>
+                Cancel
+              </Btn>
             </div>
           </div>
         </Modal>

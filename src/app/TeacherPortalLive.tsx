@@ -31,6 +31,7 @@ import {
 import { useStudents } from "@/hooks/useStudents";
 import { useTests } from "@/hooks/useTests";
 import { useTimetable, useTimeSlots, useWorkingDays } from "@/hooks/useTimetable";
+import { formatDisplayName, shouldPreferFallbackDisplayName } from "@/lib/display";
 import {
   AppShell,
   Avatar,
@@ -110,14 +111,7 @@ function formatName(
   lastName?: string | null,
   fallback?: string | null,
 ) {
-  const fullName = [firstName, lastName].filter(Boolean).join(" ").trim();
-  return fullName || fallback || "User";
-}
-
-function isGenericContactName(value?: string | null) {
-  if (!value) return true;
-  const normalized = value.trim().toLowerCase();
-  return normalized === "user" || normalized === "conversation";
+  return formatDisplayName([firstName, lastName], fallback, "User");
 }
 
 function formatDate(value?: string | null) {
@@ -620,7 +614,7 @@ export function TeacherPortalLive({
       map.set(conversation.partnerId, {
         id: conversation.partnerId,
         name:
-          existing && isGenericContactName(conversation.partnerName)
+          existing && shouldPreferFallbackDisplayName(conversation.partnerName)
             ? existing.name
             : conversation.partnerName,
         subtitle: existing?.subtitle ?? "Conversation",
@@ -901,6 +895,7 @@ export function TeacherPortalLive({
         }
         userName={userName}
         userRole="Teacher"
+        userId={user?.id ?? null}
       >
         {showInitialLoader && (
           <LoadingState

@@ -15,6 +15,8 @@ import {
   BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip,
   LineChart, Line, AreaChart, Area, PieChart as RPieChart, Pie, Cell
 } from "recharts";
+import { useNotifications } from "@/hooks/useNotifications";
+import { getDisplayInitials, resolveShellDisplayName } from "@/lib/display";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 export type Portal = "login" | "super-admin" | "school-admin" | "teacher" | "student" | "parent";
@@ -31,6 +33,7 @@ interface LanguageContextValue {
 const LanguageContext = createContext<LanguageContextValue | null>(null);
 
 const ARABIC_TRANSLATIONS: Record<string, string> = {
+  "teacher already has another timetable entry in this day and time slot": "لدى المعلم حصة أخرى بالفعل في هذا اليوم ونفس الفترة الزمنية.",
   "Dashboard": "لوحة التحكم", "Home Page": "الصفحة الرئيسية", "Schools": "المدارس", "Leads": "العملاء المحتملون",
   "Analytics": "التحليلات", "Subscriptions": "الاشتراكات", "Settings": "الإعدادات", "School Settings": "إعدادات المدرسة",
   "Academic Setup": "الإعداد الأكاديمي", "Grades & Classes": "الصفوف والفصول", "Teachers": "المعلمون",
@@ -97,7 +100,7 @@ const ARABIC_TRANSLATIONS: Record<string, string> = {
   "Create Homework": "إنشاء واجب", "Create Task": "إنشاء مهمة", "Review answers": "مراجعة الإجابات", "Submit homework": "تسليم الواجب",
   "Submit test": "تسليم الاختبار", "Back to edit": "العودة للتعديل", "Answered": "تمت الإجابة",
   "View grades": "عرض الدرجات",
-  "Final Grade": "الدرجة النهائية", "Student Name": "اسم الطالب", "Max Score": "الدرجة الكلية",
+  "Final Grade": "الدرجة النهائية", "Student Name": "اسم الطالب", "Max Score": "الدرجة الكلية", "Grade Level": "الصف", "Letter": "التقدير الحرفي", "Remarks": "ملاحظات",
   "Homework Assignments": "واجبات الدرس", "Tasks": "المهام", "Watch lesson video": "مشاهدة فيديو الدرس", "Class activity and participation": "نشاط الفصل ومشاركة الطلاب",
   "Add lesson": "إضافة درس", "Active items": "العناصر النشطة", "Archived items": "العناصر المؤرشفة",
   "Edit Lesson": "تعديل الدرس", "Edit Homework": "تعديل الواجب", "Edit Task": "تعديل المهمة", "Delete item": "حذف العنصر", "Archive item": "أرشفة العنصر",
@@ -234,6 +237,8 @@ Object.assign(ARABIC_TRANSLATIONS, {
   "Monthly tests and child submissions from Supabase will appear here.": "ستظهر هنا الاختبارات الشهرية وتسليمات الابن من النظام.",
   "No announcements yet": "لا توجد إعلانات بعد",
   "Parent-targeted announcements from Supabase will appear here.": "ستظهر هنا الإعلانات الموجهة لأولياء الأمور من النظام.",
+  "No grades for this selection": "لا توجد درجات لهذا الاختيار",
+  "Choose a class and subject that already has final grades in Supabase.": "اختر فصلًا ومادةً تحتوي بالفعل على درجات نهائية محفوظة في النظام.",
   "Welcome back!": "مرحبًا بعودتك!",
   "Bring calculators": "أحضروا الآلات الحاسبة",
   "Parent Meeting": "اجتماع أولياء الأمور",
@@ -617,6 +622,12 @@ export const SCHOOLS = [
   { id: 5, name: "Pinnacle School", admin: "Mr. Okonkwo", plan: "Standard", status: "inactive", students: 95, teachers: 8, created: "Apr 2, 2024" },
 ];
 
+Object.assign(ARABIC_TRANSLATIONS, {
+  draft: "مسودة",
+  submitted: "مُرسل",
+  approved: "معتمد",
+});
+
 export const TEACHERS = [
   { id: 1, name: "Mrs. Fatima Bello", email: "f.bello@school.edu", subject: "Mathematics", classes: ["Class A", "Class B"], status: "active", avatar: "FB" },
   { id: 2, name: "Mr. Emeka Osei", email: "e.osei@school.edu", subject: "English", classes: ["Class A", "Class C"], status: "active", avatar: "EO" },
@@ -709,7 +720,7 @@ export function avatarColor(name: string) {
 
 export function Avatar({ name, size = "md" }: { name: string; size?: "sm" | "md" | "lg" }) {
   const sz = size === "sm" ? "w-8 h-8 text-xs" : size === "lg" ? "w-12 h-12 text-base" : "w-10 h-10 text-sm";
-  const initials = name.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase();
+  const initials = getDisplayInitials(name);
   return (
     <div className={`${sz} rounded-full flex items-center justify-center text-white font-semibold shrink-0`} style={{ background: avatarColor(name) }}>
       {initials}
@@ -920,6 +931,15 @@ export function MiniProgress({ label, value, sub }: { label: string; value: numb
 export function Sidebar({ items, active, onSelect, onLogout, userName, userRole }:
   { items: NavItem[]; active: string; onSelect: (id: string) => void; onLogout: () => void; userName: string; userRole: string }) {
   const { language } = useLanguage();
+  const { t } = useTranslation();
+  const displayRole = t(userRole, userRole);
+  const displayName = resolveShellDisplayName({
+    name: userName,
+    role: userRole,
+    translatedRole: displayRole,
+    fallback: t("User"),
+  });
+
   return (
     <aside className={`w-[220px] h-screen bg-card flex flex-col shrink-0 ${language === "ar" ? "border-l" : "border-r"} border-border`}>
       <div className="flex items-center gap-3 px-5 py-5 border-b border-border">
@@ -937,21 +957,175 @@ export function Sidebar({ items, active, onSelect, onLogout, userName, userRole 
       </nav>
       <div className="px-3 py-4 border-t border-border">
         <div className="flex items-center gap-3 px-3 py-2 rounded-xl mb-2">
-          <Avatar name={userName} size="sm" />
+          <Avatar name={displayName} size="sm" />
           <div className="flex-1 min-w-0">
-            <p className="text-xs font-semibold text-foreground truncate">{userName}</p>
-            <p className="text-[10px] text-muted-foreground truncate">{userRole}</p>
+            <p className="text-xs font-semibold text-foreground truncate">{displayName}</p>
+            <p className="text-[10px] text-muted-foreground truncate">{displayRole}</p>
           </div>
         </div>
         <button onClick={onLogout} className="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-sm text-muted-foreground hover:bg-red-50 hover:text-red-600 transition-all font-medium">
-          <LogOut className="w-4 h-4" /><span>Log Out</span>
+          <LogOut className="w-4 h-4" /><span>{t("Log Out", "Log Out")}</span>
         </button>
       </div>
     </aside>
   );
 }
 
-export function Header({ title, subtitle }: { title: string; subtitle?: string }) {
+function formatNotificationTimestamp(value: string | null, language: Language) {
+  if (!value) return language === "ar" ? "الآن" : "Now";
+  return new Date(value).toLocaleString(language === "ar" ? "ar-EG" : "en-US", {
+    month: "numeric",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}
+
+function NotificationBell({ userId }: { userId?: string | null }) {
+  const { language } = useTranslation();
+  const { notifications, unreadCount, loading, isUnread, markAllAsRead } = useNotifications(userId ?? null);
+  const [open, setOpen] = useState(false);
+  const [markingAllAsRead, setMarkingAllAsRead] = useState(false);
+  const panelRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (!open) return;
+
+    const handlePointerDown = (event: MouseEvent) => {
+      if (!panelRef.current?.contains(event.target as Node)) {
+        setOpen(false);
+      }
+    };
+
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handlePointerDown);
+    document.addEventListener("keydown", handleEscape);
+    return () => {
+      document.removeEventListener("mousedown", handlePointerDown);
+      document.removeEventListener("keydown", handleEscape);
+    };
+  }, [open]);
+
+  const latestNotifications = notifications.slice(0, 6);
+  const title = language === "ar" ? "الإشعارات" : "Notifications";
+  const emptyTitle = language === "ar" ? "لا توجد إشعارات بعد" : "No notifications yet";
+  const emptyDescription =
+    language === "ar"
+      ? "ستظهر هنا الإشعارات الجديدة القادمة من النظام."
+      : "New notifications from Supabase will appear here.";
+  const unreadLabel =
+    unreadCount > 0
+      ? language === "ar"
+        ? "إشعارات غير مقروءة"
+        : "Unread notifications"
+      : language === "ar"
+        ? "لا توجد إشعارات غير مقروءة"
+        : "No unread notifications";
+  const loadingLabel = language === "ar" ? "جاري تحميل الإشعارات..." : "Loading notifications...";
+  const badgeText = unreadCount > 99 ? "99+" : new Intl.NumberFormat(language === "ar" ? "ar-EG" : "en-US").format(unreadCount);
+  const markAllAsReadLabel = language === "ar" ? "تعيين الكل كمقروء" : "Mark all as read";
+
+  const handleMarkAllAsRead = async () => {
+    setMarkingAllAsRead(true);
+    await markAllAsRead();
+    setMarkingAllAsRead(false);
+  };
+
+  return (
+    <div ref={panelRef} className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen((current) => !current)}
+        className="relative flex h-9 w-9 cursor-pointer items-center justify-center rounded-xl bg-muted transition-colors hover:bg-secondary focus:outline-none focus:ring-2 focus:ring-primary/30"
+        aria-label={title}
+        title={title}
+      >
+        <Bell className="h-4 w-4 text-muted-foreground" />
+        {unreadCount > 0 && (
+          <span className="absolute -top-1 -right-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[9px] font-bold text-white">
+            {badgeText}
+          </span>
+        )}
+      </button>
+
+      {open && (
+        <div
+          className="absolute top-11 z-40 w-80 max-w-[calc(100vw-2rem)] rounded-2xl border border-border bg-card p-3 shadow-xl"
+          style={{ insetInlineEnd: 0 }}
+        >
+          <div className="mb-3 flex items-start justify-between gap-3 px-1">
+            <div>
+              <p className="text-sm font-bold text-foreground">{title}</p>
+              <p className="text-xs text-muted-foreground">
+                {loading ? loadingLabel : unreadLabel}
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              {unreadCount > 0 && (
+                <span className="inline-flex min-w-6 items-center justify-center rounded-full bg-primary/10 px-2 py-1 text-[10px] font-bold text-primary">
+                  {badgeText}
+                </span>
+              )}
+              <button
+                type="button"
+                onClick={() => void handleMarkAllAsRead()}
+                disabled={unreadCount === 0 || markingAllAsRead}
+                className="inline-flex cursor-pointer items-center rounded-lg px-2 py-1 text-[11px] font-semibold text-primary transition-colors hover:bg-primary/10 disabled:cursor-not-allowed disabled:text-muted-foreground"
+              >
+                {markingAllAsRead ? (language === "ar" ? "جارٍ..." : "Saving...") : markAllAsReadLabel}
+              </button>
+            </div>
+          </div>
+
+          <div className="max-h-80 space-y-2 overflow-y-auto">
+            {latestNotifications.length === 0 && !loading && (
+              <div className="rounded-xl bg-muted/50 px-3 py-6 text-center">
+                <p className="text-sm font-semibold text-foreground">{emptyTitle}</p>
+                <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{emptyDescription}</p>
+              </div>
+            )}
+
+            {latestNotifications.map((notification) => {
+              const heading =
+                notification.title?.trim() ||
+                notification.body?.trim().slice(0, 72) ||
+                (language === "ar" ? "إشعار" : "Notification");
+              const body = notification.body?.trim() || null;
+              const unread = isUnread(notification);
+
+              return (
+                <div key={notification.id} className="rounded-xl border border-border bg-muted/30 px-3 py-3">
+                  <div className="flex items-start gap-3">
+                    <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                      <Bell className="h-4 w-4" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-start justify-between gap-3">
+                        <p className="line-clamp-2 text-sm font-semibold text-foreground">{heading}</p>
+                        {unread && <span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-primary" />}
+                      </div>
+                      {body && <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-muted-foreground">{body}</p>}
+                      <p className="mt-2 text-[11px] text-muted-foreground">
+                        {formatNotificationTimestamp(notification.created_at, language)}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+export function Header({ title, subtitle, userId }: { title: string; subtitle?: string; userId?: string | null }) {
   return (
     <div className="h-16 bg-card border-b border-border flex items-center justify-between px-6 sticky top-0 z-20">
       <div>
@@ -960,26 +1134,29 @@ export function Header({ title, subtitle }: { title: string; subtitle?: string }
       </div>
       <div className="flex items-center gap-3">
         <LanguageSwitcher />
-        <div className="relative">
-          <div className="w-9 h-9 rounded-xl bg-muted flex items-center justify-center cursor-pointer hover:bg-secondary transition-colors">
-            <Bell className="w-4 h-4 text-muted-foreground" />
-          </div>
-          <span className="absolute -top-1 -right-1 w-4 h-4 bg-primary text-white text-[9px] font-bold rounded-full flex items-center justify-center">3</span>
-        </div>
+        <NotificationBell userId={userId} />
         <Avatar name="John Doe" size="sm" />
       </div>
     </div>
   );
 }
 
-export function AppShell({ children, navItems, activeView, onSelect, onLogout, headerTitle, userName, userRole }:
+export function AppShell({ children, navItems, activeView, onSelect, onLogout, headerTitle, userName, userRole, userId }:
   { children: React.ReactNode; navItems: NavItem[]; activeView: string; onSelect: (v: string) => void;
-    onLogout: () => void; headerTitle: string; userName: string; userRole: string }) {
+    onLogout: () => void; headerTitle: string; userName: string; userRole: string; userId?: string | null }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const { language } = useLanguage();
+  const { t } = useTranslation();
   const contentRef = useRef<HTMLElement | null>(null);
   const scrollPositions = useRef<Record<string, number>>({});
   const previousView = useRef(activeView);
+  const displayRole = t(userRole, userRole);
+  const displayName = resolveShellDisplayName({
+    name: userName,
+    role: userRole,
+    translatedRole: displayRole,
+    fallback: t("User"),
+  });
 
   useEffect(() => {
     const main = contentRef.current;
@@ -1017,7 +1194,7 @@ export function AppShell({ children, navItems, activeView, onSelect, onLogout, h
         className={`fixed top-0 h-full w-[220px] z-30 transition-transform duration-300 ${sidebarOpen ? "translate-x-0" : language === "ar" ? "translate-x-full md:translate-x-0" : "-translate-x-full md:translate-x-0"}`}
         style={{ insetInlineStart: 0 }}
       >
-        <Sidebar items={navItems} active={activeView} onSelect={(id) => { onSelect(id); setSidebarOpen(false); }} onLogout={onLogout} userName={userName} userRole={userRole} />
+        <Sidebar items={navItems} active={activeView} onSelect={(id) => { onSelect(id); setSidebarOpen(false); }} onLogout={onLogout} userName={displayName} userRole={displayRole} />
       </div>
       <div className="nibras-shell-content relative z-0 flex-1 flex flex-col min-w-0 overflow-hidden">
         <div className="h-16 bg-card border-b border-border flex items-center justify-between px-4 sticky top-0 z-10">
@@ -1029,13 +1206,8 @@ export function AppShell({ children, navItems, activeView, onSelect, onLogout, h
           </div>
           <div className="flex items-center gap-3">
             <LanguageSwitcher />
-            <div className="relative">
-              <div className="w-9 h-9 rounded-xl bg-muted flex items-center justify-center cursor-pointer hover:bg-secondary transition-colors">
-                <Bell className="w-4 h-4 text-muted-foreground" />
-              </div>
-              <span className="absolute -top-1 -right-1 w-4 h-4 bg-primary text-white text-[9px] font-bold rounded-full flex items-center justify-center">3</span>
-            </div>
-            <Avatar name={userName} size="sm" />
+            <NotificationBell userId={userId} />
+            <Avatar name={displayName} size="sm" />
           </div>
         </div>
         <main ref={contentRef} className="flex-1 overflow-y-auto p-4 md:p-6">{children}</main>

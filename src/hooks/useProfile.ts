@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import supabase from "@/lib/supabase";
+import { formatDisplayName, getDisplayInitials } from "@/lib/display";
 
 export interface Profile {
   id: string;
@@ -47,15 +48,10 @@ export function useProfile(userId: string | null) {
   }, [userId, fetchProfile]);
 
   const displayName = profile
-    ? [profile.first_name, profile.last_name].filter(Boolean).join(" ") || profile.email
+    ? formatDisplayName([profile.first_name, profile.last_name], profile.email, "")
     : "";
 
-  const initials = displayName
-    .split(" ")
-    .map(w => w[0])
-    .join("")
-    .slice(0, 2)
-    .toUpperCase();
+  const initials = getDisplayInitials(displayName, "User");
 
   return { profile, loading, error, fetchProfile, updateProfile, displayName, initials };
 }

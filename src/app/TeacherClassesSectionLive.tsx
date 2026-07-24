@@ -12,7 +12,7 @@ import {
   Video,
 } from "lucide-react";
 import { Avatar, Badge, Btn, EmptyState, LoadingState, StatCard, useTranslation } from "./shared";
-import { useAttendance } from "@/hooks/useAttendance";
+import { useAttendance, type AttendanceStatus } from "@/hooks/useAttendance";
 import { useClasses } from "@/hooks/useClasses";
 import { useHomework, type Homework } from "@/hooks/useHomework";
 import { useLessons, type Lesson } from "@/hooks/useLessons";
@@ -20,6 +20,7 @@ import { useSchoolEnrollments } from "@/hooks/useSchoolAdminData";
 import { useStorageObjectUrl, useStorageObjectUrlMap } from "@/hooks/useStorageUrls";
 import { useStudents } from "@/hooks/useStudents";
 import { useTests, type MonthlyTest } from "@/hooks/useTests";
+import { formatDisplayName } from "@/lib/display";
 
 type DetailView = "list" | "detail";
 
@@ -35,9 +36,10 @@ type LiveClassSummary = {
   color: string;
 };
 
+type ToastState = { msg: string; type: "success" | "error" } | null;
+
 function formatName(firstName?: string | null, lastName?: string | null, fallback?: string | null) {
-  const fullName = [firstName, lastName].filter(Boolean).join(" ").trim();
-  return fullName || fallback || "Student";
+  return formatDisplayName([firstName, lastName], fallback, "Student");
 }
 
 function formatDate(value: string | null | undefined, locale: string) {
@@ -74,8 +76,16 @@ export function TeacherClassesSectionLive({
   const [view, setView] = useState<DetailView>("list");
   const [selectedClassId, setSelectedClassId] = useState<string | null>(null);
   const [selectedLessonId, setSelectedLessonId] = useState<string | null>(null);
+  const [attendanceDraft, setAttendanceDraft] = useState<Record<string, AttendanceStatus | "">>({});
+  const [savingAttendance, setSavingAttendance] = useState(false);
+  const [toast, setToast] = useState<ToastState>(null);
   const { language, t } = useTranslation();
   const locale = language === "ar" ? "ar-EG" : "en-US";
+
+  const showToast = (msg: string, type: "success" | "error" = "success") => {
+    setToast({ msg, type });
+    window.setTimeout(() => setToast(null), 3000);
+  };
 
   const liveClasses = useMemo<LiveClassSummary[]>(() => {
     const palette = ["#955AC3", "#3B82F6", "#10B981", "#F59E0B", "#EF4444", "#0EA5E9"];
@@ -322,10 +332,91 @@ export function TeacherClassesSectionLive({
       .sort((left, right) => right.average - left.average || right.attendanceCount - left.attendanceCount || left.name.localeCompare(right.name));
   }, [dbAttendance.records, dbEnrollments.enrollments, selectedClass, studentDirectory]);
 
+  const selectedLessonStudentRows = useMemo(() => {
+    if (!selectedClass) return [];
+    return dbEnrollments.enrollments
+      .filter((row) => row.class_id === selectedClass.id)
+      .map((row) => {
+        const profile = studentDirectory.get(row.student_id);
+        return {
+          id: row.student_id,
+          name: formatName(
+            profile?.first_name ?? row.student_profile?.first_name,
+            profile?.last_name ?? row.student_profile?.last_name,
+            profile?.email ?? row.student_profile?.email ?? "Student",
+          ),
+        };
+      })
+      .sort((left, right) => left.name.localeCompare(right.name));
+  }, [dbEnrollments.enrollments, selectedClass, studentDirectory]);
+
+  const selectedLessonAttendanceMap = useMemo(() => {
+    const map = new Map<string, AttendanceStatus>();
+    if (!selectedLesson) return map;
+    dbAttendance.records
+      .filter((record) => record.lesson_id === selectedLesson.id)
+      .forEach((record) => {
+        map.set(record.student_id, record.status);
+      });
+    return map;
+  }, [dbAttendance.records, selectedLesson]);
+
   const totalStudents = useMemo(
     () => new Set(dbEnrollments.enrollments.map((row) => row.student_id)).size,
     [dbEnrollments.enrollments],
   );
+
+  useEffect(() => {
+    if (!selectedLesson) {
+      setAttendanceDraft({});
+      return;
+    }
+    const nextDraft: Record<string, AttendanceStatus | ""> = {};
+    selectedLessonStudentRows.forEach((student) => {
+      nextDraft[student.id] = selectedLessonAttendanceMap.get(student.id) ?? "";
+    });
+    setAttendanceDraft(nextDraft);
+  }, [selectedLesson, selectedLessonAttendanceMap, selectedLessonStudentRows]);
+
+  const markAllAttendance = (status: AttendanceStatus) => {
+    setAttendanceDraft(
+      Object.fromEntries(selectedLessonStudentRows.map((student) => [student.id, status])),
+    );
+  };
+
+  const saveAttendance = async () => {
+    if (!schoolId || !teacherId || !selectedLesson) return;
+    const rows = selectedLessonStudentRows
+      .map((student) => {
+        const status = attendanceDraft[student.id];
+        if (!status) return null;
+        return {
+          school_id: schoolId,
+          lesson_id: selectedLesson.id,
+          student_id: student.id,
+          status,
+          recorded_by: teacherId,
+        };
+      })
+      .filter((row): row is {
+        school_id: string;
+        lesson_id: string;
+        student_id: string;
+        status: AttendanceStatus;
+        recorded_by: string;
+      } => Boolean(row));
+
+    if (rows.length === 0) return;
+
+    setSavingAttendance(true);
+    const result = await dbAttendance.bulkUpsertAttendance(rows);
+    setSavingAttendance(false);
+    if (result.error) {
+      showToast(result.error, "error");
+      return;
+    }
+    showToast("Attendance saved");
+  };
 
   const coreLoading =
     dbLessons.loading ||
@@ -354,7 +445,8 @@ export function TeacherClassesSectionLive({
 
   if (view === "detail" && selectedClass) {
     return (
-      <div className="space-y-5" style={{ fontFamily: "'Poppins', sans-serif" }}>
+      <>
+        <div className="space-y-5" style={{ fontFamily: "'Poppins', sans-serif" }}>
         <div className="flex items-start justify-between gap-4">
           <div className="flex items-start gap-3">
             <button
@@ -394,6 +486,76 @@ export function TeacherClassesSectionLive({
 
         <div className="grid grid-cols-12 gap-5">
           <div className="col-span-4 space-y-4">
+            <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <h3 className="text-[15px] font-semibold text-[#0E1B4A]">Record Attendance</h3>
+                  <p className="mt-1 text-xs text-[#8B8FA3]">
+                    Mark attendance for the selected lesson, then save it to Supabase.
+                  </p>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <Btn size="sm" variant="secondary" onClick={() => markAllAttendance("present")}>
+                    Mark all present
+                  </Btn>
+                  <Btn size="sm" onClick={() => void saveAttendance()} disabled={savingAttendance || !selectedLesson}>
+                    {savingAttendance ? "Saving..." : "Save Attendance"}
+                  </Btn>
+                </div>
+              </div>
+
+              <div className="mt-4 space-y-3">
+                {selectedLessonStudentRows.map((student) => {
+                  const currentStatus = attendanceDraft[student.id];
+                  return (
+                    <div key={student.id} className="flex flex-col gap-3 rounded-xl border border-[#EFE7F7] bg-[#FBF9FE] px-4 py-3 lg:flex-row lg:items-center lg:justify-between">
+                      <div className="flex items-center gap-3">
+                        <Avatar name={student.name} size="sm" />
+                        <div>
+                          <p className="text-sm font-semibold text-[#0E1B4A]">{student.name}</p>
+                          <p className="text-xs text-[#8B8FA3]">
+                            {selectedLessonAttendanceMap.get(student.id) ? "Saved in this lesson" : "Not marked yet"}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        {[
+                          { value: "present" as const, label: "Present", active: "bg-[#ECFDF5] text-[#047857] border-[#A7F3D0]" },
+                          { value: "late" as const, label: "Late", active: "bg-[#EFF6FF] text-[#1D4ED8] border-[#BFDBFE]" },
+                          { value: "absent" as const, label: "Absent", active: "bg-[#FEF2F2] text-[#B91C1C] border-[#FECACA]" },
+                          { value: "excused" as const, label: "Excused", active: "bg-[#FFF7ED] text-[#C2410C] border-[#FED7AA]" },
+                        ].map((status) => (
+                          <button
+                            key={`${student.id}-${status.value}`}
+                            type="button"
+                            onClick={() =>
+                              setAttendanceDraft((current) => ({
+                                ...current,
+                                [student.id]: current[student.id] === status.value ? "" : status.value,
+                              }))
+                            }
+                            className={`rounded-xl border px-3 py-2 text-xs font-semibold transition ${
+                              currentStatus === status.value
+                                ? status.active
+                                : "border-[#E4E7EC] bg-white text-[#667085] hover:border-[#D6B9EA] hover:text-[#955AC3]"
+                            }`}
+                          >
+                            {status.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })}
+                {selectedLessonStudentRows.length === 0 && (
+                  <EmptyState
+                    title="No enrolled students"
+                    description="Active students in this class will appear here for attendance recording."
+                  />
+                )}
+              </div>
+            </div>
+
             <div className="overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm">
               <div className="flex items-center justify-between border-b border-gray-100 px-5 py-4">
                 <h3 className="text-[15px] font-semibold text-[#0E1B4A]">{t("Lessons")}</h3>
@@ -605,7 +767,9 @@ export function TeacherClassesSectionLive({
             </div>
           </div>
         </div>
-      </div>
+        </div>
+        {toast && <Toast message={toast.msg} type={toast.type} onClose={() => setToast(null)} />}
+      </>
     );
   }
 

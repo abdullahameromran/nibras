@@ -76,9 +76,14 @@ export async function updatePassword(newPassword: string): Promise<string | null
 
 /** Fetch all role records for the currently authenticated user. */
 export async function fetchUserRoles(): Promise<UserRoleRecord[]> {
+  const { data: sessionData } = await supabase.auth.getSession();
+  const currentUserId = sessionData?.session?.user?.id ?? null;
+  if (!currentUserId) return [];
+
   const { data, error } = await supabase
     .from("user_school_roles")
     .select("id, user_id, school_id, role, is_active")
+    .eq("user_id", currentUserId)
     .eq("is_active", true);
   if (error) return [];
 

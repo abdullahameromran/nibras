@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useMemo } from "react";
 import {
   LayoutDashboard, Users, BookOpen, Calendar, Bell, Settings,
   LogOut, Plus, X, Check, MessageSquare, Megaphone, Award,
@@ -30,6 +30,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useSchools } from "@/hooks/useSchools";
 import { useLeads } from "@/hooks/useLeads";
 import { useSubscriptionPlans } from "@/hooks/useSubscriptionPlans";
+import supabase from "@/lib/supabase";
 import { resetPassword as requestPasswordReset } from "@/lib/auth";
 import { formatPlanDisplayName } from "@/lib/plans";
 
@@ -359,6 +360,101 @@ function getDashboardPath(view: string) {
   return view === "dashboard" ? "/dashboard" : `/dashboard/${view}`;
 }
 
+function roleContextLabel(role: string, schoolName?: string | null) {
+  const roleLabel = ROLES.find((item) => item.id === role.replace("_", "-"))?.label
+    ?? role.replace(/_/g, " ");
+  if (role === "super_admin") return roleLabel;
+  return schoolName ? `${roleLabel} • ${schoolName}` : roleLabel;
+}
+
+function ActiveContextSwitcher({
+  roles,
+  activeRole,
+  activeSchoolId,
+  onSwitch,
+}: {
+  roles: Array<{ role: string; school_id: string | null }>;
+  activeRole: string | null;
+  activeSchoolId: string | null;
+  onSwitch: (role: string, schoolId: string | null) => void;
+}) {
+  const { language } = useLanguage();
+  const [schoolNames, setSchoolNames] = useState<Record<string, string>>({});
+  const uniqueRoles = useMemo(
+    () =>
+      Array.from(
+        new Map(
+          roles.map((role) => [`${role.role}::${role.school_id ?? ""}`, role] as const),
+        ).values(),
+      ),
+    [roles],
+  );
+
+  useEffect(() => {
+    const schoolIds = Array.from(
+      new Set(
+        uniqueRoles
+          .map((role) => role.school_id)
+          .filter((schoolId): schoolId is string => Boolean(schoolId)),
+      ),
+    );
+
+    if (schoolIds.length === 0) {
+      setSchoolNames({});
+      return;
+    }
+
+    let cancelled = false;
+    void supabase
+      .from("schools")
+      .select("id, name")
+      .in("id", schoolIds)
+      .then(({ data }) => {
+        if (cancelled) return;
+        const nextMap = Object.fromEntries(
+          ((data as Array<{ id: string; name: string }> | null) ?? []).map((school) => [school.id, school.name]),
+        );
+        setSchoolNames(nextMap);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [uniqueRoles]);
+
+  const currentKey = `${activeRole ?? ""}::${activeSchoolId ?? ""}`;
+
+  return (
+    <div className="fixed bottom-4 left-4 z-40 w-72 rounded-2xl border border-border bg-card/95 p-3 shadow-xl backdrop-blur">
+      <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
+        {language === "ar" ? "سياق العمل" : "Active Context"}
+      </p>
+      <p className="mt-1 text-xs text-muted-foreground">
+        {language === "ar"
+          ? "بدّل بين الأدوار أو المدارس المسموح بها."
+          : "Switch between the roles and schools assigned to your account."}
+      </p>
+      <select
+        value={currentKey}
+        onChange={(event) => {
+          const [role, schoolId] = event.target.value.split("::");
+          onSwitch(role, schoolId || null);
+        }}
+        className="mt-3 w-full cursor-pointer rounded-xl border border-border bg-muted px-3 py-2.5 text-sm text-foreground outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/30"
+      >
+        {uniqueRoles.map((role) => {
+          const optionKey = `${role.role}::${role.school_id ?? ""}`;
+          return (
+            <option key={optionKey} value={optionKey}>
+              {roleContextLabel(role.role, role.school_id ? schoolNames[role.school_id] ?? `School ${role.school_id.slice(0, 8)}` : null)}
+            </option>
+          );
+        })}
+      </select>
+    </div>
+  );
+}
+
 function extractPlanFeatures(value: unknown): string[] {
   if (Array.isArray(value)) return value.filter((item): item is string => typeof item === "string");
   if (value && typeof value === "object") {
@@ -386,7 +482,7 @@ function normalizeLeadStatus(status: string) {
   }
 }
 
-function SuperAdminPortal({ view, setView, onLogout }: { view: string; setView: (v: string) => void; onLogout: () => void }) {
+function SuperAdminPortal({ view, setView, onLogout, userId }: { view: string; setView: (v: string) => void; onLogout: () => void; userId?: string | null }) {
   const dbSchools = useSchools();
   const dbLeads = useLeads();
   const dbPlans = useSubscriptionPlans();
@@ -755,7 +851,7 @@ function SuperAdminPortal({ view, setView, onLogout }: { view: string; setView: 
 
   return (
     <>
-      <AppShell navItems={SA_NAV} activeView={view} onSelect={setView} onLogout={onLogout} headerTitle={titleMap[view] || "Dashboard"} userName="Super Admin" userRole="Platform Administrator">
+      <AppShell navItems={SA_NAV} activeView={view} onSelect={setView} onLogout={onLogout} headerTitle={titleMap[view] || "Dashboard"} userName="Super Admin" userRole="Platform Administrator" userId={userId}>
 
         {/* ── Dashboard ── */}
         {view === "dashboard" && (
@@ -2360,6 +2456,16 @@ export default function App() {
     }
   };
 
+  const handleContextSwitch = (role: string, schoolId: string | null) => {
+    auth.setActiveRole(role, schoolId);
+    setView("dashboard");
+    const nextPath = getDashboardPath("dashboard");
+    if (currentPath !== nextPath) {
+      window.history.replaceState(null, "", nextPath);
+      setCurrentPath(nextPath);
+    }
+  };
+
   return (
     <LanguageProvider>
       <div style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
@@ -2372,11 +2478,19 @@ export default function App() {
             authError={auth.error}
           />
         )}
-        {!auth.loading && !isResetRoute && auth.portal === "super-admin" && <SuperAdminPortal view={view} setView={handleViewChange} onLogout={handleLogout} />}
+        {!auth.loading && !isResetRoute && auth.portal === "super-admin" && <SuperAdminPortal view={view} setView={handleViewChange} onLogout={handleLogout} userId={auth.user?.id ?? null} />}
         {!auth.loading && !isResetRoute && auth.portal === "school-admin" && <SchoolAdminPortal view={view} setView={handleViewChange} onLogout={handleLogout} schoolId={auth.activeSchoolId} user={auth.user} />}
         {!auth.loading && !isResetRoute && auth.portal === "teacher" && <TeacherPortal view={view} setView={handleViewChange} onLogout={handleLogout} schoolId={auth.activeSchoolId} user={auth.user} />}
         {!auth.loading && !isResetRoute && auth.portal === "student" && <StudentPortalLive view={view} setView={handleViewChange} onLogout={handleLogout} schoolId={auth.activeSchoolId} user={auth.user} />}
         {!auth.loading && !isResetRoute && auth.portal === "parent" && <ParentPortalLive view={view} setView={handleViewChange} onLogout={handleLogout} schoolId={auth.activeSchoolId} user={auth.user} />}
+        {!auth.loading && !isResetRoute && auth.user && auth.roles.length > 1 && (
+          <ActiveContextSwitcher
+            roles={auth.roles}
+            activeRole={auth.activeRole}
+            activeSchoolId={auth.activeSchoolId}
+            onSwitch={handleContextSwitch}
+          />
+        )}
       </div>
     </LanguageProvider>
   );

@@ -51,6 +51,7 @@ import { useProfile } from "@/hooks/useProfile";
 import { useStorageObjectUrl, useStorageObjectUrlMap } from "@/hooks/useStorageUrls";
 import { MonthlyTest, TestSubmission, useTests } from "@/hooks/useTests";
 import { TimetableEntry, useTimetable } from "@/hooks/useTimetable";
+import { formatDisplayName, shouldPreferFallbackDisplayName } from "@/lib/display";
 import {
   AppShell,
   Avatar,
@@ -135,8 +136,7 @@ function formatName(parts: {
   last_name?: string | null;
   email?: string | null;
 }, fallback = "User") {
-  const fullName = [parts.first_name, parts.last_name].filter(Boolean).join(" ").trim();
-  return fullName || parts.email || fallback;
+  return formatDisplayName([parts.first_name, parts.last_name], parts.email || fallback, fallback);
 }
 
 function formatDate(value: string | null | undefined, includeYear = true) {
@@ -375,7 +375,10 @@ function buildContacts(
     const existing = merged.get(conversation.partnerId);
     const nextValue: ContactListItem = {
       id: conversation.partnerId,
-      name: conversation.partnerName,
+      name:
+        existing && shouldPreferFallbackDisplayName(conversation.partnerName)
+          ? existing.name
+          : conversation.partnerName,
       subtitle: existing?.subtitle ?? "Conversation",
       lastMessage: conversation.lastMessage,
       lastTime: conversation.lastTime,
@@ -1087,6 +1090,7 @@ export function StudentPortal({ view, setView, onLogout, schoolId, user }: Stude
         }[view] ?? "Student Portal"}
         userName={studentName}
         userRole={studentRole}
+        userId={userId}
       >
         {!classId && (
           <EmptyState
@@ -1721,6 +1725,7 @@ export function ParentPortal({ view, setView, onLogout, schoolId, user }: Parent
         }[view] ?? "Parent Portal"}
         userName={parentName}
         userRole="Parent"
+        userId={userId}
       >
         {childrenQuery.children.length === 0 && (
           <EmptyState

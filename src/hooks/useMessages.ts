@@ -1,5 +1,10 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import supabase from "@/lib/supabase";
+import {
+  formatDisplayName,
+  isPlaceholderDisplayName,
+  shouldPreferFallbackDisplayName,
+} from "@/lib/display";
 
 export interface MessageRecipient {
   id: string;
@@ -48,8 +53,7 @@ function formatPartnerName(profile: {
   last_name: string | null;
 } | null) {
   if (!profile) return "User";
-  const fullName = [profile.first_name, profile.last_name].filter(Boolean).join(" ").trim();
-  return fullName || profile.email || "User";
+  return formatDisplayName([profile.first_name, profile.last_name], profile.email, "User");
 }
 
 export function useMessages(userId: string | null, schoolId: string | null) {
@@ -124,7 +128,7 @@ export function useMessages(userId: string | null, schoolId: string | null) {
       } else {
         existing.messages.push(msg);
         if (!isRead) existing.unreadCount++;
-        if (existing.partnerName === "User" && name !== "User") {
+        if (shouldPreferFallbackDisplayName(existing.partnerName) && !isPlaceholderDisplayName(name)) {
           existing.partnerName = name;
         }
         if (!existing.partnerAvatar && partnerProfile?.avatar_url) {
@@ -172,7 +176,7 @@ export function useMessages(userId: string | null, schoolId: string | null) {
     }
 
     const unresolvedPartnerIds = Array.from(convoMap.entries())
-      .filter(([, conversation]) => conversation.partnerName === "User")
+      .filter(([, conversation]) => shouldPreferFallbackDisplayName(conversation.partnerName))
       .map(([partnerId]) => partnerId);
 
     if (unresolvedPartnerIds.length > 0) {
