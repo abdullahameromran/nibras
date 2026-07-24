@@ -106,6 +106,12 @@ function formatName(
   return fullName || fallback || "User";
 }
 
+function isGenericContactName(value?: string | null) {
+  if (!value) return true;
+  const normalized = value.trim().toLowerCase();
+  return normalized === "user" || normalized === "conversation";
+}
+
 function formatDate(value?: string | null) {
   if (!value) return "Not scheduled";
   return new Date(value).toLocaleDateString();
@@ -604,7 +610,10 @@ export function TeacherPortalLive({
       const existing = map.get(conversation.partnerId);
       map.set(conversation.partnerId, {
         id: conversation.partnerId,
-        name: conversation.partnerName,
+        name:
+          existing && isGenericContactName(conversation.partnerName)
+            ? existing.name
+            : conversation.partnerName,
         subtitle: existing?.subtitle ?? "Conversation",
         lastMessage: conversation.lastMessage,
         lastTime: conversation.lastTime ?? null,

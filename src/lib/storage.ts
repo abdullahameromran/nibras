@@ -2,9 +2,47 @@ import supabase from "./supabase";
 
 const EDGE_URL = import.meta.env.VITE_SUPABASE_URL + "/functions/v1";
 const STORAGE_PUBLIC_PREFIX = "/storage/v1/object/public/";
+const STORAGE_SIGNED_PREFIX = "/storage/v1/object/sign/";
+const STORAGE_AUTHENTICATED_PREFIX = "/storage/v1/object/authenticated/";
 
 function hasAbsoluteScheme(value: string) {
   return /^[a-z][a-z\d+.-]*:/i.test(value);
+}
+
+function decodeStoragePath(value: string) {
+  try {
+    return decodeURIComponent(value);
+  } catch {
+    return value;
+  }
+}
+
+function extractStorageObjectPath(bucket: string, rawUrl: string) {
+  const trimmed = rawUrl.trim();
+  if (!trimmed) return null;
+
+  const normalized = trimmed.startsWith("//") ? `https:${trimmed}` : trimmed;
+  const withoutOrigin = normalized.replace(/^https?:\/\/[^/]+/i, "");
+  const storageMatch = withoutOrigin.match(
+    /\/storage\/v1\/object\/(?:public|sign|authenticated)\/([^/?#]+)\/([^?#]+)/i,
+  );
+
+  if (storageMatch) {
+    const [, matchedBucket, matchedPath] = storageMatch;
+    if (matchedBucket !== bucket) return null;
+    return decodeStoragePath(matchedPath.replace(/^\/+/, ""));
+  }
+
+  const cleaned = normalized.replace(/^\/+/, "");
+  if (cleaned.startsWith(`${bucket}/`)) {
+    return decodeStoragePath(cleaned.slice(bucket.length + 1));
+  }
+
+  if (hasAbsoluteScheme(normalized)) {
+    return null;
+  }
+
+  return decodeStoragePath(cleaned);
 }
 
 function buildPublicStorageUrl(bucket: string, rawPath: string) {
@@ -21,11 +59,17 @@ export function resolveStoragePublicUrl(bucket: string, rawUrl?: string | null):
 
   const trimmed = rawUrl.trim();
   if (!trimmed) return null;
-  if (hasAbsoluteScheme(trimmed)) return trimmed;
   if (trimmed.startsWith("//")) return `https:${trimmed}`;
+
+  const storagePath = extractStorageObjectPath(bucket, trimmed);
+  if (hasAbsoluteScheme(trimmed) && !storagePath) return trimmed;
 
   const supabaseUrl = import.meta.env.VITE_SUPABASE_URL?.replace(/\/+$/, "") ?? "";
   if (trimmed.startsWith(STORAGE_PUBLIC_PREFIX)) {
+    return supabaseUrl ? `${supabaseUrl}${trimmed}` : trimmed;
+  }
+
+  if (trimmed.startsWith(STORAGE_SIGNED_PREFIX) || trimmed.startsWith(STORAGE_AUTHENTICATED_PREFIX)) {
     return supabaseUrl ? `${supabaseUrl}${trimmed}` : trimmed;
   }
 
@@ -34,11 +78,44 @@ export function resolveStoragePublicUrl(bucket: string, rawUrl?: string | null):
     return supabaseUrl ? `${supabaseUrl}/${cleaned}` : `/${cleaned}`;
   }
 
-  return buildPublicStorageUrl(bucket, cleaned);
+  if (cleaned.startsWith(STORAGE_SIGNED_PREFIX.slice(1)) || cleaned.startsWith(STORAGE_AUTHENTICATED_PREFIX.slice(1))) {
+    return supabaseUrl ? `${supabaseUrl}/${cleaned}` : `/${cleaned}`;
+  }
+
+  return buildPublicStorageUrl(bucket, storagePath ?? cleaned);
+}
+
+export async function getStorageObjectUrl(
+  bucket: string,
+  rawUrl?: string | null,
+  expiresIn = 60 * 60,
+): Promise<string | null> {
+  if (!rawUrl) return null;
+
+  const trimmed = rawUrl.trim();
+  if (!trimmed) return null;
+  if (trimmed.startsWith("//")) return `https:${trimmed}`;
+
+  const storagePath = extractStorageObjectPath(bucket, trimmed);
+  if (!storagePath) {
+    return hasAbsoluteScheme(trimmed) ? trimmed : resolveStoragePublicUrl(bucket, trimmed);
+  }
+
+  const { data, error } = await supabase.storage.from(bucket).createSignedUrl(storagePath, expiresIn);
+  if (error) {
+    console.error("getStorageObjectUrl:", error);
+    return hasAbsoluteScheme(trimmed) ? trimmed : resolveStoragePublicUrl(bucket, storagePath);
+  }
+
+  return data?.signedUrl ?? null;
 }
 
 export function resolveLessonAttachmentUrl(rawUrl?: string | null) {
   return resolveStoragePublicUrl("lesson-attachments", rawUrl);
+}
+
+export async function getLessonAttachmentAccessUrl(rawUrl?: string | null) {
+  return getStorageObjectUrl("lesson-attachments", rawUrl);
 }
 
 /** Get the Authorization header for the current user session. */
@@ -60,7 +137,7 @@ export async function uploadAvatar(userId: string, file: File): Promise<string |
   return data.publicUrl;
 }
 
-/** Upload a lesson attachment. Returns the public URL. */
+/** Upload a lesson attachment. Returns the stored object path. */
 export async function uploadLessonAttachment(
   schoolId: string,
   lessonId: string,
@@ -71,8 +148,7 @@ export async function uploadLessonAttachment(
     .from("lesson-attachments")
     .upload(path, file, { upsert: false });
   if (error) { console.error("uploadLessonAttachment:", error); return null; }
-  const { data } = supabase.storage.from("lesson-attachments").getPublicUrl(path);
-  return data.publicUrl;
+  return path;
 }
 
 /** Upload a student document. Returns the public URL. */

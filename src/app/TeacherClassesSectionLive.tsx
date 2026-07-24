@@ -11,15 +11,15 @@ import {
   Users,
   Video,
 } from "lucide-react";
-import { Avatar, Badge, Btn, EmptyState, LoadingState, StatCard } from "./shared";
+import { Avatar, Badge, Btn, EmptyState, LoadingState, StatCard, useTranslation } from "./shared";
 import { useAttendance } from "@/hooks/useAttendance";
 import { useClasses } from "@/hooks/useClasses";
 import { useHomework, type Homework } from "@/hooks/useHomework";
 import { useLessons, type Lesson } from "@/hooks/useLessons";
 import { useSchoolEnrollments } from "@/hooks/useSchoolAdminData";
+import { useStorageObjectUrl, useStorageObjectUrlMap } from "@/hooks/useStorageUrls";
 import { useStudents } from "@/hooks/useStudents";
 import { useTests, type MonthlyTest } from "@/hooks/useTests";
-import { resolveLessonAttachmentUrl } from "@/lib/storage";
 
 type DetailView = "list" | "detail";
 
@@ -40,14 +40,14 @@ function formatName(firstName?: string | null, lastName?: string | null, fallbac
   return fullName || fallback || "Student";
 }
 
-function formatDate(value?: string | null) {
+function formatDate(value: string | null | undefined, locale: string) {
   if (!value) return "-";
-  return new Date(value).toLocaleDateString();
+  return new Date(value).toLocaleDateString(locale);
 }
 
-function formatDateTime(value?: string | null) {
+function formatDateTime(value: string | null | undefined, locale: string) {
   if (!value) return "-";
-  return new Date(value).toLocaleString();
+  return new Date(value).toLocaleString(locale);
 }
 
 function lessonKind(lesson: Lesson) {
@@ -74,6 +74,8 @@ export function TeacherClassesSectionLive({
   const [view, setView] = useState<DetailView>("list");
   const [selectedClassId, setSelectedClassId] = useState<string | null>(null);
   const [selectedLessonId, setSelectedLessonId] = useState<string | null>(null);
+  const { language, t } = useTranslation();
+  const locale = language === "ar" ? "ar-EG" : "en-US";
 
   const liveClasses = useMemo<LiveClassSummary[]>(() => {
     const palette = ["#955AC3", "#3B82F6", "#10B981", "#F59E0B", "#EF4444", "#0EA5E9"];
@@ -228,17 +230,21 @@ export function TeacherClassesSectionLive({
     [selectedClass, selectedLessonId],
   );
 
-  const selectedLessonVideoUrl = useMemo(() => {
-    const directVideoUrl = resolveLessonAttachmentUrl(selectedLesson?.video_url);
-    if (directVideoUrl) return directVideoUrl;
+  const rawSelectedLessonVideoUrl = useMemo(() => {
+    if (selectedLesson?.video_url) return selectedLesson.video_url;
 
     const videoAttachment = (selectedLesson?.lesson_attachments ?? []).find((attachment) =>
       attachment.file_kind?.toLowerCase().includes("video") ||
       /\.(mp4|webm|ogg|mov|m4v)(?:[?#].*)?$/i.test(attachment.file_url),
     );
 
-    return resolveLessonAttachmentUrl(videoAttachment?.file_url);
+    return videoAttachment?.file_url ?? null;
   }, [selectedLesson]);
+  const selectedLessonVideoUrl = useStorageObjectUrl("lesson-attachments", rawSelectedLessonVideoUrl);
+  const selectedLessonAttachmentUrls = useStorageObjectUrlMap(
+    "lesson-attachments",
+    (selectedLesson?.lesson_attachments ?? []).map((attachment) => attachment.file_url),
+  );
 
   const selectedLessonHomework = useMemo(
     () => selectedClass?.homework.filter((item) => item.lesson_id === selectedLesson?.id) ?? [],
@@ -362,7 +368,7 @@ export function TeacherClassesSectionLive({
                 {selectedClass.gradeName} • {selectedClass.name} • {selectedClass.subjectLabel}
               </h2>
               <p className="mt-1 text-xs text-[#999]">
-                {selectedClass.studentCount} students • {selectedClass.lessons.length} lessons • {selectedClass.homework.length} homework • {selectedClass.assessments.length} assessments
+                {selectedClass.studentCount} {t("Students")} • {selectedClass.lessons.length} {t("Lessons")} • {selectedClass.homework.length} {t("Homework")} • {selectedClass.assessments.length} {t("Tasks")}
               </p>
             </div>
           </div>
@@ -373,11 +379,15 @@ export function TeacherClassesSectionLive({
               rel="noreferrer"
               className="inline-flex items-center gap-2 rounded-xl bg-[#955AC3] px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-[#7f4cad]"
             >
-              <PlayCircle className="h-4 w-4" /> Watch lesson video
+              <PlayCircle className="h-4 w-4" /> {t("Watch lesson video")}
             </a>
+          ) : rawSelectedLessonVideoUrl ? (
+            <Btn variant="secondary" className="pointer-events-none opacity-70">
+              <Video className="h-4 w-4" /> {t("Preparing lesson video...")}
+            </Btn>
           ) : (
             <Btn variant="secondary" className="pointer-events-none opacity-70">
-              <Video className="h-4 w-4" /> No lesson video
+              <Video className="h-4 w-4" /> {t("No lesson video")}
             </Btn>
           )}
         </div>
@@ -386,9 +396,9 @@ export function TeacherClassesSectionLive({
           <div className="col-span-4 space-y-4">
             <div className="overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm">
               <div className="flex items-center justify-between border-b border-gray-100 px-5 py-4">
-                <h3 className="text-[15px] font-semibold text-[#0E1B4A]">Lessons</h3>
+                <h3 className="text-[15px] font-semibold text-[#0E1B4A]">{t("Lessons")}</h3>
                 <span className="rounded-full bg-[#F5F0FF] px-2.5 py-1 text-xs font-medium text-[#955AC3]">
-                  {selectedClass.lessons.length} total
+                  {selectedClass.lessons.length} {t("Total")}
                 </span>
               </div>
               <div className="divide-y divide-gray-50">
@@ -414,9 +424,9 @@ export function TeacherClassesSectionLive({
                       </div>
                       <div className="min-w-0 flex-1">
                         <p className="truncate text-sm font-semibold text-[#0E1B4A]">
-                          Lesson {selectedClass.lessons.length - index}: {lesson.title}
+                          {t("Lesson")} {selectedClass.lessons.length - index}: {lesson.title}
                         </p>
-                        <p className="mt-0.5 text-xs text-[#999]">{formatDate(lesson.lesson_date)}</p>
+                        <p className="mt-0.5 text-xs text-[#999]">{formatDate(lesson.lesson_date, locale)}</p>
                       </div>
                       {selectedClass.homework.some((item) => item.lesson_id === lesson.id) && (
                         <Badge color="purple">HW</Badge>
@@ -428,23 +438,23 @@ export function TeacherClassesSectionLive({
             </div>
 
             <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
-              <h3 className="mb-4 text-[15px] font-semibold text-[#0E1B4A]">Class Overview</h3>
+              <h3 className="mb-4 text-[15px] font-semibold text-[#0E1B4A]">{t("Class Overview")}</h3>
               <div className="grid grid-cols-2 gap-3">
                 <div className="rounded-xl bg-[#F5F0FF] p-4 text-center">
                   <p className="text-xl font-bold text-[#955AC3]">{selectedClass.studentCount}</p>
-                  <p className="mt-1 text-xs font-medium text-[#955AC3]">Students</p>
+                  <p className="mt-1 text-xs font-medium text-[#955AC3]">{t("Students")}</p>
                 </div>
                 <div className="rounded-xl bg-[#EEF5FF] p-4 text-center">
                   <p className="text-xl font-bold text-[#3B82F6]">{selectedClass.lessons.length}</p>
-                  <p className="mt-1 text-xs font-medium text-[#3B82F6]">Lessons</p>
+                  <p className="mt-1 text-xs font-medium text-[#3B82F6]">{t("Lessons")}</p>
                 </div>
                 <div className="rounded-xl bg-[#ECFDF5] p-4 text-center">
                   <p className="text-xl font-bold text-[#10B981]">{selectedClass.homework.length}</p>
-                  <p className="mt-1 text-xs font-medium text-[#10B981]">Homework</p>
+                  <p className="mt-1 text-xs font-medium text-[#10B981]">{t("Homework")}</p>
                 </div>
                 <div className="rounded-xl bg-[#FFF7ED] p-4 text-center">
                   <p className="text-xl font-bold text-[#F59E0B]">{selectedClass.assessments.length}</p>
-                  <p className="mt-1 text-xs font-medium text-[#F59E0B]">Assessments</p>
+                  <p className="mt-1 text-xs font-medium text-[#F59E0B]">{t("Tasks")}</p>
                 </div>
               </div>
             </div>
@@ -454,13 +464,13 @@ export function TeacherClassesSectionLive({
             <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
               <div className="flex items-start justify-between gap-4">
                 <div>
-                  <p className="text-xs font-semibold uppercase tracking-wide text-[#955AC3]">Selected Lesson</p>
-                  <h3 className="mt-1 text-[20px] font-semibold text-[#0E1B4A]">{selectedLesson?.title ?? "No lesson selected"}</h3>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-[#955AC3]">{t("Selected Lesson")}</p>
+                  <h3 className="mt-1 text-[20px] font-semibold text-[#0E1B4A]">{selectedLesson?.title ?? t("No lesson selected")}</h3>
                   <p className="mt-1 text-xs text-[#999]">
-                    {selectedLesson ? `${formatDate(selectedLesson.lesson_date)} • ${selectedClass.subjectLabel}` : "Choose a lesson from the left to view its live data."}
+                    {selectedLesson ? `${formatDate(selectedLesson.lesson_date, locale)} • ${selectedClass.subjectLabel}` : t("Choose a lesson from the left to view its live data.")}
                   </p>
                 </div>
-                {selectedLesson && <Badge color="purple">{lessonKind(selectedLesson) === "video" ? "Video" : lessonKind(selectedLesson) === "pdf" ? "PDF" : "Lesson"}</Badge>}
+                {selectedLesson && <Badge color="purple">{lessonKind(selectedLesson) === "video" ? t("Video") : lessonKind(selectedLesson) === "pdf" ? "PDF" : t("Lesson")}</Badge>}
               </div>
               {selectedLesson?.description && (
                 <p className="mt-4 rounded-xl bg-gray-50 px-4 py-3 text-sm leading-6 text-[#344054]">
@@ -473,7 +483,7 @@ export function TeacherClassesSectionLive({
               <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
                 <div className="mb-4 flex items-center gap-2">
                   <BookOpen className="h-4 w-4 text-[#955AC3]" />
-                  <h3 className="text-[15px] font-semibold text-[#0E1B4A]">Articles</h3>
+                  <h3 className="text-[15px] font-semibold text-[#0E1B4A]">{t("Articles")}</h3>
                 </div>
                 <div className="space-y-3">
                   {(selectedLesson?.lesson_attachments ?? []).map((attachment) => (
@@ -481,16 +491,22 @@ export function TeacherClassesSectionLive({
                       <p className="truncate text-sm font-semibold text-[#0E1B4A]">{attachment.file_name}</p>
                       <div className="mt-2 flex items-center justify-between text-xs text-[#7C6A91]">
                         <span>{attachment.file_kind}</span>
-                        <span>{formatDate(attachment.uploaded_at)}</span>
+                        <span>{formatDate(attachment.uploaded_at, locale)}</span>
                       </div>
-                      <a
-                        href={resolveLessonAttachmentUrl(attachment.file_url) ?? attachment.file_url}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="mt-3 inline-flex items-center gap-1 text-xs font-semibold text-[#955AC3] hover:underline"
-                      >
-                        <Eye className="h-3.5 w-3.5" /> Open
-                      </a>
+                      {selectedLessonAttachmentUrls[attachment.file_url] ? (
+                        <a
+                          href={selectedLessonAttachmentUrls[attachment.file_url]}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="mt-3 inline-flex items-center gap-1 text-xs font-semibold text-[#955AC3] hover:underline"
+                        >
+                          <Eye className="h-3.5 w-3.5" /> {t("Open")}
+                        </a>
+                      ) : (
+                        <span className="mt-3 inline-flex items-center gap-1 text-xs font-semibold text-[#955AC3]/70">
+                          <Eye className="h-3.5 w-3.5" /> {t("Preparing file...")}
+                        </span>
+                      )}
                     </div>
                   ))}
                   {(selectedLesson?.lesson_attachments?.length ?? 0) === 0 && (
@@ -509,10 +525,10 @@ export function TeacherClassesSectionLive({
                     <div key={item.id} className="rounded-xl border border-[#DFF6EC] bg-[#F3FFF8] p-3">
                       <p className="truncate text-sm font-semibold text-[#0E1B4A]">{item.title}</p>
                       <div className="mt-2 flex items-center justify-between text-xs text-[#2B7A5E]">
-                        <span>{item.homework_questions?.length ?? 0} questions</span>
-                        <span>{item.homework_submissions?.length ?? 0} submitted</span>
+                        <span>{item.homework_questions?.length ?? 0} {t("Questions")}</span>
+                        <span>{item.homework_submissions?.length ?? 0} {t("Submitted")}</span>
                       </div>
-                      <p className="mt-2 text-xs text-[#5D7A70]">Due {formatDateTime(item.due_date)}</p>
+                      <p className="mt-2 text-xs text-[#5D7A70]">{t("Due")} {formatDateTime(item.due_date, locale)}</p>
                     </div>
                   ))}
                   {selectedLessonHomework.length === 0 && (
@@ -531,10 +547,10 @@ export function TeacherClassesSectionLive({
                     <div key={item.id} className="rounded-xl border border-[#FDE7C2] bg-[#FFF9EE] p-3">
                       <p className="truncate text-sm font-semibold text-[#0E1B4A]">{item.title}</p>
                       <div className="mt-2 flex items-center justify-between text-xs text-[#9A6A15]">
-                        <span>{item.test_questions?.length ?? 0} questions</span>
-                        <span>{item.test_submissions?.length ?? 0} submitted</span>
+                        <span>{item.test_questions?.length ?? 0} {t("Questions")}</span>
+                        <span>{item.test_submissions?.length ?? 0} {t("Submitted")}</span>
                       </div>
-                      <p className="mt-2 text-xs text-[#8B6A34]">{formatDateTime(item.test_date)}</p>
+                      <p className="mt-2 text-xs text-[#8B6A34]">{formatDateTime(item.test_date, locale)}</p>
                     </div>
                   ))}
                   {selectedLessonAssessments.length === 0 && (
@@ -546,8 +562,8 @@ export function TeacherClassesSectionLive({
 
             <div className="overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm">
               <div className="border-b border-gray-100 px-5 py-4">
-                <h3 className="text-[15px] font-semibold text-[#0E1B4A]">Attendance</h3>
-                <p className="mt-1 text-xs text-[#8B8FA3]">Class activity and participation</p>
+                <h3 className="text-[15px] font-semibold text-[#0E1B4A]">{t("Attendance")}</h3>
+                <p className="mt-1 text-xs text-[#8B8FA3]">{t("Class activity and participation")}</p>
               </div>
               {attendanceRows.length === 0 ? (
                 <div className="p-6">
@@ -559,9 +575,9 @@ export function TeacherClassesSectionLive({
                     <thead className="bg-[#F8F6FC] text-[11px] uppercase tracking-wide text-[#9AA0B4]">
                       <tr>
                         <th className="px-4 py-3 font-semibold">ID</th>
-                        <th className="px-4 py-3 font-semibold">Student</th>
-                        <th className="px-4 py-3 font-semibold">Rank</th>
-                        <th className="px-4 py-3 font-semibold">Hours</th>
+                        <th className="px-4 py-3 font-semibold">{t("Student")}</th>
+                        <th className="px-4 py-3 font-semibold">{t("Rank")}</th>
+                        <th className="px-4 py-3 font-semibold">{t("Hours")}</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -596,8 +612,8 @@ export function TeacherClassesSectionLive({
   return (
     <div className="space-y-6" style={{ fontFamily: "'Poppins', sans-serif" }}>
       <div>
-        <h2 className="text-[20px] font-semibold text-[#0E1B4A]">My Classes</h2>
-        <p className="mt-0.5 text-xs text-[#999]">Manage lessons, homework and student progress</p>
+        <h2 className="text-[20px] font-semibold text-[#0E1B4A]">{t("My Classes")}</h2>
+        <p className="mt-0.5 text-xs text-[#999]">{t("Manage lessons, homework and student progress")}</p>
       </div>
 
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
@@ -624,22 +640,22 @@ export function TeacherClassesSectionLive({
                     <p className="truncate text-xs text-[#999]">{item.subjectLabel}</p>
                   </div>
                   <span className="rounded-full px-3 py-1 text-xs font-semibold" style={{ background: `${item.color}18`, color: item.color }}>
-                    {item.studentCount} students
+                    {item.studentCount} {t("Students")}
                   </span>
                 </div>
 
                 <div className="mb-5 grid grid-cols-3 gap-3">
                   <div className="rounded-xl p-3" style={{ background: `${item.color}0A` }}>
                     <p className="text-[18px] font-bold leading-none" style={{ color: item.color }}>{item.lessons.length}</p>
-                    <p className="mt-0.5 text-[10px] font-medium" style={{ color: item.color }}>Lessons</p>
+                    <p className="mt-0.5 text-[10px] font-medium" style={{ color: item.color }}>{t("Lessons")}</p>
                   </div>
                   <div className="rounded-xl bg-[#F0F9FF] p-3">
                     <p className="text-[18px] font-bold leading-none text-[#0EA5E9]">{item.homework.length}</p>
-                    <p className="mt-0.5 text-[10px] font-medium text-[#0EA5E9]">Homework</p>
+                    <p className="mt-0.5 text-[10px] font-medium text-[#0EA5E9]">{t("Homework")}</p>
                   </div>
                   <div className="rounded-xl bg-[#FFF7ED] p-3">
                     <p className="text-[18px] font-bold leading-none text-[#F59E0B]">{item.assessments.length}</p>
-                    <p className="mt-0.5 text-[10px] font-medium text-[#F59E0B]">Tasks</p>
+                    <p className="mt-0.5 text-[10px] font-medium text-[#F59E0B]">{t("Tasks")}</p>
                   </div>
                 </div>
 
@@ -649,8 +665,8 @@ export function TeacherClassesSectionLive({
                       <FileText className="h-4 w-4 text-[#955AC3]" />
                     </div>
                     <div className="min-w-0 flex-1">
-                      <p className="truncate text-xs font-semibold text-[#0E1B4A]">Latest: {latestLesson.title}</p>
-                      <p className="text-[10px] text-[#999]">{formatDate(latestLesson.lesson_date)}</p>
+                      <p className="truncate text-xs font-semibold text-[#0E1B4A]">{t("Latest")}: {latestLesson.title}</p>
+                      <p className="text-[10px] text-[#999]">{formatDate(latestLesson.lesson_date, locale)}</p>
                     </div>
                   </div>
                 ) : (
@@ -667,7 +683,7 @@ export function TeacherClassesSectionLive({
                     setView("detail");
                   }}
                 >
-                  <Eye className="h-3.5 w-3.5" /> View Class
+                  <Eye className="h-3.5 w-3.5" /> {t("View Class")}
                 </button>
                 <button
                   className="flex items-center justify-center gap-1.5 py-3 text-xs font-semibold transition-colors hover:bg-gray-50"
@@ -678,7 +694,7 @@ export function TeacherClassesSectionLive({
                     setView("detail");
                   }}
                 >
-                  <Calendar className="h-3.5 w-3.5" /> Open Latest Lesson
+                  <Calendar className="h-3.5 w-3.5" /> {t("Open Latest Lesson")}
                 </button>
               </div>
             </div>

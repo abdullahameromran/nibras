@@ -203,11 +203,8 @@ export function useStudents(schoolId: string | null, classId?: string | null) {
         }
       });
 
-      const seen = new Set<string>();
-      const sourceRows = roleRows.length > 0 ? roleRows : enrollmentRows;
-      const nextStudents = sourceRows
-        .map((row) => {
-          const studentId = "user_id" in row ? row.user_id : row.student_id;
+      const nextStudents = candidateIds
+        .map((studentId) => {
           const enrollment = firstEnrollmentByStudentId.get(studentId);
           const schoolClass = normalizeClassRow(enrollment?.classes ?? null);
           return buildStudentRecord({
@@ -219,11 +216,7 @@ export function useStudents(schoolId: string | null, classId?: string | null) {
             enrollmentStatus: enrollment?.status,
           });
         })
-        .filter((student) => {
-          if (!student.id || seen.has(student.id)) return false;
-          seen.add(student.id);
-          return true;
-        });
+        .filter((student) => Boolean(student.id));
       setStudents(nextStudents);
     }
     setLoading(false);

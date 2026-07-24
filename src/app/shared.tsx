@@ -290,6 +290,116 @@ Object.assign(ARABIC_TRANSLATIONS, {
   "timetable slots": "حصة في الجدول",
 });
 
+Object.assign(ARABIC_TRANSLATIONS, {
+  "Loading data...": "جاري تحميل البيانات...",
+  "Loading class data...": "جاري تحميل بيانات الفصول...",
+  "Loading teacher dashboard...": "جاري تحميل لوحة المعلم...",
+  "Nothing here yet": "لا يوجد شيء هنا بعد",
+  "New items will appear here when available.": "ستظهر العناصر الجديدة هنا عند توفرها.",
+  "We could not load this data": "تعذر تحميل هذه البيانات",
+  "Please try again.": "يرجى المحاولة مرة أخرى.",
+  "Try again": "أعد المحاولة",
+  "Select...": "اختر...",
+  "Lessons This Week": "دروس هذا الأسبوع",
+  "Top Performing Students": "الطلاب المتفوقون",
+  "No scores yet": "لا توجد درجات بعد",
+  "Workload": "عبء العمل",
+  "Lessons delivered over the last 7 days": "الدروس المقدمة خلال آخر 7 أيام",
+  "Class Progress": "تقدم الفصل",
+  "Tasks": "المهام",
+  "Upcoming Activities": "الأنشطة القادمة",
+  "Overdue": "متأخر",
+  "View All": "عرض الكل",
+  "Recent Assessments": "أحدث التقييمات",
+  "Monthly Tests": "الاختبارات الشهرية",
+  "Scheduled tests are loaded directly from Supabase.": "يتم تحميل الاختبارات المجدولة مباشرة من النظام.",
+  "Live": "مباشر",
+  "View Results": "عرض النتائج",
+  "No tests yet": "لا توجد اختبارات بعد",
+  "Create your first monthly test and it will be stored in Supabase.": "أنشئ أول اختبار شهري وسيتم حفظه في النظام.",
+  "Submissions": "التسليمات",
+  "Class Avg": "متوسط الفصل",
+  "Top Score": "أعلى درجة",
+  "Export": "تصدير",
+  "No test submissions yet": "لا توجد تسليمات اختبار بعد",
+  "Student results will appear here after they submit this test.": "ستظهر نتائج الطلاب هنا بعد تسليم هذا الاختبار.",
+  "HW Submitted": "الواجبات المسلّمة",
+  "Tests Done": "الاختبارات المنجزة",
+  "Average GPA": "متوسط المعدل",
+  "No results yet": "لا توجد نتائج بعد",
+  "Final grades for your selected class and subject will appear here from Supabase.": "ستظهر الدرجات النهائية للفصل والمادة المحددين هنا من النظام.",
+  "Students in your assigned classes are loaded from Supabase.": "يتم تحميل الطلاب في فصولك المعيّنة من النظام.",
+  "No students found": "لم يتم العثور على طلاب",
+  "Students enrolled in your classes will appear here automatically from Supabase.": "سيظهر الطلاب المسجلون في فصولك هنا تلقائيًا من النظام.",
+  "Search contacts...": "ابحث في جهات الاتصال...",
+  "No contacts found": "لم يتم العثور على جهات اتصال",
+  "Students, parents, and message threads from Supabase will appear here.": "ستظهر هنا الطلاب وأولياء الأمور وسلاسل الرسائل من النظام.",
+  "Choose a conversation": "اختر محادثة",
+  "Select a student, parent, or existing thread to start messaging.": "اختر طالبًا أو ولي أمر أو محادثة موجودة لبدء المراسلة.",
+  "No messages yet": "لا توجد رسائل بعد",
+  "No conversation selected": "لم يتم اختيار محادثة",
+  "Choose a thread on the left to read or send live messages.": "اختر محادثة من اليسار لقراءة الرسائل أو إرسالها.",
+  "Type a message...": "اكتب رسالة...",
+  "Current academic year": "العام الدراسي الحالي",
+  "No timetable published": "لم يتم نشر الجدول بعد",
+  "Your timetable will appear here once the school publishes working days, time slots, and teacher entries.": "سيظهر جدولك هنا بعد أن تنشر المدرسة أيام العمل والحصص وتوزيع المعلمين.",
+  "No teacher context": "لا يوجد سياق للمعلم",
+  "Sign in again to load your teacher dashboard from Supabase.": "سجل الدخول مرة أخرى لتحميل لوحة المعلم من النظام.",
+  "Watch lesson video": "مشاهدة فيديو الدرس",
+  "Preparing lesson video...": "جاري تجهيز فيديو الدرس...",
+  "No lesson video": "لا يوجد فيديو للدرس",
+  "Class Overview": "نظرة عامة على الفصل",
+  "Selected Lesson": "الدرس المحدد",
+  "No lesson selected": "لم يتم تحديد درس",
+  "Choose a lesson from the left to view its live data.": "اختر درسًا من اليسار لعرض بياناته المباشرة.",
+  "Articles": "المرفقات",
+  "Open": "فتح",
+  "Preparing file...": "جاري تجهيز الملف...",
+  "No lesson files": "لا توجد ملفات للدرس",
+  "Lesson attachments from Supabase will appear here.": "ستظهر مرفقات الدرس هنا من النظام.",
+  "Homework linked to this lesson will appear here from Supabase.": "ستظهر الواجبات المرتبطة بهذا الدرس هنا من النظام.",
+  "No assessments yet": "لا توجد تقييمات بعد",
+  "Live tests for this class and subject will appear here.": "ستظهر الاختبارات المباشرة لهذا الفصل وهذه المادة هنا.",
+  "Class activity and participation": "نشاط الفصل ومشاركة الطلاب",
+  "No students or activity yet": "لا يوجد طلاب أو نشاط بعد",
+  "Student enrollments, submissions, and attendance will appear here from Supabase.": "ستظهر تسجيلات الطلاب والتسليمات والحضور هنا من النظام.",
+  "Manage lessons, homework and student progress": "إدارة الدروس والواجبات وتقدم الطلاب",
+  "Latest": "الأحدث",
+  "No lessons published for this class yet.": "لم يتم نشر دروس لهذا الفصل بعد.",
+  "View Class": "عرض الفصل",
+  "Open Latest Lesson": "فتح أحدث درس",
+  "Fetching your classes, students, tests, timetable, and messages from Supabase.": "جاري تحميل فصولك وطلابك واختباراتك وجدولك ورسائلك من النظام.",
+  "Live count from your system lessons": "عدد مباشر من دروسك في النظام",
+  "Top students will appear once submissions are graded.": "سيظهر الطلاب المتفوقون بعد تصحيح التسليمات.",
+  "Class averages will appear after scored work is available.": "ستظهر متوسطات الفصول بعد توفر أعمال مصححة.",
+  "Your next lessons, homework, and tests will appear here.": "ستظهر هنا دروسك وواجباتك واختباراتك القادمة.",
+  "No recent messages from Supabase yet.": "لا توجد رسائل حديثة من النظام بعد.",
+  "Tests saved in Supabase will appear here.": "ستظهر الاختبارات المحفوظة في النظام هنا.",
+  "Complete the test form first.": "أكمل نموذج الاختبار أولاً.",
+  "Enter a valid test duration.": "أدخل مدة صحيحة للاختبار.",
+  "Test saved to Supabase": "تم حفظ الاختبار في النظام",
+  "Choose a contact and write a message first.": "اختر جهة اتصال واكتب رسالة أولاً.",
+  "Message sent": "تم إرسال الرسالة",
+  "Back to Tests": "العودة إلى الاختبارات",
+  "Result": "النتيجة",
+  "Grade": "التقدير",
+  "GPA": "المعدل",
+  "Pending": "قيد الانتظار",
+  "Current grade": "التقدير الحالي",
+  "Average score": "متوسط الدرجة",
+  "Tests completed": "الاختبارات المنجزة",
+  "Academic snapshot": "ملخص أكاديمي",
+  "Message Student": "مراسلة الطالب",
+  "Message Parent": "مراسلة ولي الأمر",
+  "Write your message...": "اكتب رسالتك...",
+  "Back to Materials": "العودة إلى المواد",
+  "Watch video": "مشاهدة الفيديو",
+  "Attachments": "المرفقات",
+  "No attachments uploaded for this lesson.": "لم يتم رفع مرفقات لهذا الدرس.",
+  "Mark complete": "تحديد كمكتمل",
+  "No description was added for this lesson yet.": "لم تتم إضافة وصف لهذا الدرس بعد.",
+});
+
 Object.assign(ARABIC_WORDS, {
   activate: "تفعيل",
   deactivating: "تعطيل",
@@ -334,6 +444,22 @@ Object.assign(ARABIC_WORDS, {
   AM: "ص",
 });
 
+Object.assign(ARABIC_WORDS, {
+  Sat: "السبت",
+  Sun: "الأحد",
+  Mon: "الاثنين",
+  Tue: "الثلاثاء",
+  Wed: "الأربعاء",
+  Thu: "الخميس",
+  Fri: "الجمعة",
+  Due: "موعد",
+  Result: "النتيجة",
+  Rank: "الترتيب",
+  Hours: "الساعات",
+  graded: "تم تقييمه",
+  unread: "غير مقروءة",
+});
+
 function translateToArabic(value: string) {
   const text = value.trim();
   if (!text) return value;
@@ -362,6 +488,20 @@ function translateToArabic(value: string) {
     .replace(/Section\s+([A-Za-z0-9\u0600-\u06FF]+)/gi, "الشعبة $1")
     .replace(/(\d+)\s+active enrollments\b/gi, "$1 تسجيلات نشطة")
     .replace(/(\d+)\s+grade levels\b/gi, "$1 مراحل دراسية")
+    .replace(/Reply to\s+(\d+)\s+unread messages/gi, "الرد على $1 رسالة غير مقروءة")
+    .replace(/(\d+)\s+tests need questions/gi, "$1 اختبارات تحتاج إلى أسئلة")
+    .replace(/(\d+)\s+homework items need questions/gi, "$1 عناصر واجب تحتاج إلى أسئلة")
+    .replace(/(\d+)\s+upcoming teaching activities/gi, "$1 أنشطة تدريس قادمة")
+    .replace(/(\d+)\s+graded students/gi, "$1 طلاب تم تقييمهم")
+    .replace(/(\d+)%\s+average/gi, "متوسط $1%")
+    .replace(/(\d+)\s+submissions/gi, "$1 تسليمات")
+    .replace(/(\d+)\s+questions/gi, "$1 أسئلة")
+    .replace(/(\d+)\s+submitted/gi, "تم تسليم $1")
+    .replace(/Start your first conversation with\s+(.+?)\./gi, "ابدأ أول محادثة مع $1.")
+    .replace(/Homework submissions:\s*(\d+)\s*[•·]\s*Tests completed:\s*(\d+)\s*[•·]\s*Attendance rate:\s*(\d+)%\./gi, "تسليمات الواجبات: $1 • الاختبارات المنجزة: $2 • نسبة الحضور: $3%.")
+    .replace(/(.+?) student$/gi, (_, label) => `${translateToArabic(label)} طالب`)
+    .replace(/(.+?)'s parent$/gi, (_, label) => `ولي أمر ${translateToArabic(label)}`)
+    .replace(/^Conversation$/gi, "محادثة")
     .replace(/from Supabase/gi, "من النظام")
     .replace(/through Supabase/gi, "عبر النظام")
     .replace(/in Supabase/gi, "في النظام")
@@ -590,15 +730,16 @@ export function Badge({ children, color = "purple" }: { children: React.ReactNod
 }
 
 export function StatCard({ icon, label, value, sub, color = "#7C5CBF" }: { icon: React.ReactNode; label: string; value: string; sub?: string; color?: string }) {
+  const { t } = useTranslation();
   return (
     <div className="bg-card rounded-xl p-4 flex items-center gap-4 shadow-sm border border-border">
       <div className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0" style={{ background: `${color}18` }}>
         <span style={{ color }}>{icon}</span>
       </div>
       <div>
-        <p className="text-xs text-muted-foreground font-medium">{label}</p>
+        <p className="text-xs text-muted-foreground font-medium">{t(label, label)}</p>
         <p className="text-xl font-bold text-foreground leading-tight">{value}</p>
-        {sub && <p className="text-xs text-muted-foreground">{sub}</p>}
+        {sub && <p className="text-xs text-muted-foreground">{t(sub, sub)}</p>}
       </div>
     </div>
   );
@@ -622,12 +763,13 @@ export function Modal({ title, onClose, children }: { title: string; onClose: ()
 }
 
 export function Toast({ message, type = "success", onClose }: { message: string; type?: "success" | "error" | "info"; onClose: () => void }) {
+  const { t } = useTranslation();
   const cls = type === "success" ? "bg-emerald-50 border-emerald-200 text-emerald-800" : type === "error" ? "bg-red-50 border-red-200 text-red-800" : "bg-blue-50 border-blue-200 text-blue-800";
   const icon = type === "success" ? <CheckCircle className="w-4 h-4 text-emerald-500" /> : type === "error" ? <AlertCircle className="w-4 h-4 text-red-500" /> : <AlertCircle className="w-4 h-4 text-blue-500" />;
   return (
     <div className={`fixed top-4 right-4 z-[100] flex items-center gap-3 px-4 py-3 rounded-xl border shadow-lg ${cls} animate-in slide-in-from-right`}>
       {icon}
-      <span className="text-sm font-medium">{message}</span>
+      <span className="text-sm font-medium">{t(message, message)}</span>
       <button onClick={onClose} className="ml-2 opacity-60 hover:opacity-100"><X className="w-3 h-3" /></button>
     </div>
   );
@@ -642,34 +784,37 @@ export function LoadingState({
   title?: string;
   description?: string;
 }) {
+  const { t } = useTranslation();
   const heading = title ?? label ?? "Loading data...";
   return (
     <div className="flex min-h-40 flex-col items-center justify-center rounded-2xl border border-dashed border-border bg-card p-8 text-center">
       <LoaderCircle className="mb-3 h-7 w-7 animate-spin text-primary" />
-      <p className="text-sm font-medium text-foreground">{heading}</p>
-      {description && <p className="mt-1 max-w-sm text-xs text-muted-foreground">{description}</p>}
+      <p className="text-sm font-medium text-foreground">{t(heading, heading)}</p>
+      {description && <p className="mt-1 max-w-sm text-xs text-muted-foreground">{t(description, description)}</p>}
     </div>
   );
 }
 
 export function EmptyState({ title = "Nothing here yet", description = "New items will appear here when available.", action }: { title?: string; description?: string; action?: React.ReactNode }) {
-  return <div className="flex min-h-40 flex-col items-center justify-center rounded-2xl border border-dashed border-border bg-card p-8 text-center"><Inbox className="mb-3 h-8 w-8 text-primary/60" /><p className="text-sm font-semibold text-foreground">{title}</p><p className="mt-1 max-w-sm text-xs text-muted-foreground">{description}</p>{action && <div className="mt-4">{action}</div>}</div>;
+  const { t } = useTranslation();
+  return <div className="flex min-h-40 flex-col items-center justify-center rounded-2xl border border-dashed border-border bg-card p-8 text-center"><Inbox className="mb-3 h-8 w-8 text-primary/60" /><p className="text-sm font-semibold text-foreground">{t(title, title)}</p><p className="mt-1 max-w-sm text-xs text-muted-foreground">{t(description, description)}</p>{action && <div className="mt-4">{action}</div>}</div>;
 }
 
 export function ErrorState({ title = "We could not load this data", description = "Please try again.", onRetry }: { title?: string; description?: string; onRetry?: () => void }) {
-  return <div className="flex min-h-40 flex-col items-center justify-center rounded-2xl border border-red-100 bg-red-50/50 p-8 text-center"><TriangleAlert className="mb-3 h-8 w-8 text-red-500" /><p className="text-sm font-semibold text-foreground">{title}</p><p className="mt-1 text-xs text-muted-foreground">{description}</p>{onRetry && <button onClick={onRetry} className="mt-4 rounded-lg bg-primary px-4 py-2 text-xs font-semibold text-white">Try again</button>}</div>;
+  const { t } = useTranslation();
+  return <div className="flex min-h-40 flex-col items-center justify-center rounded-2xl border border-red-100 bg-red-50/50 p-8 text-center"><TriangleAlert className="mb-3 h-8 w-8 text-red-500" /><p className="text-sm font-semibold text-foreground">{t(title, title)}</p><p className="mt-1 text-xs text-muted-foreground">{t(description, description)}</p>{onRetry && <button onClick={onRetry} className="mt-4 rounded-lg bg-primary px-4 py-2 text-xs font-semibold text-white">{t("Try again")}</button>}</div>;
 }
 
 export function Input({ label, type = "text", value, onChange, placeholder, error, required }: {
   label: string; type?: string; value: string; onChange: (v: string) => void;
   placeholder?: string; error?: string; required?: boolean;
 }) {
-  const { language } = useLanguage();
+  const { language, t } = useTranslation();
   const isArabic = language === "ar";
   const isDate = type === "date";
   return (
     <div className="space-y-1.5">
-      <label className="block text-sm font-semibold text-foreground">{label}{required && <span className="text-red-500 ml-0.5">*</span>}</label>
+      <label className="block text-sm font-semibold text-foreground">{t(label, label)}{required && <span className="text-red-500 ml-0.5">*</span>}</label>
       <input
         type={type}
         value={value}
@@ -679,7 +824,7 @@ export function Input({ label, type = "text", value, onChange, placeholder, erro
         dir={type === "email" ? "ltr" : isArabic ? "rtl" : "ltr"}
         className={`w-full px-3 py-2.5 rounded-xl border text-sm transition-all outline-none focus:ring-2 focus:ring-primary/30 bg-muted ${error ? "border-red-400 focus:ring-red-200" : "border-border focus:border-primary"}`}
       />
-      {error && <p className="text-xs text-red-500 flex items-center gap-1"><AlertCircle className="w-3 h-3" />{error}</p>}
+      {error && <p className="text-xs text-red-500 flex items-center gap-1"><AlertCircle className="w-3 h-3" />{t(error, error)}</p>}
     </div>
   );
 }
@@ -688,11 +833,11 @@ export function Select({ label, value, onChange, options, error, required }: {
   label: string; value: string; onChange: (v: string) => void;
   options: { value: string; label: string }[]; error?: string; required?: boolean;
 }) {
-  const { language } = useLanguage();
+  const { language, t } = useTranslation();
   const isArabic = language === "ar";
   return (
     <div className="space-y-1.5">
-      <label className="block text-sm font-semibold text-foreground">{label}{required && <span className="text-red-500 ml-0.5">*</span>}</label>
+      <label className="block text-sm font-semibold text-foreground">{t(label, label)}{required && <span className="text-red-500 ml-0.5">*</span>}</label>
       <select
         value={value} onChange={e => onChange(e.target.value)} dir={isArabic ? "rtl" : "ltr"}
         className={`w-full px-3 py-2.5 rounded-xl border text-sm transition-all outline-none focus:ring-2 focus:ring-primary/30 bg-muted ${error ? "border-red-400" : "border-border focus:border-primary"}`}
@@ -700,7 +845,7 @@ export function Select({ label, value, onChange, options, error, required }: {
         <option value="">Select…</option>
         {options.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
       </select>
-      {error && <p className="text-xs text-red-500 flex items-center gap-1"><AlertCircle className="w-3 h-3" />{error}</p>}
+      {error && <p className="text-xs text-red-500 flex items-center gap-1"><AlertCircle className="w-3 h-3" />{t(error, error)}</p>}
     </div>
   );
 }

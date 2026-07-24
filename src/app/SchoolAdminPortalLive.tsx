@@ -60,10 +60,10 @@ import {
 import { useStudents } from "@/hooks/useStudents";
 import { useSubjects } from "@/hooks/useSubjects";
 import { useTeachers } from "@/hooks/useTeachers";
+import { useStorageObjectUrl, useStorageObjectUrlMap } from "@/hooks/useStorageUrls";
 import { useTests } from "@/hooks/useTests";
 import { useTimetable, useTimeSlots, useWorkingDays } from "@/hooks/useTimetable";
 import { formatPlanDisplayName } from "@/lib/plans";
-import { resolveLessonAttachmentUrl } from "@/lib/storage";
 
 const SCHOOL_NAV: NavItem[] = [
   { id: "dashboard", label: "Dashboard", icon: <Users className="w-4 h-4" /> },
@@ -649,24 +649,28 @@ export function SchoolAdminPortalLive({
     );
   }, [dbTests.tests, selectedGradeClass, selectedSubject]);
 
-  const selectedLessonVideoUrl = useMemo(() => {
-    const directVideoUrl = resolveLessonAttachmentUrl(selectedLessonRecord?.video_url);
-    if (directVideoUrl) return directVideoUrl;
+  const rawSelectedLessonVideoUrl = useMemo(() => {
+    if (selectedLessonRecord?.video_url) return selectedLessonRecord.video_url;
 
     const videoAttachment = (selectedLessonRecord?.lesson_attachments ?? []).find((attachment) =>
       attachment.file_kind?.toLowerCase().includes("video") ||
       /\.(mp4|webm|ogg|mov|m4v)(?:[?#].*)?$/i.test(attachment.file_url),
     );
 
-    return resolveLessonAttachmentUrl(videoAttachment?.file_url);
+    return videoAttachment?.file_url ?? null;
   }, [selectedLessonRecord]);
+  const selectedLessonVideoUrl = useStorageObjectUrl("lesson-attachments", rawSelectedLessonVideoUrl);
+  const selectedLessonAttachmentUrls = useStorageObjectUrlMap(
+    "lesson-attachments",
+    (selectedLessonRecord?.lesson_attachments ?? []).map((attachment) => attachment.file_url),
+  );
 
   const lessonWorkspaceGroups = useMemo(() => {
     const articleItems = (selectedLessonRecord?.lesson_attachments ?? []).map((attachment) => ({
       title: attachment.file_name,
       metaOne: attachment.file_kind || "File",
       metaTwo: formatShortDate(attachment.uploaded_at),
-      href: resolveLessonAttachmentUrl(attachment.file_url) ?? attachment.file_url,
+      href: selectedLessonAttachmentUrls[attachment.file_url] ?? "#",
     }));
 
     const homeworkItems = selectedLessonHomework.map((item) => ({
@@ -690,7 +694,7 @@ export function SchoolAdminPortalLive({
       { title: "Homework", items: homeworkItems },
       { title: "Tasks", items: taskItems },
     ];
-  }, [selectedLessonHomework, selectedLessonRecord, selectedLessonTests]);
+  }, [selectedLessonAttachmentUrls, selectedLessonHomework, selectedLessonRecord, selectedLessonTests]);
 
   const lessonWorkspaceAttendanceRows = useMemo(() => {
     if (!selectedGradeClass || !selectedSubject) return [];
