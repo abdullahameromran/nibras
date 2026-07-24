@@ -326,11 +326,16 @@ type AdminLeadRow = {
   id: string;
   schoolName: string;
   owner: string;
+  phone: string;
+  email: string;
   address: string;
   governorate: string;
+  studentCount: string;
   students: number;
   type: string;
   status: string;
+  message: string;
+  createdAt: string;
 };
 
 const PLAN_COLORS = ["#6B7280", "#3B82F6", "#7C5CBF", "#10B981", "#F59E0B"];
@@ -522,11 +527,16 @@ function SuperAdminPortal({ view, setView, onLogout, userId }: { view: string; s
     id: lead.id,
     schoolName: lead.school_name,
     owner: lead.director_name,
+    phone: lead.phone?.trim() || "-",
+    email: lead.email?.trim() || "-",
     address: lead.address?.trim() || "-",
     governorate: lead.governorate?.trim() || "-",
-    students: Number.isFinite(Number.parseInt(lead.student_count ?? "", 10)) ? Number.parseInt(lead.student_count ?? "", 10) : 0,
+    studentCount: lead.student_count?.trim() || "-",
+    students: 0,
     type: lead.school_type?.trim() || "-",
     status: normalizeLeadStatus(lead.status),
+    message: lead.message?.trim() || "",
+    createdAt: new Date(lead.created_at).toLocaleDateString(),
   }));
 
   const plans: AdminPlanRow[] = dbPlans.plans.map((plan, idx) => ({
@@ -1016,10 +1026,10 @@ function SuperAdminPortal({ view, setView, onLogout, userId }: { view: string; s
             {/* Table */}
             <div className="bg-card rounded-2xl border border-border shadow-sm overflow-hidden">
               <div className="overflow-x-auto">
-                <table className="w-full min-w-[900px]">
+                <table className="w-full min-w-[1100px]">
                   <thead>
                     <tr className="border-b border-border bg-muted/40">
-                      {["School Name", "Owner / Contact", "Address", "Governorate", "Students", "Type", "Status", "Actions"].map(h => (
+                      {["School Name", "Director", "Phone", "Email", "Governorate", "Students", "Type", "Date", "Status", "Actions"].map(h => (
                         <th key={h} className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground whitespace-nowrap">{h}</th>
                       ))}
                     </tr>
@@ -1036,12 +1046,14 @@ function SuperAdminPortal({ view, setView, onLogout, userId }: { view: string; s
                           </div>
                         </td>
                         <td className="px-4 py-3 text-sm text-foreground whitespace-nowrap">{l.owner}</td>
-                        <td className="px-4 py-3 text-sm text-muted-foreground max-w-[180px] truncate" title={l.address}>{l.address}</td>
+                        <td className="px-4 py-3 text-sm text-foreground whitespace-nowrap" dir="ltr">{l.phone}</td>
+                        <td className="px-4 py-3 text-sm text-muted-foreground max-w-[180px] truncate" title={l.email} dir="ltr">{l.email}</td>
                         <td className="px-4 py-3 text-sm text-foreground whitespace-nowrap">{l.governorate}</td>
-                        <td className="px-4 py-3 text-sm font-medium text-foreground">{l.students.toLocaleString()}</td>
+                        <td className="px-4 py-3 text-sm font-medium text-foreground whitespace-nowrap">{l.studentCount}</td>
                         <td className="px-4 py-3">
-                          <Badge color={l.type === "International" ? "purple" : l.type === "Private" ? "blue" : "gray"}>{l.type}</Badge>
+                          <Badge color={l.type === "دولية" || l.type === "International" ? "purple" : l.type === "لغات" || l.type === "Private" ? "blue" : "gray"}>{l.type}</Badge>
                         </td>
+                        <td className="px-4 py-3 text-xs text-muted-foreground whitespace-nowrap">{l.createdAt}</td>
                         <td className="px-4 py-3">
                           <Badge color={leadStatusColor(l.status)}>{l.status}</Badge>
                         </td>
@@ -1065,7 +1077,7 @@ function SuperAdminPortal({ view, setView, onLogout, userId }: { view: string; s
                       </tr>
                     ))}
                     {filteredLeads.length === 0 && (
-                      <tr><td colSpan={8} className="px-4 py-10 text-center text-sm text-muted-foreground">No leads match your filters.</td></tr>
+                      <tr><td colSpan={10} className="px-4 py-10 text-center text-sm text-muted-foreground">No leads match your filters.</td></tr>
                     )}
                   </tbody>
                 </table>
@@ -1287,9 +1299,14 @@ function SuperAdminPortal({ view, setView, onLogout, userId }: { view: string; s
           <div className="space-y-4">
             {(() => { const l = leads.find(x => x.id === showContactModal); return l ? (
               <div>
-                <div className="p-4 bg-secondary rounded-xl mb-4">
+                <div className="p-4 bg-secondary rounded-xl mb-4 space-y-1">
                   <p className="font-semibold text-foreground">{l.schoolName}</p>
                   <p className="text-sm text-muted-foreground">{l.owner} · {l.governorate}</p>
+                  <p className="text-sm text-muted-foreground" dir="ltr">📞 {l.phone}</p>
+                  {l.email !== "-" && <p className="text-sm text-muted-foreground" dir="ltr">✉️ {l.email}</p>}
+                  {l.studentCount !== "-" && <p className="text-sm text-muted-foreground">👥 {l.studentCount} طالب</p>}
+                  {l.type !== "-" && <p className="text-sm text-muted-foreground">🏫 {l.type}</p>}
+                  {l.message && <p className="text-sm text-muted-foreground italic mt-2">"{l.message}"</p>}
                 </div>
                 <Input label="Subject" value={`Partnership Inquiry – ${l.schoolName}`} onChange={() => {}} />
                 <div className="mt-3">

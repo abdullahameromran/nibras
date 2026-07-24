@@ -202,11 +202,14 @@ function LeadFormModal({ onClose }: { onClose: () => void }) {
       });
       setSubmitted(true);
     } catch (error) {
-      setSubmitError(
+      const msg =
         error instanceof Error
           ? error.message
-          : "تعذر حفظ بيانات المدرسة الآن. يرجى المحاولة مرة أخرى.",
-      );
+          : typeof (error as any)?.message === "string"
+            ? (error as any).message
+            : "تعذر حفظ بيانات المدرسة الآن. يرجى المحاولة مرة أخرى.";
+      setSubmitError(msg);
+      console.error("[LeadForm] Supabase error:", error);
     } finally {
       setSubmitting(false);
     }
