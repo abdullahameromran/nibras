@@ -241,6 +241,7 @@ export function SchoolAdminPortalLive({
   const [schoolForm, setSchoolForm] = useState({ name: "", phone: "", address: "", email: "", timezone: "Africa/Cairo" });
   const [yearForm, setYearForm] = useState({ name: "", start: "", end: "" });
   const [subjectName, setSubjectName] = useState("");
+  const [subjectCode, setSubjectCode] = useState("");
   const [semesters, setSemesters] = useState<SemesterRow[]>([]);
   const [newSemester, setNewSemester] = useState({ name: "", start: "", end: "" });
   const [timeSlotDraft, setTimeSlotDraft] = useState({ start: "", end: "", isBreak: false });
@@ -984,20 +985,24 @@ export function SchoolAdminPortalLive({
 
   const createSubject = async () => {
     if (!schoolId) return;
-    if (!subjectName.trim()) {
+    const normalizedSubjectName = subjectName.trim();
+    const normalizedSubjectCode = subjectCode.trim().replace(/\s+/g, "").toUpperCase();
+
+    if (!normalizedSubjectName) {
       showToast("Enter a subject name.", "error");
       return;
     }
     const result = await dbSubjects.createSubject({
       school_id: schoolId,
-      name: subjectName.trim(),
-      code: null,
+      name: normalizedSubjectName,
+      code: normalizedSubjectCode || null,
     });
     if (result.error) {
       showToast(result.error, "error");
       return;
     }
     setSubjectName("");
+    setSubjectCode("");
     showToast("Subject created");
   };
 
@@ -1596,7 +1601,20 @@ export function SchoolAdminPortalLive({
                     </div>
                   ))}
                 </div>
-                <Input label="New Subject" value={subjectName} onChange={setSubjectName} placeholder="Enter subject name" />
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <Input
+                    label="New Subject"
+                    value={subjectName}
+                    onChange={setSubjectName}
+                    placeholder="Enter subject name"
+                  />
+                  <Input
+                    label="Subject Code"
+                    value={subjectCode}
+                    onChange={setSubjectCode}
+                    placeholder="ENG5"
+                  />
+                </div>
                 <Btn onClick={() => void createSubject()}>Add Subject</Btn>
               </div>
             )}

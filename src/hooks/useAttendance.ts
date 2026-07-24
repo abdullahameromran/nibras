@@ -29,6 +29,35 @@ export function useAttendance(filters: {
     if (!filters.schoolId && !filters.lessonId && !filters.studentId) return;
     setLoading(true);
     setError(null);
+
+    let lessonIdsForClass: string[] | null = null;
+    if (filters.classId) {
+      const classLessonsQuery = supabase
+        .from("lessons")
+        .select("id")
+        .is("deleted_at", null)
+        .eq("class_id", filters.classId);
+
+      if (filters.schoolId) {
+        classLessonsQuery.eq("school_id", filters.schoolId);
+      }
+
+      const { data: classLessons, error: classLessonsError } = await classLessonsQuery;
+      if (classLessonsError) {
+        setError(classLessonsError.message);
+        setRecords([]);
+        setLoading(false);
+        return;
+      }
+
+      lessonIdsForClass = ((classLessons as Array<{ id: string }> | null) ?? []).map((row) => row.id);
+      if (lessonIdsForClass.length === 0) {
+        setRecords([]);
+        setLoading(false);
+        return;
+      }
+    }
+
     let query = supabase
       .from("attendance_records")
       .select(`
@@ -41,12 +70,13 @@ export function useAttendance(filters: {
     if (filters.schoolId) query = query.eq("school_id", filters.schoolId);
     if (filters.lessonId) query = query.eq("lesson_id", filters.lessonId);
     if (filters.studentId) query = query.eq("student_id", filters.studentId);
+    if (lessonIdsForClass) query = query.in("lesson_id", lessonIdsForClass);
 
     const { data, error: err } = await query;
     if (err) setError(err.message);
     else setRecords((data as AttendanceRecord[]) ?? []);
     setLoading(false);
-  }, [filters.schoolId, filters.lessonId, filters.studentId]);
+  }, [filters.schoolId, filters.lessonId, filters.studentId, filters.classId]);
 
   useEffect(() => { fetchAttendance(); }, [fetchAttendance]);
 

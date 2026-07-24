@@ -18,6 +18,7 @@ export interface AuthUser {
   first_name?: string;
   last_name?: string;
   avatar_url?: string;
+  is_active?: boolean;
 }
 
 export interface SchoolSignupPayload {
@@ -77,10 +78,44 @@ export async function updatePassword(newPassword: string): Promise<string | null
 export async function fetchUserRoles(): Promise<UserRoleRecord[]> {
   const { data, error } = await supabase
     .from("user_school_roles")
-    .select("*")
+    .select("id, user_id, school_id, role, is_active")
     .eq("is_active", true);
   if (error) return [];
-  return data as UserRoleRecord[];
+
+  const roleRows = (data as UserRoleRecord[] | null) ?? [];
+  const schoolIds = Array.from(
+    new Set(
+      roleRows
+        .map((row) => row.school_id)
+        .filter((schoolId): schoolId is string => Boolean(schoolId)),
+    ),
+  );
+
+  const schoolStatusById = new Map<string, { is_active: boolean; deleted_at: string | null }>();
+
+  if (schoolIds.length > 0) {
+    const { data: schoolData } = await supabase
+      .from("schools")
+      .select("id, is_active, deleted_at")
+      .in("id", schoolIds);
+
+    ((schoolData as Array<{ id: string; is_active: boolean; deleted_at: string | null }> | null) ?? []).forEach(
+      (school) => {
+        schoolStatusById.set(school.id, {
+          is_active: school.is_active,
+          deleted_at: school.deleted_at,
+        });
+      },
+    );
+  }
+
+  return roleRows.filter((row) => {
+    if (row.role === "super_admin") return true;
+    if (!row.school_id) return true;
+    const school = schoolStatusById.get(row.school_id);
+    if (!school) return true;
+    return school.is_active && !school.deleted_at;
+  });
 }
 
 /** Fetch the profile record for the current user. */
@@ -90,7 +125,7 @@ export async function fetchCurrentProfile(): Promise<AuthUser | null> {
   const user = sessionData.session.user;
   const { data, error } = await supabase
     .from("profiles")
-    .select("id, email, first_name, last_name, avatar_url")
+    .select("id, email, first_name, last_name, avatar_url, is_active")
     .eq("id", user.id)
     .maybeSingle();
   if (error || !data) return { id: user.id, email: user.email ?? "" };

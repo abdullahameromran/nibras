@@ -184,9 +184,11 @@ function MarketingPanel() {
 export function AuthPage({
   onLogin,
   onSignUpSchool,
+  authError,
 }: {
   onLogin: (email: string, password: string) => Promise<string | null>;
   onSignUpSchool: (payload: SchoolSignupPayload) => Promise<string | null>;
+  authError?: string | null;
 }) {
   const [mode, setMode] = useState<AuthMode>(() => (normalizePath(window.location.pathname) === "/signup" ? "signup" : "login"));
   const [notice, setNotice] = useState<NoticeState>(null);
@@ -361,7 +363,7 @@ export function AuthPage({
           </div>
 
           <div className="space-y-6 rounded-[28px] border border-[#e3edf5] bg-[#fbfdff] p-6 shadow-[0_30px_70px_-52px_rgba(15,39,71,0.75)] sm:p-7">
-            <NoticeBanner notice={notice} />
+            <NoticeBanner notice={notice ?? (authError ? { type: "error", message: authError } : null)} />
 
             {mode === "login" ? (
               <>

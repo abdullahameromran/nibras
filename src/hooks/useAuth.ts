@@ -128,6 +128,26 @@ export function useAuth(): UseAuthReturn {
         return;
       }
 
+      if (profile.is_active === false) {
+        await authSignOut();
+        persistRoleContext(null, null);
+        setState({ user: null, roles: [], activeRole: null, activeSchoolId: null, loading: false, error: "Your account is inactive. Contact your administrator." });
+        return;
+      }
+
+      if (!roles.length) {
+        persistRoleContext(null, null);
+        setState({
+          user: profile,
+          roles: [],
+          activeRole: null,
+          activeSchoolId: null,
+          loading: false,
+          error: "No active school access is available for this account.",
+        });
+        return;
+      }
+
       const { activeRole, activeSchoolId } = pickInitialRoleContext(roles);
       persistRoleContext(activeRole, activeSchoolId);
 

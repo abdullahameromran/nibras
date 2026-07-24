@@ -44,6 +44,7 @@ import {
   Select,
   StatCard,
   Toast,
+  useTranslation,
 } from "./shared";
 import { TeacherClassesSectionLive } from "./TeacherClassesSectionLive";
 
@@ -181,6 +182,7 @@ export function TeacherPortalLive({
   schoolId?: string | null;
   user?: { id?: string; email?: string; first_name?: string; last_name?: string } | null;
 }) {
+  const { t } = useTranslation();
   const dbSchool = useSchoolDetails(schoolId ?? null);
   const dbAssignments = useSchoolTeacherAssignments(schoolId ?? null);
   const dbEnrollments = useSchoolEnrollments(schoolId ?? null);
@@ -921,13 +923,13 @@ export function TeacherPortalLive({
                 <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
                   <div className="flex flex-col items-center">
                     <div className="mb-4 text-center">
-                      <p className="text-sm font-semibold text-foreground">Lessons This Week</p>
-                      <p className="text-xs text-muted-foreground">Live count from your Supabase lessons</p>
+                      <p className="text-sm font-semibold text-foreground">{t("Lessons This Week")}</p>
+                      <p className="text-xs text-muted-foreground">{t("Live count from your system lessons")}</p>
                     </div>
                     <div className="flex h-28 w-28 items-center justify-center rounded-full bg-secondary">
                       <div className="text-center">
                         <p className="text-3xl font-bold text-primary">{lessonsThisWeek}</p>
-                        <p className="text-xs text-muted-foreground">lessons</p>
+                        <p className="text-xs text-muted-foreground">{t("Lessons", "Lessons")}</p>
                       </div>
                     </div>
                   </div>

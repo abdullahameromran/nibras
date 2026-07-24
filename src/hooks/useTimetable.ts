@@ -63,6 +63,21 @@ export function useTimetable(schoolId: string | null, filters?: {
     return { error: null, data };
   }, [fetchTimetable]);
 
+  const updateEntry = useCallback(async (
+    id: string,
+    updates: Partial<Omit<TimetableEntry, "id" | "working_days" | "time_slots" | "classes" | "subjects" | "profiles">>,
+  ) => {
+    const { data, error: err } = await supabase
+      .from("timetable_entries")
+      .update(updates)
+      .eq("id", id)
+      .select()
+      .single();
+    if (err) return { error: err.message, data: null };
+    await fetchTimetable();
+    return { error: null, data };
+  }, [fetchTimetable]);
+
   const deleteEntry = useCallback(async (id: string) => {
     const { error: err } = await supabase
       .from("timetable_entries")
@@ -73,7 +88,7 @@ export function useTimetable(schoolId: string | null, filters?: {
     return { error: null };
   }, [fetchTimetable]);
 
-  return { entries, loading, error, fetchTimetable, createEntry, deleteEntry };
+  return { entries, loading, error, fetchTimetable, createEntry, updateEntry, deleteEntry };
 }
 
 // Working days hook

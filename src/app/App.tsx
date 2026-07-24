@@ -2369,6 +2369,7 @@ export default function App() {
           <AuthPage
             onLogin={auth.signIn}
             onSignUpSchool={auth.signUpSchool}
+            authError={auth.error}
           />
         )}
         {!auth.loading && !isResetRoute && auth.portal === "super-admin" && <SuperAdminPortal view={view} setView={handleViewChange} onLogout={handleLogout} />}
