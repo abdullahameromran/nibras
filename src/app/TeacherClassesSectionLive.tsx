@@ -489,17 +489,17 @@ export function TeacherClassesSectionLive({
             <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
-                  <h3 className="text-[15px] font-semibold text-[#0E1B4A]">Record Attendance</h3>
+                  <h3 className="text-[15px] font-semibold text-[#0E1B4A]">{t("Record Attendance")}</h3>
                   <p className="mt-1 text-xs text-[#8B8FA3]">
-                    Mark attendance for the selected lesson, then save it to Supabase.
+                    {t("Mark attendance for the selected lesson, then save it to Supabase.")}
                   </p>
                 </div>
                 <div className="flex flex-wrap gap-2">
                   <Btn size="sm" variant="secondary" onClick={() => markAllAttendance("present")}>
-                    Mark all present
+                    {t("Mark all present")}
                   </Btn>
                   <Btn size="sm" onClick={() => void saveAttendance()} disabled={savingAttendance || !selectedLesson}>
-                    {savingAttendance ? "Saving..." : "Save Attendance"}
+                    {savingAttendance ? t("Saving...") : t("Save Attendance")}
                   </Btn>
                 </div>
               </div>
@@ -514,16 +514,16 @@ export function TeacherClassesSectionLive({
                         <div>
                           <p className="text-sm font-semibold text-[#0E1B4A]">{student.name}</p>
                           <p className="text-xs text-[#8B8FA3]">
-                            {selectedLessonAttendanceMap.get(student.id) ? "Saved in this lesson" : "Not marked yet"}
+                            {selectedLessonAttendanceMap.get(student.id) ? t("Saved in this lesson") : t("Not marked yet")}
                           </p>
                         </div>
                       </div>
                       <div className="flex flex-wrap gap-2">
                         {[
-                          { value: "present" as const, label: "Present", active: "bg-[#ECFDF5] text-[#047857] border-[#A7F3D0]" },
-                          { value: "late" as const, label: "Late", active: "bg-[#EFF6FF] text-[#1D4ED8] border-[#BFDBFE]" },
-                          { value: "absent" as const, label: "Absent", active: "bg-[#FEF2F2] text-[#B91C1C] border-[#FECACA]" },
-                          { value: "excused" as const, label: "Excused", active: "bg-[#FFF7ED] text-[#C2410C] border-[#FED7AA]" },
+                          { value: "present" as const, label: t("Present"), active: "bg-[#ECFDF5] text-[#047857] border-[#A7F3D0]" },
+                          { value: "late" as const, label: t("Late"), active: "bg-[#EFF6FF] text-[#1D4ED8] border-[#BFDBFE]" },
+                          { value: "absent" as const, label: t("Absent"), active: "bg-[#FEF2F2] text-[#B91C1C] border-[#FECACA]" },
+                          { value: "excused" as const, label: t("Excused"), active: "bg-[#FFF7ED] text-[#C2410C] border-[#FED7AA]" },
                         ].map((status) => (
                           <button
                             key={`${student.id}-${status.value}`}
