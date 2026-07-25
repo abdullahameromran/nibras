@@ -62,6 +62,44 @@ export function useTests(filters: {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const computeTestScore = useCallback((test: MonthlyTest, answers: Array<{ question_id: string; selected_choice_id: string | null }>) => {
+    const questions = test.test_questions ?? [];
+    if (questions.length === 0) return null;
+
+    const correctChoiceByQuestionId = new Map<string, string | null>();
+    questions.forEach((question) => {
+      const correctChoice = (question.test_choices ?? []).find((choice) => choice.is_correct);
+      correctChoiceByQuestionId.set(question.id, correctChoice?.id ?? null);
+    });
+
+    let correctCount = 0;
+    questions.forEach((question) => {
+      const selectedChoiceId = answers.find((answer) => answer.question_id === question.id)?.selected_choice_id ?? null;
+      const correctChoiceId = correctChoiceByQuestionId.get(question.id) ?? null;
+      if (selectedChoiceId && correctChoiceId && selectedChoiceId === correctChoiceId) {
+        correctCount += 1;
+      }
+    });
+
+    return Math.round((correctCount / questions.length) * 100);
+  }, []);
+
+  const persistComputedScore = useCallback(async (submissionId: string, score: number, answers: Array<{ question_id: string; selected_choice_id: string | null }>) => {
+    const timestamp = new Date().toISOString();
+    await supabase
+      .from("test_submissions")
+      .update({ score, graded_at: timestamp })
+      .eq("id", submissionId);
+
+    if (answers.length > 0) {
+      const answerRows = answers.map((answer) => ({
+        submission_id: submissionId,
+        ...answer,
+      }));
+      await supabase.from("test_answers").upsert(answerRows, { onConflict: "submission_id,question_id" });
+    }
+  }, []);
+
   const fetchTests = useCallback(async () => {
     if (!filters.schoolId && !filters.classId) return;
     setLoading(true);
@@ -77,7 +115,7 @@ export function useTests(filters: {
       )
     `;
     if (filters.teacherId || !filters.studentId) {
-      selectStr += `, test_submissions ( id, student_id, submitted_at, score, graded_at, profiles(id, first_name, last_name, avatar_url) )`;
+      selectStr += `, test_submissions ( id, student_id, submitted_at, score, graded_at, profiles(id, first_name, last_name, avatar_url), test_answers(id, question_id, selected_choice_id, is_correct) )`;
     }
     if (filters.studentId) {
       selectStr += `, test_submissions ( id, student_id, submitted_at, score, graded_at, test_answers(id, question_id, selected_choice_id, is_correct) )`;
@@ -95,10 +133,43 @@ export function useTests(filters: {
     if (filters.kind) query = query.eq("kind", filters.kind);
 
     const { data, error: err } = await query;
-    if (err) setError(err.message);
-    else setTests((data as MonthlyTest[]) ?? []);
+    if (err) {
+      setError(err.message);
+      setLoading(false);
+      return;
+    }
+
+    const nextTests = (data as MonthlyTest[]) ?? [];
+    const updates: Promise<unknown>[] = [];
+    const normalizedTests = nextTests.map((test) => {
+      const questions = test.test_questions ?? [];
+      const submissions = test.test_submissions ?? [];
+      const nextSubmissions = submissions.map((submission) => {
+        if (submission.score != null) return submission;
+        const answers = submission.test_answers ?? [];
+        if (questions.length === 0 || answers.length === 0) return submission;
+        const computedScore = computeTestScore(test, answers);
+        if (computedScore == null) return submission;
+
+        updates.push(persistComputedScore(submission.id, computedScore, answers));
+        return {
+          ...submission,
+          score: computedScore,
+          graded_at: new Date().toISOString(),
+        };
+      });
+      return {
+        ...test,
+        test_submissions: nextSubmissions,
+      };
+    });
+
+    setTests(normalizedTests);
+    if (updates.length > 0) {
+      Promise.allSettled(updates).catch(() => null);
+    }
     setLoading(false);
-  }, [filters.schoolId, filters.classId, filters.teacherId, filters.studentId, filters.kind]);
+  }, [computeTestScore, filters.schoolId, filters.classId, filters.teacherId, filters.studentId, filters.kind, persistComputedScore]);
 
   useEffect(() => { fetchTests(); }, [fetchTests]);
 
@@ -166,16 +237,36 @@ export function useTests(filters: {
     if (subErr) return { error: subErr.message };
 
     if (payload.answers.length > 0) {
-      await supabase.from("test_answers").upsert(
-        payload.answers.map(a => ({ submission_id: submission.id, ...a })),
-        { onConflict: "submission_id,question_id" }
-      );
-      // Trigger auto-grade
-      await supabase.rpc("compute_test_score", { p_submission_id: submission.id }).catch(() => null);
+      const currentTest = tests.find((test) => test.id === payload.test_id);
+      const correctChoiceByQuestionId = new Map<string, string | null>();
+      currentTest?.test_questions?.forEach((question) => {
+        const correctChoice = (question.test_choices ?? []).find((choice) => choice.is_correct);
+        correctChoiceByQuestionId.set(question.id, correctChoice?.id ?? null);
+      });
+
+      const answerRows = payload.answers.map((answer) => ({
+        submission_id: submission.id,
+        ...answer,
+        is_correct:
+          currentTest && answer.selected_choice_id != null
+            ? correctChoiceByQuestionId.get(answer.question_id) === answer.selected_choice_id
+            : null,
+      }));
+      await supabase.from("test_answers").upsert(answerRows, { onConflict: "submission_id,question_id" });
+
+      const computedScore = currentTest ? computeTestScore(currentTest, payload.answers) : null;
+      if (computedScore != null) {
+        await supabase
+          .from("test_submissions")
+          .update({ score: computedScore, graded_at: new Date().toISOString() })
+          .eq("id", submission.id);
+      } else {
+        await supabase.rpc("compute_test_score", { p_submission_id: submission.id }).catch(() => null);
+      }
     }
     await fetchTests();
     return { error: null };
-  }, [fetchTests]);
+  }, [computeTestScore, fetchTests, tests]);
 
   return { tests, loading, error, fetchTests, createTest, deleteTest, submitTest };
 }

@@ -93,6 +93,14 @@ type TestFormState = {
   duration: string;
 };
 
+type TestQuestionDraft = {
+  question_text: string;
+  choices: Array<{
+    choice_text: string;
+    is_correct: boolean;
+  }>;
+};
+
 type MessageTarget = {
   id: string;
   name: string;
@@ -176,7 +184,8 @@ export function TeacherPortalLive({
   schoolId?: string | null;
   user?: { id?: string; email?: string; first_name?: string; last_name?: string } | null;
 }) {
-  const { t } = useTranslation();
+  const { t, language } = useTranslation();
+  const isArabic = language === "ar";
   const dbSchool = useSchoolDetails(schoolId ?? null);
   const dbAssignments = useSchoolTeacherAssignments(schoolId ?? null);
   const dbEnrollments = useSchoolEnrollments(schoolId ?? null);
@@ -214,6 +223,17 @@ export function TeacherPortalLive({
     date: "",
     duration: "60",
   });
+  const [testQuestionDrafts, setTestQuestionDrafts] = useState<TestQuestionDraft[]>([
+    {
+      question_text: "",
+      choices: [
+        { choice_text: "", is_correct: true },
+        { choice_text: "", is_correct: false },
+        { choice_text: "", is_correct: false },
+        { choice_text: "", is_correct: false },
+      ],
+    },
+  ]);
   const [resultClassId, setResultClassId] = useState("");
   const [resultSubjectId, setResultSubjectId] = useState("");
   const [hasLoadedCoreData, setHasLoadedCoreData] = useState(false);
@@ -680,6 +700,17 @@ export function TeacherPortalLive({
       .sort((left, right) => (right.score ?? -1) - (left.score ?? -1));
   }, [selectedTest, studentDirectory]);
 
+  const selectedTestQuestionRows = useMemo(() => {
+    if (!selectedTest) return [];
+    return (selectedTest.test_questions ?? [])
+      .slice()
+      .sort((left, right) => left.sort_order - right.sort_order)
+      .map((question) => ({
+        ...question,
+        test_choices: (question.test_choices ?? []).slice().sort((left, right) => left.sort_order - right.sort_order),
+      }));
+  }, [selectedTest]);
+
   const resultClassOptions = classOptions;
 
   const resultSubjectOptions = useMemo(
@@ -801,10 +832,109 @@ export function TeacherPortalLive({
     }
   }, [subjectsByClassId, testForm.classId, testForm.subjectId]);
 
+  useEffect(() => {
+    if (!showCreateTest) return;
+    if (testQuestionDrafts.length > 0) return;
+    setTestQuestionDrafts([
+      {
+        question_text: "",
+        choices: [
+          { choice_text: "", is_correct: true },
+          { choice_text: "", is_correct: false },
+          { choice_text: "", is_correct: false },
+          { choice_text: "", is_correct: false },
+        ],
+      },
+    ]);
+  }, [showCreateTest, testQuestionDrafts.length]);
+
+  const addTestQuestionDraft = () => {
+    setTestQuestionDrafts((current) => [
+      ...current,
+      {
+        question_text: "",
+        choices: [
+          { choice_text: "", is_correct: true },
+          { choice_text: "", is_correct: false },
+          { choice_text: "", is_correct: false },
+          { choice_text: "", is_correct: false },
+        ],
+      },
+    ]);
+  };
+
+  const updateTestQuestionDraft = (
+    questionIndex: number,
+    updates: Partial<TestQuestionDraft>,
+  ) => {
+    setTestQuestionDrafts((current) =>
+      current.map((question, index) =>
+        index === questionIndex ? { ...question, ...updates } : question,
+      ),
+    );
+  };
+
+  const updateTestChoiceDraft = (
+    questionIndex: number,
+    choiceIndex: number,
+    value: string,
+  ) => {
+    setTestQuestionDrafts((current) =>
+      current.map((question, qIndex) => {
+        if (qIndex !== questionIndex) return question;
+        return {
+          ...question,
+          choices: question.choices.map((choice, cIndex) => ({
+            ...choice,
+            choice_text: cIndex === choiceIndex ? value : choice.choice_text,
+            is_correct: cIndex === choiceIndex ? choice.is_correct : choice.is_correct,
+          })),
+        };
+      }),
+    );
+  };
+
+  const setCorrectTestChoice = (questionIndex: number, choiceIndex: number) => {
+    setTestQuestionDrafts((current) =>
+      current.map((question, qIndex) => {
+        if (qIndex !== questionIndex) return question;
+        return {
+          ...question,
+          choices: question.choices.map((choice, cIndex) => ({
+            ...choice,
+            is_correct: cIndex === choiceIndex,
+          })),
+        };
+      }),
+    );
+  };
+
+  const removeTestQuestionDraft = (questionIndex: number) => {
+    setTestQuestionDrafts((current) => current.filter((_, index) => index !== questionIndex));
+  };
+
   const createTest = async () => {
     if (!schoolId || !user?.id) return;
     if (!testForm.classId || !testForm.subjectId || !testForm.title.trim() || !testForm.date) {
       showToast("Complete the test form first.", "error");
+      return;
+    }
+    const questions = testQuestionDrafts
+      .map((question, index) => ({
+        question_text: question.question_text.trim(),
+        sort_order: index,
+        choices: question.choices
+          .map((choice, choiceIndex) => ({
+            choice_text: choice.choice_text.trim(),
+            is_correct: choice.is_correct,
+            sort_order: choiceIndex,
+          }))
+          .filter((choice) => choice.choice_text.length > 0),
+      }))
+      .filter((question) => question.question_text.length > 0 && question.choices.length >= 2);
+
+    if (questions.length === 0) {
+      showToast("Add at least one MCQ question with two or more choices.", "error");
       return;
     }
     const duration = Number(testForm.duration);
@@ -822,7 +952,7 @@ export function TeacherPortalLive({
       test_date: testForm.date,
       duration_minutes: duration,
       kind: "monthly",
-      questions: [],
+      questions,
     });
 
     if (result.error) {
@@ -837,6 +967,17 @@ export function TeacherPortalLive({
       date: "",
       duration: "60",
     });
+    setTestQuestionDrafts([
+      {
+        question_text: "",
+        choices: [
+          { choice_text: "", is_correct: true },
+          { choice_text: "", is_correct: false },
+          { choice_text: "", is_correct: false },
+          { choice_text: "", is_correct: false },
+        ],
+      },
+    ]);
     setShowCreateTest(false);
     showToast("Test saved to Supabase");
   };
@@ -1171,6 +1312,49 @@ export function TeacherPortalLive({
                   <Download className="w-3 h-3" /> Export
                 </button>
               </div>
+              <div className="border-b border-border p-5">
+                <div className="mb-3 flex items-center justify-between gap-3">
+                  <div>
+                    <h4 className="text-sm font-bold text-foreground">Questions & Choices</h4>
+                    <p className="text-xs text-muted-foreground">Saved MCQ questions for this test are loaded from Supabase.</p>
+                  </div>
+                  <Badge color="purple">{selectedTestQuestionRows.length} questions</Badge>
+                </div>
+                <div className="space-y-3">
+                  {selectedTestQuestionRows.map((question, index) => (
+                    <div key={question.id} className="rounded-xl border border-border bg-muted/30 p-4">
+                      <div className="mb-3 flex items-start justify-between gap-3">
+                        <div>
+                          <p className="text-sm font-semibold text-foreground">
+                            {index + 1}. {question.question_text}
+                          </p>
+                          <p className="text-xs text-muted-foreground">{question.test_choices?.length ?? 0} choices</p>
+                        </div>
+                        <Badge color="blue">MCQ</Badge>
+                      </div>
+                      <div className="grid gap-2 sm:grid-cols-2">
+                        {(question.test_choices ?? []).map((choice) => (
+                          <div
+                            key={choice.id}
+                            className={`rounded-lg border px-3 py-2 text-sm ${
+                              choice.is_correct ? "border-green-200 bg-green-50 text-green-800" : "border-border bg-card text-foreground"
+                            }`}
+                          >
+                            <span className="font-medium">{choice.choice_text}</span>
+                            {choice.is_correct && <span className="ml-2 text-xs font-semibold">(Correct)</span>}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                  {selectedTestQuestionRows.length === 0 && (
+                    <EmptyState
+                      title="No questions saved"
+                      description="Add MCQ questions when creating the test so this section can show the real exam content."
+                    />
+                  )}
+                </div>
+              </div>
               <div className="overflow-x-auto">
                 <table className="w-full min-w-[620px]">
                   <thead>
@@ -1502,47 +1686,119 @@ export function TeacherPortalLive({
       </AppShell>
 
       {showCreateTest && (
-        <Modal title="Create Test" onClose={() => setShowCreateTest(false)}>
-          <div className="space-y-4">
+        <Modal title={t("Create Test", "Create Test")} onClose={() => setShowCreateTest(false)}>
+          <div className="space-y-5">
+            <div className="rounded-2xl border border-border bg-gradient-to-br from-primary/5 via-card to-secondary/20 p-4">
+              <p className="text-sm font-bold text-foreground">{t("Publish Test", "Publish Test")}</p>
+              <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                {isArabic
+                  ? "املأ بيانات الاختبار ثم أضف أسئلة اختيار من متعدد مع تحديد الإجابة الصحيحة."
+                  : "Fill in the test details, then add multiple-choice questions and mark the correct answer."}
+              </p>
+            </div>
             <Select
-              label="Class"
+              label={t("Class", "Class")}
               value={testForm.classId}
               onChange={(value) => setTestForm((current) => ({ ...current, classId: value }))}
               options={classOptions}
               required
             />
             <Select
-              label="Subject"
+              label={t("Subject", "Subject")}
               value={testForm.subjectId}
               onChange={(value) => setTestForm((current) => ({ ...current, subjectId: value }))}
               options={subjectsByClassId.get(testForm.classId) ?? []}
               required
             />
             <Input
-              label="Title"
+              label={t("Title", "Title")}
               value={testForm.title}
               onChange={(value) => setTestForm((current) => ({ ...current, title: value }))}
               required
             />
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <Input
-                label="Test Date"
+                label={t("Test Date", "Test Date")}
                 type="date"
                 value={testForm.date}
                 onChange={(value) => setTestForm((current) => ({ ...current, date: value }))}
                 required
               />
               <Input
-                label="Duration (minutes)"
+                label={t("Duration (minutes)", "Duration (minutes)")}
                 type="number"
                 value={testForm.duration}
                 onChange={(value) => setTestForm((current) => ({ ...current, duration: value }))}
                 required
               />
             </div>
+            <div className="space-y-4 rounded-2xl border border-border bg-muted/20 p-4 shadow-sm">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <h4 className="text-sm font-bold text-foreground">{t("Multiple Choice (MCQ)", "Multiple Choice (MCQ)")}</h4>
+                  <p className="text-xs text-muted-foreground">
+                    {isArabic
+                      ? "أضف سؤالًا أو أكثر مع اختيارات متعددة وحدد الإجابة الصحيحة."
+                      : "Add one or more questions with choices and mark the correct answer."}
+                  </p>
+                </div>
+                <Btn type="button" variant="secondary" size="sm" onClick={addTestQuestionDraft}>
+                  {t("Add Question", "Add Question")}
+                </Btn>
+              </div>
+              <div className="space-y-4">
+                {testQuestionDrafts.map((question, questionIndex) => (
+                  <div key={`question-${questionIndex}`} className="rounded-2xl border border-border bg-card p-4 shadow-sm">
+                    <div className="mb-3 flex items-start justify-between gap-3">
+                      <p className="text-sm font-semibold text-foreground">
+                        {t("Question", "Question")} {questionIndex + 1}
+                      </p>
+                      {testQuestionDrafts.length > 1 && (
+                        <button
+                          type="button"
+                          onClick={() => removeTestQuestionDraft(questionIndex)}
+                          className="text-xs font-semibold text-destructive transition-colors hover:opacity-80"
+                        >
+                          {t("Remove", "Remove")}
+                        </button>
+                      )}
+                    </div>
+                    <Input
+                      label={t("Question text", "Question text")}
+                      value={question.question_text}
+                      onChange={(value) => updateTestQuestionDraft(questionIndex, { question_text: value })}
+                      required
+                    />
+                    <div className="mt-4 space-y-2">
+                      {question.choices.map((choice, choiceIndex) => (
+                        <div key={`question-${questionIndex}-choice-${choiceIndex}`} className="grid grid-cols-[auto,1fr] items-center gap-3 rounded-xl border border-border bg-muted/30 px-3 py-2.5 shadow-sm">
+                          <input
+                            type="radio"
+                            name={`correct-choice-${questionIndex}`}
+                            checked={choice.is_correct}
+                            onChange={() => setCorrectTestChoice(questionIndex, choiceIndex)}
+                            className="h-4 w-4 accent-primary"
+                          />
+                          <Input
+                            label={`${t("Choice", "Choice")} ${choiceIndex + 1}`}
+                            value={choice.choice_text}
+                            onChange={(value) => updateTestChoiceDraft(questionIndex, choiceIndex, value)}
+                            required
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
             <div className="flex gap-3">
-              <Btn onClick={() => void createTest()} className="flex-1">Save Test</Btn>
-              <Btn variant="secondary" onClick={() => setShowCreateTest(false)}>Cancel</Btn>
+              <Btn onClick={() => void createTest()} className="flex-1">
+                {t("Save Test", "Save Test")}
+              </Btn>
+              <Btn variant="secondary" onClick={() => setShowCreateTest(false)}>
+                {t("Cancel", "Cancel")}
+              </Btn>
             </div>
           </div>
         </Modal>
