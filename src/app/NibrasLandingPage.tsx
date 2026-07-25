@@ -2242,13 +2242,13 @@ function Footer() {
             </p>
             <div className="flex gap-3">
               {[
-                { icon: <Facebook size={16} />, href: "#" },
-                { icon: <Twitter size={16} />, href: "#" },
-                { icon: <Linkedin size={16} />, href: "#" },
+                { icon: <Facebook size={16} />, href: "https://www.facebook.com/profile.php?id=61592637590550", label: "Facebook" },
+                { icon: <Linkedin size={16} />, href: "#linkedin", label: "LinkedIn" },
               ].map((s, i) => (
                 <a
                   key={i}
                   href={s.href}
+                  aria-label={s.label}
                   className="w-9 h-9 rounded-xl flex items-center justify-center transition-all hover:scale-110"
                   style={{ background: "rgba(255,255,255,0.08)", color: "rgba(255,255,255,0.6)" }}
                 >
@@ -2275,8 +2275,8 @@ function Footer() {
             <h4 className="font-bold mb-4 text-white">تواصل معنا</h4>
             <ul className="flex flex-col gap-3">
               {[
-                { icon: <Phone size={14} />, text: "01234 567 890" },
-                { icon: <Mail size={14} />, text: "hello@nibras.edu.eg" },
+                { icon: <Phone size={14} />, text: "01034407976" },
+                { icon: <Mail size={14} />, text: "info@nibrasedtech.com" },
                 { icon: <MapPin size={14} />, text: "القاهرة، مصر" },
               ].map(c => (
                 <li key={c.text} className="flex items-center gap-2 text-sm" style={{ color: "rgba(255,255,255,0.4)" }}>
