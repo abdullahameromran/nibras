@@ -9,6 +9,7 @@ import {
   Layers,
   Plus,
   PlayCircle,
+  Upload,
   Users,
   Video,
 } from "lucide-react";
@@ -22,6 +23,7 @@ import { useStorageObjectUrl, useStorageObjectUrlMap } from "@/hooks/useStorageU
 import { useStudents } from "@/hooks/useStudents";
 import { useTests, type MonthlyTest } from "@/hooks/useTests";
 import { formatDisplayName } from "@/lib/display";
+import { uploadLessonAttachment } from "@/lib/storage";
 
 type DetailView = "list" | "detail";
 
@@ -43,6 +45,7 @@ type LessonAttachmentDraft = {
   file_name: string;
   file_url: string;
   file_kind: string;
+  file: File | null;
 };
 
 type LessonFormState = {
@@ -71,6 +74,13 @@ function lessonKind(lesson: Lesson) {
   if (lesson.video_url) return "video" as const;
   if ((lesson.lesson_attachments?.length ?? 0) > 0) return "pdf" as const;
   return "lesson" as const;
+}
+
+function getAttachmentKind(file: File) {
+  if (file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf")) return "pdf";
+  if (file.type.startsWith("image/")) return "image";
+  if (file.type.startsWith("video/")) return "video";
+  return "file";
 }
 
 export function TeacherClassesSectionLive({
@@ -102,7 +112,7 @@ export function TeacherClassesSectionLive({
     lesson_date: "",
     video_url: "",
     attachments: [
-      { file_name: "", file_url: "", file_kind: "pdf" },
+      { file_name: "", file_url: "", file_kind: "pdf", file: null },
     ],
   });
   const { language, t } = useTranslation();
@@ -266,6 +276,20 @@ export function TeacherClassesSectionLive({
     [selectedClass, selectedLessonId],
   );
 
+  const attendanceDays = useMemo(() => {
+    if (!selectedClass) return [];
+    const days = new Map<string, Lesson[]>();
+    selectedClass.lessons.forEach((lesson) => {
+      const day = lesson.lesson_date.slice(0, 10);
+      days.set(day, [...(days.get(day) ?? []), lesson]);
+    });
+    return Array.from(days.entries())
+      .map(([date, lessons]) => ({ date, lessons }))
+      .sort((left, right) => left.date.localeCompare(right.date));
+  }, [selectedClass]);
+
+  const today = new Date().toLocaleDateString("en-CA");
+
   const rawSelectedLessonVideoUrl = useMemo(() => {
     if (selectedLesson?.video_url) return selectedLesson.video_url;
 
@@ -413,7 +437,7 @@ export function TeacherClassesSectionLive({
   const addAttachmentDraft = () => {
     setLessonForm((current) => ({
       ...current,
-      attachments: [...current.attachments, { file_name: "", file_url: "", file_kind: "pdf" }],
+      attachments: [...current.attachments, { file_name: "", file_url: "", file_kind: "pdf", file: null }],
     }));
   };
 
@@ -439,7 +463,7 @@ export function TeacherClassesSectionLive({
       description: "",
       lesson_date: "",
       video_url: "",
-      attachments: [{ file_name: "", file_url: "", file_kind: "pdf" }],
+      attachments: [{ file_name: "", file_url: "", file_kind: "pdf", file: null }],
     });
   };
 
@@ -457,11 +481,12 @@ export function TeacherClassesSectionLive({
 
     const attachments = lessonForm.attachments
       .map((attachment) => ({
-        file_name: attachment.file_name.trim(),
+        file_name: attachment.file_name.trim() || attachment.file?.name || "",
         file_url: attachment.file_url.trim(),
         file_kind: attachment.file_kind.trim() || "file",
+        file: attachment.file,
       }))
-      .filter((attachment) => attachment.file_name.length > 0 && attachment.file_url.length > 0);
+      .filter((attachment) => attachment.file_name.length > 0 && (attachment.file_url.length > 0 || attachment.file));
 
     setCreatingLesson(true);
     const result = await dbLessons.createLesson({
@@ -481,7 +506,18 @@ export function TeacherClassesSectionLive({
     }
 
     for (const attachment of attachments) {
-      const attachmentResult = await dbLessons.addAttachment(result.data.id, attachment);
+      const storedPath = attachment.file
+        ? await uploadLessonAttachment(schoolId, result.data.id, attachment.file)
+        : attachment.file_url;
+      if (!storedPath) {
+        showToast(t("Could not upload attachment. Please check the file and try again."), "error");
+        break;
+      }
+      const attachmentResult = await dbLessons.addAttachment(result.data.id, {
+        file_name: attachment.file_name,
+        file_url: storedPath,
+        file_kind: attachment.file ? getAttachmentKind(attachment.file) : attachment.file_kind,
+      });
       if (attachmentResult.error) {
         showToast(attachmentResult.error, "error");
         break;
@@ -522,13 +558,19 @@ export function TeacherClassesSectionLive({
     if (rows.length === 0) return;
 
     setSavingAttendance(true);
-    const result = await dbAttendance.bulkUpsertAttendance(rows);
-    setSavingAttendance(false);
-    if (result.error) {
-      showToast(result.error, "error");
-      return;
+    try {
+      const result = await dbAttendance.bulkUpsertAttendance(rows);
+      if (result.error) {
+        showToast(result.error, "error");
+        return;
+      }
+      showToast(t("Attendance saved"));
+    } catch (error) {
+      // A failed refresh must not unmount the teacher's class page after saving.
+      showToast(error instanceof Error ? error.message : t("Could not save attendance."), "error");
+    } finally {
+      setSavingAttendance(false);
     }
-    showToast("Attendance saved");
   };
 
   const coreLoading =
@@ -623,6 +665,47 @@ export function TeacherClassesSectionLive({
               </div>
 
               <div className="mt-4 space-y-3">
+                <div className="rounded-2xl border border-[#EDE5F5] bg-[#FCFAFE] p-3">
+                  <div className="mb-3 flex items-center justify-between gap-2">
+                    <p className="flex items-center gap-2 text-xs font-semibold text-[#563B72]">
+                      <Calendar className="h-4 w-4 text-[#955AC3]" /> {t("Attendance dates")}
+                    </p>
+                    {selectedLesson && (
+                      <span className="text-[11px] font-medium text-[#7D668F]">
+                        {formatDate(selectedLesson.lesson_date, locale)}
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex gap-2 overflow-x-auto pb-1">
+                    {attendanceDays.map((day) => {
+                      const active = day.lessons.some((lesson) => lesson.id === selectedLesson?.id);
+                      const date = new Date(`${day.date}T00:00:00`);
+                      return (
+                        <button
+                          key={day.date}
+                          type="button"
+                          onClick={() => setSelectedLessonId(day.lessons[0].id)}
+                          className={`min-w-[76px] rounded-xl border px-3 py-2 text-center transition-all ${
+                            active
+                              ? "border-[#955AC3] bg-[#955AC3] text-white shadow-sm"
+                              : "border-[#E8DEF0] bg-white text-[#675376] hover:border-[#CDA9E8]"
+                          }`}
+                        >
+                          <span className={`block text-[10px] font-medium ${active ? "text-white/80" : "text-[#8B779A]"}`}>
+                            {date.toLocaleDateString(locale, { weekday: "short" })}
+                          </span>
+                          <span className="block text-lg font-bold leading-5">{date.toLocaleDateString(locale, { day: "numeric" })}</span>
+                          <span className={`mt-1 block text-[10px] ${active ? "text-white/85" : "text-[#9A87A8]"}`}>
+                            {day.date === today ? t("Today") : `${day.lessons.length} ${t("Lessons")}`}
+                          </span>
+                        </button>
+                      );
+                    })}
+                    {attendanceDays.length === 0 && (
+                      <p className="px-2 py-3 text-xs text-[#8B779A]">{t("No lessons scheduled")}</p>
+                    )}
+                  </div>
+                </div>
                 {selectedLessonStudentRows.map((student) => {
                   const currentStatus = attendanceDraft[student.id];
                   return (
@@ -931,7 +1014,7 @@ export function TeacherClassesSectionLive({
                     <p className="text-xs text-muted-foreground">
                       {language === "ar"
                         ? "يمكنك إضافة ملف PDF أو صورة أو أي رابط مرفق آخر."
-                        : "You can add a PDF, image, or any other file link."}
+                        : "Upload a file from your device or add an external link. Uploaded files are saved securely in the system."}
                     </p>
                   </div>
                   <Btn type="button" variant="secondary" size="sm" onClick={addAttachmentDraft}>
@@ -971,6 +1054,26 @@ export function TeacherClassesSectionLive({
                           value={attachment.file_kind}
                           onChange={(value) => updateAttachmentDraft(index, { file_kind: value })}
                         />
+                      </div>
+                      <div className="mt-3 rounded-xl border border-dashed border-primary/30 bg-primary/5 p-3">
+                        <label className="flex cursor-pointer items-center justify-between gap-3 text-sm font-semibold text-primary">
+                          <span className="flex items-center gap-2"><Upload className="h-4 w-4" /> {t("Upload file")}</span>
+                          <input
+                            type="file"
+                            className="sr-only"
+                            accept=".pdf,image/*,video/*,.doc,.docx,.ppt,.pptx,.xls,.xlsx"
+                            onChange={(event) => {
+                              const file = event.target.files?.[0] ?? null;
+                              if (!file) return;
+                              updateAttachmentDraft(index, {
+                                file,
+                                file_name: attachment.file_name || file.name,
+                                file_kind: getAttachmentKind(file),
+                              });
+                            }}
+                          />
+                          <span className="text-xs text-muted-foreground">{attachment.file?.name ?? t("No file selected")}</span>
+                        </label>
                       </div>
                     </div>
                   ))}

@@ -33,6 +33,18 @@ interface LanguageContextValue {
 const LanguageContext = createContext<LanguageContextValue | null>(null);
 
 const ARABIC_TRANSLATIONS: Record<string, string> = {
+  "Attendance saved": "تم حفظ الحضور بنجاح.",
+  "Could not save attendance.": "تعذر حفظ الحضور. حاول مرة أخرى.",
+  "Free": "متاح",
+  "Your School": "مدرستك",
+  "Lessons scheduled for this week": "الدروس المقررة لهذا الأسبوع",
+  "Students enrolled in your assigned classes.": "الطلاب المسجلون في الفصول المعيّنة لك.",
+  "Upload file": "رفع ملف",
+  "No file selected": "لم يتم اختيار ملف",
+  "Could not upload attachment. Please check the file and try again.": "تعذر رفع المرفق. تحقق من الملف ثم حاول مرة أخرى.",
+  "Attendance dates": "تواريخ الحضور",
+  "Today": "اليوم",
+  "No lessons scheduled": "لا توجد دروس مجدولة",
   "teacher already has another timetable entry in this day and time slot": "لدى المعلم حصة أخرى بالفعل في هذا اليوم ونفس الفترة الزمنية.",
   "Dashboard": "لوحة التحكم", "Home Page": "الصفحة الرئيسية", "Schools": "المدارس", "Leads": "العملاء المحتملون",
   "Analytics": "التحليلات", "Subscriptions": "الاشتراكات", "Settings": "الإعدادات", "School Settings": "إعدادات المدرسة",

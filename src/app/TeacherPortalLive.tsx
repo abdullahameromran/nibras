@@ -769,6 +769,16 @@ export function TeacherPortalLive({
   }, [coreLoading]);
 
   const showInitialLoader = !hasLoadedCoreData && coreLoading;
+  const schoolName = dbSchool.school?.name?.trim() || t("Your School");
+  const viewTitle = {
+    dashboard: "Home Page",
+    classes: "My Classes",
+    tests: "Monthly Test",
+    results: "Final Results",
+    students: "My Students",
+    messages: "Ticketing System",
+    timetable: "Time Table",
+  }[view] ?? "Teacher Dashboard";
 
   useEffect(() => {
     if (selectedConversationId) return;
@@ -1023,17 +1033,7 @@ export function TeacherPortalLive({
         activeView={view}
         onSelect={setView}
         onLogout={onLogout}
-        headerTitle={
-          {
-            dashboard: "Home Page",
-            classes: "My Classes",
-            tests: "Monthly Test",
-            results: "Final Results",
-            students: "My Students",
-            messages: "Ticketing System",
-            timetable: "Time Table",
-          }[view] ?? "Teacher Dashboard"
-        }
+        headerTitle={`${schoolName} - ${t(viewTitle)}`}
         userName={userName}
         userRole="Teacher"
         userId={user?.id ?? null}
@@ -1060,7 +1060,7 @@ export function TeacherPortalLive({
                   <div className="flex flex-col items-center">
                     <div className="mb-4 text-center">
                       <p className="text-sm font-semibold text-foreground">{t("Lessons This Week")}</p>
-                      <p className="text-xs text-muted-foreground">{t("Live count from your system lessons")}</p>
+                      <p className="text-xs text-muted-foreground">{t("Lessons scheduled for this week")}</p>
                     </div>
                     <div className="flex h-28 w-28 items-center justify-center rounded-full bg-secondary">
                       <div className="text-center">
@@ -1483,7 +1483,7 @@ export function TeacherPortalLive({
           <div className="space-y-5">
             <div>
               <h3 className="font-bold text-foreground">My Students</h3>
-              <p className="mt-0.5 text-xs text-muted-foreground">Students in your assigned classes are loaded from Supabase.</p>
+              <p className="mt-0.5 text-xs text-muted-foreground">{t("Students enrolled in your assigned classes.")}</p>
             </div>
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
               {teacherStudents.map((student) => (
@@ -1659,7 +1659,7 @@ export function TeacherPortalLive({
                                 <p className="text-xs text-muted-foreground">{entry.classes?.name ?? "Class"}</p>
                               </div>
                             ) : (
-                              <span className="text-xs text-muted-foreground">Free</span>
+                              <span className="text-xs text-muted-foreground">{t("Free")}</span>
                             )}
                           </td>
                         );

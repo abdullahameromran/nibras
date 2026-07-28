@@ -62,7 +62,7 @@ export function useAttendance(filters: {
       .from("attendance_records")
       .select(`
         *,
-        profiles ( id, first_name, last_name ),
+        profiles!attendance_records_student_id_fkey ( id, first_name, last_name ),
         lessons ( id, title, lesson_date )
       `)
       .order("recorded_at", { ascending: false });
