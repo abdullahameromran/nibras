@@ -7,11 +7,12 @@ import {
   Eye,
   FileText,
   Layers,
+  Plus,
   PlayCircle,
   Users,
   Video,
 } from "lucide-react";
-import { Avatar, Badge, Btn, EmptyState, LoadingState, StatCard, Toast, useTranslation } from "./shared";
+import { Avatar, Badge, Btn, EmptyState, Input, LoadingState, Modal, StatCard, Toast, useTranslation } from "./shared";
 import { useAttendance, type AttendanceStatus } from "@/hooks/useAttendance";
 import { useClasses } from "@/hooks/useClasses";
 import { useHomework, type Homework } from "@/hooks/useHomework";
@@ -37,6 +38,20 @@ type LiveClassSummary = {
 };
 
 type ToastState = { msg: string; type: "success" | "error" } | null;
+
+type LessonAttachmentDraft = {
+  file_name: string;
+  file_url: string;
+  file_kind: string;
+};
+
+type LessonFormState = {
+  title: string;
+  description: string;
+  lesson_date: string;
+  video_url: string;
+  attachments: LessonAttachmentDraft[];
+};
 
 function formatName(firstName?: string | null, lastName?: string | null, fallback?: string | null) {
   return formatDisplayName([firstName, lastName], fallback, "Student");
@@ -79,6 +94,17 @@ export function TeacherClassesSectionLive({
   const [attendanceDraft, setAttendanceDraft] = useState<Record<string, AttendanceStatus | "">>({});
   const [savingAttendance, setSavingAttendance] = useState(false);
   const [toast, setToast] = useState<ToastState>(null);
+  const [showCreateLesson, setShowCreateLesson] = useState(false);
+  const [creatingLesson, setCreatingLesson] = useState(false);
+  const [lessonForm, setLessonForm] = useState<LessonFormState>({
+    title: "",
+    description: "",
+    lesson_date: "",
+    video_url: "",
+    attachments: [
+      { file_name: "", file_url: "", file_kind: "pdf" },
+    ],
+  });
   const { language, t } = useTranslation();
   const locale = language === "ar" ? "ar-EG" : "en-US";
 
@@ -384,6 +410,93 @@ export function TeacherClassesSectionLive({
     );
   };
 
+  const addAttachmentDraft = () => {
+    setLessonForm((current) => ({
+      ...current,
+      attachments: [...current.attachments, { file_name: "", file_url: "", file_kind: "pdf" }],
+    }));
+  };
+
+  const updateAttachmentDraft = (index: number, updates: Partial<LessonAttachmentDraft>) => {
+    setLessonForm((current) => ({
+      ...current,
+      attachments: current.attachments.map((attachment, attachmentIndex) =>
+        attachmentIndex === index ? { ...attachment, ...updates } : attachment,
+      ),
+    }));
+  };
+
+  const removeAttachmentDraft = (index: number) => {
+    setLessonForm((current) => ({
+      ...current,
+      attachments: current.attachments.filter((_, attachmentIndex) => attachmentIndex !== index),
+    }));
+  };
+
+  const resetLessonForm = () => {
+    setLessonForm({
+      title: "",
+      description: "",
+      lesson_date: "",
+      video_url: "",
+      attachments: [{ file_name: "", file_url: "", file_kind: "pdf" }],
+    });
+  };
+
+  const saveLesson = async () => {
+    if (!schoolId || !teacherId || !selectedClass) return;
+    if (!lessonForm.title.trim() || !lessonForm.lesson_date) {
+      showToast(t("Please complete the lesson title and date."), "error");
+      return;
+    }
+    const subjectId = selectedLesson?.subject_id ?? selectedClass.lessons[0]?.subject_id ?? "";
+    if (!subjectId) {
+      showToast(t("No subject assigned yet."), "error");
+      return;
+    }
+
+    const attachments = lessonForm.attachments
+      .map((attachment) => ({
+        file_name: attachment.file_name.trim(),
+        file_url: attachment.file_url.trim(),
+        file_kind: attachment.file_kind.trim() || "file",
+      }))
+      .filter((attachment) => attachment.file_name.length > 0 && attachment.file_url.length > 0);
+
+    setCreatingLesson(true);
+    const result = await dbLessons.createLesson({
+      school_id: schoolId,
+      class_id: selectedClass.id,
+      subject_id: subjectId,
+      teacher_id: teacherId,
+      title: lessonForm.title.trim(),
+      description: lessonForm.description.trim() || undefined,
+      video_url: lessonForm.video_url.trim() || undefined,
+      lesson_date: lessonForm.lesson_date,
+    });
+    if (result.error || !result.data) {
+      setCreatingLesson(false);
+      showToast(result.error ?? t("Could not create lesson."), "error");
+      return;
+    }
+
+    for (const attachment of attachments) {
+      const attachmentResult = await dbLessons.addAttachment(result.data.id, attachment);
+      if (attachmentResult.error) {
+        showToast(attachmentResult.error, "error");
+        break;
+      }
+    }
+
+    await dbLessons.fetchLessons();
+    setCreatingLesson(false);
+    setShowCreateLesson(false);
+    resetLessonForm();
+    setSelectedLessonId(result.data.id);
+    setView("detail");
+    showToast(t("Lesson saved successfully."));
+  };
+
   const saveAttendance = async () => {
     if (!schoolId || !teacherId || !selectedLesson) return;
     const rows = selectedLessonStudentRows
@@ -464,24 +577,29 @@ export function TeacherClassesSectionLive({
               </p>
             </div>
           </div>
-          {selectedLessonVideoUrl ? (
-            <a
-              href={selectedLessonVideoUrl}
-              target="_blank"
-              rel="noreferrer"
-              className="inline-flex items-center gap-2 rounded-xl bg-[#955AC3] px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-[#7f4cad]"
-            >
-              <PlayCircle className="h-4 w-4" /> {t("Watch lesson video")}
-            </a>
-          ) : rawSelectedLessonVideoUrl ? (
-            <Btn variant="secondary" className="pointer-events-none opacity-70">
-              <Video className="h-4 w-4" /> {t("Preparing lesson video...")}
+          <div className="flex flex-wrap items-center gap-2">
+            {selectedLessonVideoUrl ? (
+              <a
+                href={selectedLessonVideoUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-2 rounded-xl bg-[#955AC3] px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-[#7f4cad]"
+              >
+                <PlayCircle className="h-4 w-4" /> {t("Watch lesson video")}
+              </a>
+            ) : rawSelectedLessonVideoUrl ? (
+              <Btn variant="secondary" className="pointer-events-none opacity-70">
+                <Video className="h-4 w-4" /> {t("Preparing lesson video...")}
+              </Btn>
+            ) : (
+              <Btn variant="secondary" className="pointer-events-none opacity-70">
+                <Video className="h-4 w-4" /> {t("No lesson video")}
+              </Btn>
+            )}
+            <Btn onClick={() => setShowCreateLesson(true)} icon={<Plus className="h-4 w-4" />}>
+              {t("Add Lesson")}
             </Btn>
-          ) : (
-            <Btn variant="secondary" className="pointer-events-none opacity-70">
-              <Video className="h-4 w-4" /> {t("No lesson video")}
-            </Btn>
-          )}
+          </div>
         </div>
 
         <div className="grid grid-cols-12 gap-5">
@@ -768,6 +886,109 @@ export function TeacherClassesSectionLive({
           </div>
         </div>
         </div>
+
+        {showCreateLesson && (
+          <Modal title={t("Create Lesson")} onClose={() => setShowCreateLesson(false)}>
+            <div className="space-y-5">
+              <div className="rounded-2xl border border-border bg-gradient-to-br from-primary/5 via-card to-secondary/20 p-4">
+                <p className="text-sm font-bold text-foreground">{t("Create Lesson")}</p>
+                <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                  {language === "ar"
+                    ? "أضف درسًا جديدًا مع رابط فيديو ومرفقات وروابط ملفات حتى يظهر للطلاب مباشرة."
+                    : "Add a new lesson with a video link and file attachments so students can access it right away."}
+                </p>
+              </div>
+
+              <Input
+                label={t("Lesson Title")}
+                value={lessonForm.title}
+                onChange={(value) => setLessonForm((current) => ({ ...current, title: value }))}
+                required
+              />
+              <Input
+                label={t("Lesson Date")}
+                type="date"
+                value={lessonForm.lesson_date}
+                onChange={(value) => setLessonForm((current) => ({ ...current, lesson_date: value }))}
+                required
+              />
+              <Input
+                label={t("Lesson Description")}
+                value={lessonForm.description}
+                onChange={(value) => setLessonForm((current) => ({ ...current, description: value }))}
+              />
+              <Input
+                label={t("Video URL")}
+                value={lessonForm.video_url}
+                onChange={(value) => setLessonForm((current) => ({ ...current, video_url: value }))}
+                placeholder={language === "ar" ? "رابط الفيديو" : "Video link"}
+              />
+
+              <div className="space-y-3 rounded-2xl border border-border bg-muted/20 p-4">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <h4 className="text-sm font-bold text-foreground">{t("Attachments")}</h4>
+                    <p className="text-xs text-muted-foreground">
+                      {language === "ar"
+                        ? "يمكنك إضافة ملف PDF أو صورة أو أي رابط مرفق آخر."
+                        : "You can add a PDF, image, or any other file link."}
+                    </p>
+                  </div>
+                  <Btn type="button" variant="secondary" size="sm" onClick={addAttachmentDraft}>
+                    {t("Add Attachment")}
+                  </Btn>
+                </div>
+                <div className="space-y-4">
+                  {lessonForm.attachments.map((attachment, index) => (
+                    <div key={`attachment-${index}`} className="rounded-xl border border-border bg-card p-4">
+                      <div className="mb-3 flex items-center justify-between gap-3">
+                        <p className="text-sm font-semibold text-foreground">
+                          {t("Attachment")} {index + 1}
+                        </p>
+                        {lessonForm.attachments.length > 1 && (
+                          <button
+                            type="button"
+                            onClick={() => removeAttachmentDraft(index)}
+                            className="text-xs font-semibold text-destructive hover:opacity-80"
+                          >
+                            {t("Remove")}
+                          </button>
+                        )}
+                      </div>
+                      <div className="grid gap-3 md:grid-cols-3">
+                        <Input
+                          label={t("Attachment Name")}
+                          value={attachment.file_name}
+                          onChange={(value) => updateAttachmentDraft(index, { file_name: value })}
+                        />
+                        <Input
+                          label={t("Attachment URL")}
+                          value={attachment.file_url}
+                          onChange={(value) => updateAttachmentDraft(index, { file_url: value })}
+                        />
+                        <Input
+                          label={t("Attachment Type")}
+                          value={attachment.file_kind}
+                          onChange={(value) => updateAttachmentDraft(index, { file_kind: value })}
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="flex gap-3">
+                <Btn onClick={() => void saveLesson()} className="flex-1" disabled={creatingLesson}>
+                  {creatingLesson ? t("Saving...") : t("Save Lesson")}
+                </Btn>
+                <Btn variant="secondary" onClick={() => setShowCreateLesson(false)}>
+                  {t("Cancel")}
+                </Btn>
+              </div>
+            </div>
+          </Modal>
+        )}
+
         {toast && <Toast message={toast.msg} type={toast.type} onClose={() => setToast(null)} />}
       </>
     );
