@@ -96,7 +96,8 @@ export function useTests(filters: {
         submission_id: submissionId,
         ...answer,
       }));
-      await supabase.from("test_answers").upsert(answerRows, { onConflict: "submission_id,question_id" });
+      const { error: answersError } = await supabase.from("test_answers").upsert(answerRows, { onConflict: "submission_id,question_id" });
+      if (answersError) return { error: answersError.message };
     }
   }, []);
 
@@ -256,10 +257,15 @@ export function useTests(filters: {
 
       const computedScore = currentTest ? computeTestScore(currentTest, payload.answers) : null;
       if (computedScore != null) {
-        await supabase
+        const { error: scoreError } = await supabase
           .from("test_submissions")
           .update({ score: computedScore, graded_at: new Date().toISOString() })
           .eq("id", submission.id);
+        // In production, students cannot write scores. The database trigger
+        // computes it securely; ignore only that expected authorization error.
+        if (scoreError && !/row-level security|permission denied/i.test(scoreError.message)) {
+          return { error: scoreError.message };
+        }
       }
     }
     await fetchTests();

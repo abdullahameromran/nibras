@@ -1004,7 +1004,10 @@ export function SchoolAdminPortalLive({
   }, [finalGradeLevelId, finalGradeStructures]);
 
   useEffect(() => {
-    if (!finalClassId && finalGradeClassOptions.length > 0) setFinalClassId(finalGradeClassOptions[0].value);
+    if (!finalGradeClassOptions.some((option) => option.value === finalClassId)) {
+      setFinalClassId(finalGradeClassOptions[0]?.value ?? "");
+      setFinalSubjectId("");
+    }
   }, [finalClassId, finalGradeClassOptions]);
 
   const finalGradeSubjectOptions = useMemo(() => {
@@ -1018,7 +1021,9 @@ export function SchoolAdminPortalLive({
   }, [dbSubjects.subjects, dbTeacherAssignments.assignments, finalClassId]);
 
   useEffect(() => {
-    if (!finalSubjectId && finalGradeSubjectOptions.length > 0) setFinalSubjectId(finalGradeSubjectOptions[0].value);
+    if (!finalGradeSubjectOptions.some((option) => option.value === finalSubjectId)) {
+      setFinalSubjectId(finalGradeSubjectOptions[0]?.value ?? "");
+    }
   }, [finalGradeSubjectOptions, finalSubjectId]);
 
   const finalGradeStudents = useMemo(
@@ -2585,7 +2590,7 @@ export function SchoolAdminPortalLive({
                         email: row.student.email,
                         grade_value: row.grade?.grade_value ?? "",
                         grade_letter: row.grade?.grade_letter ?? "",
-                        status: row.grade?.status ?? "draft",
+                        status: row.grade?.status ?? "not entered",
                       })),
                       "school-final-grades.csv",
                     )
@@ -2628,7 +2633,12 @@ export function SchoolAdminPortalLive({
                           </Badge>
                         </td>
                         <td className="px-4 py-3 text-sm text-foreground">{row.grade?.remarks ?? "—"}</td>
-                        <td className="px-4 py-3"><Badge color={row.grade?.status === "approved" ? "green" : row.grade?.status === "submitted" ? "blue" : "gray"}>{t(row.grade?.status ?? "draft", row.grade?.status ?? "draft")}</Badge></td>
+                        <td className="px-4 py-3">
+                          <div className="flex items-center gap-2">
+                            <Badge color={row.grade?.status === "approved" ? "green" : row.grade?.status === "submitted" ? "blue" : "gray"}>{row.grade ? t(row.grade.status, row.grade.status) : t("Not entered")}</Badge>
+                            {row.grade?.status === "submitted" && user?.id && <Btn size="sm" onClick={async () => { const result = await dbFinalGrades.approveGrades([row.grade!.id], user.id!); showToast(result.error ?? t("Grade approved successfully"), result.error ? "error" : "success"); }}>{t("Approve")}</Btn>}
+                          </div>
+                        </td>
                       </tr>
                     ))}
                   </tbody>

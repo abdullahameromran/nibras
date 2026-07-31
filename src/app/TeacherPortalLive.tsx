@@ -213,6 +213,8 @@ export function TeacherPortalLive({
   ])
   const [resultClassId, setResultClassId] = useState("")
   const [resultSubjectId, setResultSubjectId] = useState("")
+  const [resultGradeDrafts, setResultGradeDrafts] = useState<Record<string, string>>({})
+  const [savingFinalGrades, setSavingFinalGrades] = useState(false)
   const [hasLoadedCoreData, setHasLoadedCoreData] = useState(false)
 
   const showToast = useCallback((msg: string, type: "success" | "error" = "success") => {
@@ -662,6 +664,52 @@ export function TeacherPortalLive({
     const values = resultRows.map((row) => row.score).filter((value): value is number => typeof value === "number")
     return average(values)
   }, [resultRows])
+
+  useEffect(() => {
+    setResultGradeDrafts(Object.fromEntries(resultRows.map((row) => [row.student.id, row.score == null ? "" : String(Math.round(row.score * 100) / 100)])))
+  }, [resultClassId, resultSubjectId, resultRows])
+
+  const saveFinalGradeDrafts = async (submitForApproval: boolean) => {
+    if (!schoolId || !dbYears.currentYear?.id || !resultClassId || !resultSubjectId || !user?.id) return
+    const rows = resultRows.filter((row) => resultGradeDrafts[row.student.id] !== "" && (!row.grade || row.grade.status === "draft"))
+    if (rows.length === 0) return showToast(t("Enter at least one final grade first."), "error")
+    setSavingFinalGrades(true)
+    const savedIds: string[] = []
+    for (const row of rows) {
+      const value = Number(resultGradeDrafts[row.student.id])
+      if (!Number.isFinite(value) || value < 0 || value > 100) {
+        setSavingFinalGrades(false)
+        return showToast(t("Final grades must be between 0 and 100."), "error")
+      }
+      const result = await dbFinalGrades.upsertGrade({
+        school_id: schoolId,
+        academic_year_id: dbYears.currentYear.id,
+        class_id: resultClassId,
+        subject_id: resultSubjectId,
+        student_id: row.student.id,
+        grade_value: value,
+        grade_letter: scoreToLetter(value),
+        status: "draft",
+        submitted_by: null,
+        submitted_at: null,
+      })
+      if (result.error || !result.data) {
+        setSavingFinalGrades(false)
+        return showToast(result.error ?? t("Could not save final grades."), "error")
+      }
+      savedIds.push(result.data.id)
+    }
+    if (submitForApproval) {
+      const result = await dbFinalGrades.submitGrades(savedIds, user.id)
+      if (result.error) {
+        setSavingFinalGrades(false)
+        return showToast(result.error, "error")
+      }
+    }
+    await dbFinalGrades.fetchGrades()
+    setSavingFinalGrades(false)
+    showToast(t(submitForApproval ? "Grades submitted for approval." : "Grade drafts saved."))
+  }
 
   const coreLoading =
     dbSchool.loading ||
@@ -1321,9 +1369,13 @@ export function TeacherPortalLive({
                   <h3 className="text-sm font-bold text-foreground">{t("Final Results")} • {resultClassOptions.find((option) => option.value === resultClassId)?.label ?? t("Class")}</h3>
                   <p className="mt-0.5 text-xs text-muted-foreground">{resultSubjectOptions.find((option) => option.value === resultSubjectId)?.label ?? t("Subject")}</p>
                 </div>
-                <button onClick={() => downloadCsv("final-results.csv", [t("Student Name"), t("Result"), t("Max Score"), t("GPA"), t("Grade")], resultRows.map((row) => { const score = row.score; const letter = row.grade?.grade_letter ?? scoreToLetter(score); return [row.student.name, score ?? t("Pending"), 100, score == null ? t("Pending") : scoreToGpa(score), t(letter)] }))} className="flex items-center gap-1.5 rounded-lg border border-border px-4 py-1.5 text-xs font-medium hover:bg-muted transition-colors">
-                  <Download className="w-3 h-3" /> {t("Export")}
-                </button>
+                <div className="flex flex-wrap gap-2">
+                  <Btn size="sm" variant="secondary" disabled={savingFinalGrades} onClick={() => void saveFinalGradeDrafts(false)}>{t("Save Drafts")}</Btn>
+                  <Btn size="sm" disabled={savingFinalGrades} onClick={() => void saveFinalGradeDrafts(true)}>{t("Submit for Approval")}</Btn>
+                  <button onClick={() => downloadCsv("final-results.csv", [t("Student Name"), t("Result"), t("Max Score"), t("GPA"), t("Grade")], resultRows.map((row) => { const score = row.score; const letter = row.grade?.grade_letter ?? scoreToLetter(score); return [row.student.name, score ?? t("Pending"), 100, score == null ? t("Pending") : scoreToGpa(score), t(letter)] }))} className="flex items-center gap-1.5 rounded-lg border border-border px-4 py-1.5 text-xs font-medium hover:bg-muted transition-colors">
+                    <Download className="w-3 h-3" /> {t("Export")}
+                  </button>
+                </div>
               </div>
               <div className="overflow-x-auto">
                 <table className="w-full min-w-[650px]">
@@ -1349,7 +1401,10 @@ export function TeacherPortalLive({
                               <span className="text-sm font-semibold text-foreground">{row.student.name}</span>
                             </div>
                           </td>
-                          <td className="px-4 py-3 text-sm font-bold text-foreground">{score ?? t("Pending")}</td>
+                          <td className="px-4 py-3 text-sm font-bold text-foreground">
+                            <input type="number" min="0" max="100" step="0.01" value={resultGradeDrafts[row.student.id] ?? ""} disabled={row.grade?.status === "submitted" || row.grade?.status === "approved"} onChange={(event) => setResultGradeDrafts((current) => ({ ...current, [row.student.id]: event.target.value }))} placeholder={t("Pending")} className="w-24 rounded-lg border border-border bg-background px-2 py-1.5 text-sm disabled:cursor-not-allowed disabled:opacity-60" />
+                            {row.grade && <p className="mt-1 text-[10px] font-medium text-muted-foreground">{t(row.grade.status)}</p>}
+                          </td>
                           <td className="px-4 py-3 text-sm text-muted-foreground">100</td>
                           <td className="px-4 py-3 text-sm font-bold text-primary">{score == null ? t("Pending") : scoreToGpa(score)}</td>
                           <td className="px-4 py-3">

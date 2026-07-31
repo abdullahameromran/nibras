@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react"
-import { BookOpen, Calendar, CheckSquare, ChevronLeft, Edit, Eye, FileText, Layers, Plus, PlayCircle, Trash2, Upload, Users, Video } from "lucide-react"
+import { BookOpen, Calendar, ChevronLeft, Edit, Eye, FileText, Layers, Plus, PlayCircle, Trash2, Upload, Users, Video } from "lucide-react"
 import { Avatar, Badge, Btn, EmptyState, Input, LessonLinkPreview, LoadingState, Modal, StatCard, Toast, useTranslation } from "./shared"
 import { useAttendance, type AttendanceStatus } from "@/hooks/useAttendance"
 import { useClasses } from "@/hooks/useClasses"
@@ -282,12 +282,6 @@ export function TeacherClassesSectionLive({ schoolId, teacherId }: { schoolId?: 
   )
 
   const selectedLessonHomework = useMemo(() => selectedClass?.homework.filter((item) => item.lesson_id === selectedLesson?.id) ?? [], [selectedClass, selectedLesson])
-
-  const selectedLessonAssessments = useMemo(() => {
-    if (!selectedClass) return []
-    if (!selectedLesson) return selectedClass.assessments
-    return selectedClass.assessments.filter((item) => item.subject_id === selectedLesson.subject_id)
-  }, [selectedClass, selectedLesson])
 
   const studentDirectory = useMemo(() => {
     const map = new Map<
@@ -846,7 +840,7 @@ export function TeacherClassesSectionLive({ schoolId, teacherId }: { schoolId?: 
                 {selectedLessonVideoUrl && <div className="mt-4"><LessonLinkPreview url={selectedLessonVideoUrl} /></div>}
               </div>
 
-              <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
+              <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
                 <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
                   <div className="mb-4 flex items-center justify-between gap-2">
                     <div className="flex items-center gap-2">
@@ -915,29 +909,6 @@ export function TeacherClassesSectionLive({ schoolId, teacherId }: { schoolId?: 
                   </div>
                 </div>
 
-                <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
-                  <div className="mb-4 flex items-center gap-2">
-                    <CheckSquare className="h-4 w-4 text-[#F59E0B]" />
-                    <h3 className="text-[15px] font-semibold text-[#0E1B4A]">Tasks</h3>
-                  </div>
-                  <div className="space-y-3">
-                    {selectedLessonAssessments.map((item) => (
-                      <div key={item.id} className="rounded-xl border border-[#FDE7C2] bg-[#FFF9EE] p-3">
-                        <p className="truncate text-sm font-semibold text-[#0E1B4A]">{item.title}</p>
-                        <div className="mt-2 flex items-center justify-between text-xs text-[#9A6A15]">
-                          <span>
-                            {item.test_questions?.length ?? 0} {language === "ar" ? "أسئلة" : "questions"}
-                          </span>
-                          <span>
-                            {item.test_submissions?.length ?? 0} {t("Submitted")}
-                          </span>
-                        </div>
-                        <p className="mt-2 text-xs text-[#8B6A34]">{formatDateTime(item.test_date, locale)}</p>
-                      </div>
-                    ))}
-                    {selectedLessonAssessments.length === 0 && <EmptyState title="No assessments yet" description="Live tests for this class and subject will appear here." />}
-                  </div>
-                </div>
               </div>
 
               <div className="overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm">

@@ -53,7 +53,7 @@ export function useFinalGrades(filters: {
     if (filters.schoolId) query = query.eq("school_id", filters.schoolId);
     if (filters.academicYearId) query = query.eq("academic_year_id", filters.academicYearId);
     if (filters.classId) query = query.eq("class_id", filters.classId);
-    if (filters.studentId) query = query.eq("student_id", filters.studentId);
+    if (filters.studentId) query = query.eq("student_id", filters.studentId).eq("status", "approved");
     if (filters.subjectId) query = query.eq("subject_id", filters.subjectId);
 
     const { data, error: err } = await query;
@@ -65,12 +65,14 @@ export function useFinalGrades(filters: {
   useEffect(() => { fetchGrades(); }, [fetchGrades]);
 
   const upsertGrade = useCallback(async (grade: Partial<FinalGrade> & Pick<FinalGrade, "school_id" | "academic_year_id" | "class_id" | "subject_id" | "student_id">) => {
-    const { error: err } = await supabase
+    const { data, error: err } = await supabase
       .from("final_grades")
-      .upsert(grade, { onConflict: "academic_year_id,class_id,subject_id,student_id" });
-    if (err) return { error: err.message };
+      .upsert(grade, { onConflict: "academic_year_id,class_id,subject_id,student_id" })
+      .select()
+      .single();
+    if (err) return { error: err.message, data: null };
     await fetchGrades();
-    return { error: null };
+    return { error: null, data: data as FinalGrade };
   }, [fetchGrades]);
 
   const submitGrades = useCallback(async (ids: string[], submittedBy: string) => {
