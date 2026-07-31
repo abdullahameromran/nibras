@@ -5,9 +5,11 @@ const EDGE_URL = import.meta.env.VITE_SUPABASE_URL + "/functions/v1"
 /**
  * The canonical public URL of the app. Set VITE_SITE_URL in your .env / Vercel
  * environment variables to your production domain (e.g. https://www.nibrasedtech.com).
- * Falls back to the current window origin so local dev keeps working.
+ * Reset and invitation emails must always point to the public application, even
+ * when the request is initiated while running the frontend locally.
  */
-export const SITE_URL: string = (import.meta.env.VITE_SITE_URL as string | undefined) ?? (typeof window !== "undefined" ? window.location.origin : "")
+const configuredSiteUrl = (import.meta.env.VITE_SITE_URL as string | undefined)?.trim()
+export const SITE_URL: string = (configuredSiteUrl || "https://www.nibrasedtech.com").replace(/\/+$/, "")
 
 export type UserRole = "super_admin" | "school_admin" | "teacher" | "student" | "parent"
 
