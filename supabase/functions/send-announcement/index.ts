@@ -22,16 +22,29 @@ Deno.serve(async (req) => {
   if (corsResponse) return corsResponse;
 
   try {
+    const authHeader = req.headers.get("Authorization") ?? "";
+    const callerClient = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, { global: { headers: { Authorization: authHeader } } });
+    const { data: callerData, error: callerError } = await callerClient.auth.getUser();
+    if (callerError || !callerData.user) return json({ error: "Not authenticated" }, 401);
+    const callerId = callerData.user.id;
+
     const { announcement_id } = await req.json();
     if (!announcement_id) return json({ error: "announcement_id is required" }, 400);
 
     const { data: announcement, error: annErr } = await admin
       .from("announcements")
-      .select("id, school_id, title, body, is_published")
+      .select("id, school_id, author_id, title, body, is_published")
       .eq("id", announcement_id)
       .maybeSingle();
     if (annErr || !announcement) return json({ error: "announcement not found" }, 404);
     if (!announcement.is_published) return json({ error: "announcement is not published" }, 400);
+
+    const [{ data: callerProfile }, { data: school }, { data: adminRole }] = await Promise.all([
+      admin.from("profiles").select("id").eq("id", callerId).eq("is_active", true).maybeSingle(),
+      admin.from("schools").select("id").eq("id", announcement.school_id).eq("is_active", true).is("deleted_at", null).maybeSingle(),
+      admin.from("user_school_roles").select("id").eq("user_id", callerId).eq("school_id", announcement.school_id).eq("role", "school_admin").eq("is_active", true).maybeSingle(),
+    ]);
+    if (!callerProfile || !school || (announcement.author_id !== callerId && !adminRole)) return json({ error: "Not authorized to send this announcement" }, 403);
 
     const { data: targets } = await admin
       .from("announcement_targets")
@@ -60,12 +73,14 @@ Deno.serve(async (req) => {
         const { data: students } = await admin
           .from("class_enrollments")
           .select("student_id, classes!inner(grade_level_id)")
+          .eq("school_id", announcement.school_id)
           .eq("classes.grade_level_id", t.target_id);
         for (const s of students ?? []) {
           recipientIds.add(s.student_id);
           const { data: parents } = await admin
             .from("parent_student_links")
             .select("parent_id")
+            .eq("school_id", announcement.school_id)
             .eq("student_id", s.student_id);
           parents?.forEach((p) => recipientIds.add(p.parent_id));
         }
@@ -73,12 +88,14 @@ Deno.serve(async (req) => {
         const { data: students } = await admin
           .from("class_enrollments")
           .select("student_id")
+          .eq("school_id", announcement.school_id)
           .eq("class_id", t.target_id);
         for (const s of students ?? []) {
           recipientIds.add(s.student_id);
           const { data: parents } = await admin
             .from("parent_student_links")
             .select("parent_id")
+            .eq("school_id", announcement.school_id)
             .eq("student_id", s.student_id);
           parents?.forEach((p) => recipientIds.add(p.parent_id));
         }

@@ -29,6 +29,7 @@ export interface PortalTeacherAssignment {
   subjects?: { id: string; name: string } | null;
   teacher_profile?: {
     id: string;
+    email: string | null;
     first_name: string | null;
     last_name: string | null;
     avatar_url: string | null;
@@ -136,6 +137,7 @@ export function useClassTeacherAssignments(schoolId: string | null, classId: str
         subjects ( id, name ),
         teacher_profile:profiles!teacher_subject_assignments_teacher_id_fkey (
           id,
+          email,
           first_name,
           last_name,
           avatar_url
@@ -149,6 +151,16 @@ export function useClassTeacherAssignments(schoolId: string | null, classId: str
       setAssignments([]);
     } else {
       const rows = ((data as PortalTeacherAssignment[] | null) ?? []).slice();
+      const { data: visibleProfiles } = await supabase.rpc("get_visible_teacher_profiles", { p_school_id: schoolId });
+      const profileById = new Map(
+        ((visibleProfiles as PortalTeacherAssignment["teacher_profile"][] | null) ?? [])
+          .filter(Boolean)
+          .map((profile) => [profile!.id, profile!]),
+      );
+      rows.forEach((row) => {
+        const nestedProfile = Array.isArray(row.teacher_profile) ? row.teacher_profile[0] ?? null : row.teacher_profile;
+        row.teacher_profile = profileById.get(row.teacher_id) ?? nestedProfile ?? null;
+      });
       rows.sort((left, right) => {
         const leftName = left.subjects?.name ?? "";
         const rightName = right.subjects?.name ?? "";

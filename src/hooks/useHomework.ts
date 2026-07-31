@@ -70,11 +70,14 @@ export function useHomework(filters: {
         homework_choices ( id, choice_text, is_correct, sort_order )
       )
     `;
-    if (filters.teacherId || filters.classId) {
-      selectStr += `, homework_submissions ( id, student_id, submitted_at, score, graded_at, profiles(id, first_name, last_name, avatar_url) )`;
-    }
-    if (filters.studentId) {
-      selectStr += `, homework_submissions ( id, student_id, submitted_at, score, graded_at, homework_answers(id, question_id, selected_choice_id, is_correct) )`;
+    if (filters.teacherId || filters.classId || filters.studentId) {
+      const profileEmbed = filters.teacherId || filters.classId
+        ? ", profiles(id, first_name, last_name, avatar_url)"
+        : "";
+      const answerEmbed = filters.studentId
+        ? ", homework_answers(id, question_id, selected_choice_id, is_correct)"
+        : "";
+      selectStr += `, homework_submissions ( id, student_id, submitted_at, score, graded_at${profileEmbed}${answerEmbed} )`;
     }
 
     let query = supabase
@@ -162,8 +165,6 @@ export function useHomework(filters: {
         payload.answers.map(a => ({ submission_id: submission.id, ...a })),
         { onConflict: "submission_id,question_id" }
       );
-      // Trigger auto-grade via RPC if available
-      await supabase.rpc("compute_homework_score", { p_submission_id: submission.id }).catch(() => null);
     }
     await fetchHomework();
     return { error: null };

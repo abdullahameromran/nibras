@@ -34,14 +34,11 @@ Deno.serve(async (req) => {
     if (callerErr || !callerData?.user) return json({ error: "Not authenticated" }, 401);
     const callerId = callerData.user.id;
 
-    const { data: superRow } = await admin
-      .from("user_school_roles")
-      .select("role")
-      .eq("user_id", callerId)
-      .is("school_id", null)
-      .eq("role", "super_admin")
-      .maybeSingle();
-    if (!superRow) return json({ error: "super admin only" }, 403);
+    const [{ data: callerProfile }, { data: superRow }] = await Promise.all([
+      admin.from("profiles").select("id").eq("id", callerId).eq("is_active", true).maybeSingle(),
+      admin.from("user_school_roles").select("role").eq("user_id", callerId).is("school_id", null).eq("role", "super_admin").eq("is_active", true).maybeSingle(),
+    ]);
+    if (!callerProfile || !superRow) return json({ error: "super admin only" }, 403);
 
     const { table, id, hard = false } = await req.json();
     if (!table || !id) return json({ error: "table and id are required" }, 400);

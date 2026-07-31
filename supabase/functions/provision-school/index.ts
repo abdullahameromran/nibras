@@ -16,6 +16,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!
 const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+const INVITE_REDIRECT_URL = "https://www.nibrasedtech.com/reset"
 const admin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY)
 
 Deno.serve(async (req) => {
@@ -31,11 +32,14 @@ Deno.serve(async (req) => {
     if (callerErr || !callerData?.user) return json({ error: "Not authenticated" }, 401)
     const callerId = callerData.user.id
 
-    const { data: superRow } = await admin.from("user_school_roles").select("role").eq("user_id", callerId).is("school_id", null).eq("role", "super_admin").maybeSingle()
-    if (!superRow) return json({ error: "super admin only" }, 403)
+    const [{ data: callerProfile }, { data: superRow }] = await Promise.all([
+      admin.from("profiles").select("id").eq("id", callerId).eq("is_active", true).maybeSingle(),
+      admin.from("user_school_roles").select("role").eq("user_id", callerId).is("school_id", null).eq("role", "super_admin").eq("is_active", true).maybeSingle(),
+    ])
+    if (!callerProfile || !superRow) return json({ error: "super admin only" }, 403)
 
     const body = await req.json()
-    const { school_name, slug, timezone = "UTC", plan_id, admin_email, admin_first_name, admin_last_name, redirectTo } = body
+    const { school_name, slug, timezone = "UTC", plan_id, admin_email, admin_first_name, admin_last_name } = body
     if (!school_name || !plan_id || !admin_email) {
       return json({ error: "school_name, plan_id, and admin_email are required" }, 400)
     }
@@ -93,11 +97,9 @@ Deno.serve(async (req) => {
     if (subErr) return json({ error: subErr.message }, 400)
 
     // 3. Create (or invite) the first School Admin
-    const inviteOptions: { data: Record<string, any>; redirectTo?: string } = {
+    const inviteOptions: { data: Record<string, any>; redirectTo: string } = {
       data: { first_name: admin_first_name, last_name: admin_last_name },
-    }
-    if (redirectTo) {
-      inviteOptions.redirectTo = redirectTo
+      redirectTo: INVITE_REDIRECT_URL,
     }
     const { data: invited, error: inviteErr } = await admin.auth.admin.inviteUserByEmail(admin_email, inviteOptions)
 

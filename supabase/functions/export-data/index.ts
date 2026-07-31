@@ -101,6 +101,7 @@ Deno.serve(async (req) => {
       .eq("user_id", callerId)
       .eq("school_id", school_id)
       .eq("role", "school_admin")
+      .eq("is_active", true)
       .maybeSingle();
     const { data: superRow } = await admin
       .from("user_school_roles")
@@ -108,7 +109,10 @@ Deno.serve(async (req) => {
       .eq("user_id", callerId)
       .is("school_id", null)
       .eq("role", "super_admin")
+      .eq("is_active", true)
       .maybeSingle();
+    const { data: callerProfile } = await admin.from("profiles").select("id").eq("id", callerId).eq("is_active", true).maybeSingle();
+    if (!callerProfile) return json({ error: "account is inactive" }, 403);
     if (entity === "waitlist") {
       if (!superRow) return json({ error: "not authorized to export this data" }, 403);
     } else if (!allowedRow && !superRow) {

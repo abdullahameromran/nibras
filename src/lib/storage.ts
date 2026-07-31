@@ -205,15 +205,19 @@ export async function uploadStudentDocument(schoolId: string, studentId: string,
 
 /** Upload a school logo. Returns the public URL. */
 export async function uploadSchoolLogo(schoolId: string, file: File): Promise<string | null> {
-  const ext = file.name.split(".").pop()
+  const ext = file.name.split(".").pop()?.toLowerCase() || "png"
   const path = `${schoolId}/logo.${ext}`
-  const { error } = await supabase.storage.from("school-logos").upload(path, file, { upsert: true })
+  const { error } = await supabase.storage.from("school-logos").upload(path, file, {
+    upsert: true,
+    contentType: file.type,
+    cacheControl: "3600",
+  })
   if (error) {
     console.error("uploadSchoolLogo:", error)
     return null
   }
   const { data } = supabase.storage.from("school-logos").getPublicUrl(path)
-  return data.publicUrl
+  return `${data.publicUrl}?v=${Date.now()}`
 }
 
 /** Call the provision-school edge function (Super Admin only). */

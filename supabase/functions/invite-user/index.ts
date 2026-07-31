@@ -14,6 +14,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!
 const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+const INVITE_REDIRECT_URL = "https://www.nibrasedtech.com/reset"
 
 const admin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY)
 
@@ -34,7 +35,7 @@ Deno.serve(async (req) => {
     const callerId = callerData.user.id
 
     const body = await req.json()
-    const { school_id, email, role, first_name, last_name, redirectTo } = body
+    const { school_id, email, role, first_name, last_name } = body
     if (!school_id || !email || !role) {
       return json({ error: "school_id, email, and role are required" }, 400)
     }
@@ -42,27 +43,20 @@ Deno.serve(async (req) => {
       return json({ error: "invalid role for invite-user (super_admin uses provision-school)" }, 400)
     }
 
-    // Authorize: caller must be school_admin of this school (or super_admin)
-    const { data: allowed } = await admin.rpc("user_has_school_role", {
-      p_school_id: school_id,
-      p_roles: ["school_admin"],
-    })
-    if (!allowed) {
-      // fall back check done inside DB function already accounts for super_admin,
-      // but rpc() runs as the service role, so check membership explicitly instead:
-      const { data: role_row } = await admin.from("user_school_roles").select("role").eq("user_id", callerId).eq("school_id", school_id).eq("role", "school_admin").maybeSingle()
-      const { data: superRow } = await admin.from("user_school_roles").select("role").eq("user_id", callerId).is("school_id", null).eq("role", "super_admin").maybeSingle()
-      if (!role_row && !superRow) {
-        return json({ error: "not authorized to invite users to this school" }, 403)
-      }
+    const [{ data: callerProfile }, { data: school }, { data: roleRow }, { data: superRow }] = await Promise.all([
+      admin.from("profiles").select("id").eq("id", callerId).eq("is_active", true).maybeSingle(),
+      admin.from("schools").select("id").eq("id", school_id).eq("is_active", true).is("deleted_at", null).maybeSingle(),
+      admin.from("user_school_roles").select("role").eq("user_id", callerId).eq("school_id", school_id).eq("role", "school_admin").eq("is_active", true).maybeSingle(),
+      admin.from("user_school_roles").select("role").eq("user_id", callerId).is("school_id", null).eq("role", "super_admin").eq("is_active", true).maybeSingle(),
+    ])
+    if (!callerProfile || !school || (!roleRow && !superRow)) {
+      return json({ error: "not authorized to invite users to this school" }, 403)
     }
 
     // Create (or fetch existing) auth user and send an invite email
-    const inviteOptions: { data: Record<string, any>; redirectTo?: string } = {
+    const inviteOptions: { data: Record<string, any>; redirectTo: string } = {
       data: { first_name, last_name },
-    }
-    if (redirectTo) {
-      inviteOptions.redirectTo = redirectTo
+      redirectTo: INVITE_REDIRECT_URL,
     }
     const { data: invited, error: inviteErr } = await admin.auth.admin.inviteUserByEmail(email, inviteOptions)
 

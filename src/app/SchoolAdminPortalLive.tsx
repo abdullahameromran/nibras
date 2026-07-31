@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Award,
   Book,
@@ -66,6 +66,7 @@ import { useTests } from "@/hooks/useTests";
 import { useTimetable, useTimeSlots, useWorkingDays } from "@/hooks/useTimetable";
 import { formatDisplayName } from "@/lib/display";
 import { formatPlanDisplayName } from "@/lib/plans";
+import { uploadSchoolLogo } from "@/lib/storage";
 
 const SCHOOL_NAV: NavItem[] = [
   { id: "dashboard", label: "Dashboard", icon: <Users className="w-4 h-4" /> },
@@ -253,6 +254,7 @@ export function SchoolAdminPortalLive({
   const [finalSubjectId, setFinalSubjectId] = useState("");
   const [workingDaysDraft, setWorkingDaysDraft] = useState<string[]>([]);
   const [schoolForm, setSchoolForm] = useState({ name: "", phone: "", address: "", email: "", timezone: "Africa/Cairo" });
+  const [logoUploading, setLogoUploading] = useState(false);
   const [yearForm, setYearForm] = useState({ name: "", start: "", end: "" });
   const [subjectName, setSubjectName] = useState("");
   const [subjectCode, setSubjectCode] = useState("");
@@ -276,6 +278,7 @@ export function SchoolAdminPortalLive({
   const [selectedConversationId, setSelectedConversationId] = useState<string | null>(null);
   const [composeRecipientId, setComposeRecipientId] = useState("");
   const [messageDraft, setMessageDraft] = useState("");
+  const messageListRef = useRef<HTMLDivElement | null>(null);
 
   const saveGradeLevel = async () => {
     if (!gradeLevelModal || !gradeLevelModal.name.trim() || !schoolId) return;
@@ -646,6 +649,14 @@ export function SchoolAdminPortalLive({
     () => dbMessages.conversations.find((conversation) => conversation.partnerId === selectedConversationId) ?? null,
     [dbMessages.conversations, selectedConversationId],
   );
+
+  useEffect(() => {
+    if (!selectedConversationId) return;
+    window.requestAnimationFrame(() => {
+      const list = messageListRef.current;
+      if (list) list.scrollTop = list.scrollHeight;
+    });
+  }, [selectedConversationId, selectedConversation?.messages.length, selectedConversation?.messages.at(-1)?.id]);
 
   useEffect(() => {
     if (!selectedConversation) return;
@@ -1052,6 +1063,33 @@ export function SchoolAdminPortalLive({
       return;
     }
     showToast("School settings updated");
+  };
+
+  const updateSchoolLogo = async (file?: File) => {
+    if (!schoolId || !file) return;
+    if (!file.type.startsWith("image/")) {
+      showToast("Please select an image file.", "error");
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      showToast("The logo must be 5 MB or smaller.", "error");
+      return;
+    }
+
+    setLogoUploading(true);
+    const logoUrl = await uploadSchoolLogo(schoolId, file);
+    if (!logoUrl) {
+      setLogoUploading(false);
+      showToast("Could not upload the school logo.", "error");
+      return;
+    }
+    const result = await dbSchool.updateSchool({ logo_url: logoUrl });
+    setLogoUploading(false);
+    if (result.error) {
+      showToast(result.error, "error");
+      return;
+    }
+    showToast("School logo updated");
   };
 
   const createAcademicYear = async () => {
@@ -1701,6 +1739,33 @@ export function SchoolAdminPortalLive({
           <div className="max-w-3xl space-y-5">
             <div className="rounded-2xl border border-border bg-card p-6 shadow-sm space-y-4">
               <h3 className="font-bold text-foreground">School Information</h3>
+              <div className="flex flex-wrap items-center gap-4 rounded-xl bg-muted/40 p-4">
+                <div className="flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-border bg-card">
+                  {dbSchool.school?.logo_url ? (
+                    <img src={dbSchool.school.logo_url} alt="School logo" className="h-full w-full object-contain" />
+                  ) : (
+                    <GraduationCap className="h-8 w-8 text-muted-foreground" />
+                  )}
+                </div>
+                <div className="space-y-2">
+                  <p className="text-sm font-semibold text-foreground">School Logo</p>
+                  <p className="text-xs text-muted-foreground">Image up to 5 MB.</p>
+                  <label className="inline-flex cursor-pointer items-center gap-2 rounded-xl bg-secondary px-4 py-2 text-sm font-semibold text-secondary-foreground hover:bg-secondary/80">
+                    <Upload className="h-4 w-4" />
+                    {logoUploading ? "Uploading..." : "Upload / Replace"}
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      disabled={logoUploading}
+                      onChange={(event) => {
+                        void updateSchoolLogo(event.target.files?.[0]);
+                        event.currentTarget.value = "";
+                      }}
+                    />
+                  </label>
+                </div>
+              </div>
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <Input label="School Name" value={schoolForm.name} onChange={(value) => setSchoolForm((current) => ({ ...current, name: value }))} required />
                 <Input label="Timezone" value={schoolForm.timezone} onChange={(value) => setSchoolForm((current) => ({ ...current, timezone: value }))} />
@@ -1712,7 +1777,7 @@ export function SchoolAdminPortalLive({
               <Input label="Address" value={schoolForm.address} onChange={(value) => setSchoolForm((current) => ({ ...current, address: value }))} />
               <div className="flex gap-3">
                 <Btn onClick={() => void saveSchoolSettings()}>Save Changes</Btn>
-                <Btn variant="secondary" onClick={() => setSchoolForm(schoolFormDefaults)}>Reset</Btn>
+                <Btn variant="secondary" onClick={() => setSchoolForm(schoolFormDefaults)}>{t("Reset")}</Btn>
               </div>
             </div>
 
@@ -2014,7 +2079,7 @@ export function SchoolAdminPortalLive({
                   {dbSubjects.subjects.map((subject) => (
                     <div key={subject.id} className="flex items-center justify-between rounded-xl bg-muted p-3">
                       <span className="text-sm font-medium text-foreground">{subject.name}</span>
-                      <span className="text-xs text-muted-foreground">{subject.code ?? "No code"}</span>
+                      <span className="text-xs text-muted-foreground">{subject.code ?? t("No code")}</span>
                     </div>
                   ))}
                 </div>
@@ -2023,7 +2088,7 @@ export function SchoolAdminPortalLive({
                     label="New Subject"
                     value={subjectName}
                     onChange={setSubjectName}
-                    placeholder="Enter subject name"
+                    placeholder={t("Enter subject name")}
                   />
                   <Input
                     label="Subject Code"
@@ -2584,7 +2649,7 @@ export function SchoolAdminPortalLive({
                   <p className="text-sm font-bold text-foreground">{selectedConversation?.partnerName ?? "Choose a conversation"}</p>
                   <p className="text-xs text-muted-foreground">{selectedConversation ? "Messages are synced from Supabase." : "Select an existing thread or choose a recipient to start a new one."}</p>
                 </div>
-                <div className="flex-1 space-y-4 overflow-y-auto bg-muted/30 p-4">
+                <div ref={messageListRef} className="flex-1 space-y-4 overflow-y-auto bg-muted/30 p-4">
                   {selectedConversation?.messages
                     .slice()
                     .sort((left, right) => new Date(left.created_at).getTime() - new Date(right.created_at).getTime())
@@ -2658,9 +2723,11 @@ export function SchoolAdminPortalLive({
 
             <div className="space-y-3 rounded-2xl border border-border bg-muted/40 p-4">
               <div>
-                <p className="text-sm font-bold text-foreground">Linked Parents</p>
+                <p className="text-sm font-bold text-foreground">{t("Linked Parents")}</p>
                 <p className="text-xs text-muted-foreground">
-                  {managedStudent ? `Parent accounts linked to ${managedStudent.name}.` : "Choose a student to review linked parents."}
+                  {managedStudent
+                    ? language === "ar" ? `حسابات أولياء الأمور المرتبطة بالطالب ${managedStudent.name}.` : `Parent accounts linked to ${managedStudent.name}.`
+                    : language === "ar" ? "اختر طالبًا لمراجعة أولياء الأمور المرتبطين به." : "Choose a student to review linked parents."}
                 </p>
               </div>
               <div className="space-y-2">
@@ -2670,15 +2737,15 @@ export function SchoolAdminPortalLive({
                       <p className="text-sm font-semibold text-foreground">
                         {formatName(link.parent_profile?.first_name, link.parent_profile?.last_name, link.parent_profile?.email)}
                       </p>
-                      <p className="text-xs text-muted-foreground">{link.relationship}</p>
+                      <p className="text-xs text-muted-foreground">{t(link.relationship.charAt(0).toUpperCase() + link.relationship.slice(1), link.relationship)}</p>
                     </div>
                     <Btn size="sm" variant="danger" onClick={() => void unlinkParentFromStudent(link.id)}>
-                      Remove Link
+                      {t("Remove Link")}
                     </Btn>
                   </div>
                 ))}
                 {managedStudentParentLinks.length === 0 && (
-                  <p className="text-sm text-muted-foreground">No parents are linked to this student yet.</p>
+                  <p className="text-sm text-muted-foreground">{t("No parents are linked to this student yet.")}</p>
                 )}
               </div>
             </div>
@@ -2686,8 +2753,8 @@ export function SchoolAdminPortalLive({
             <div className="grid gap-4 lg:grid-cols-2">
               <div className="space-y-4 rounded-2xl border border-border bg-card p-4">
                 <div>
-                  <p className="text-sm font-bold text-foreground">Link Existing Parent</p>
-                  <p className="text-xs text-muted-foreground">Attach an existing parent account from this school.</p>
+                  <p className="text-sm font-bold text-foreground">{t("Link Existing Parent")}</p>
+                  <p className="text-xs text-muted-foreground">{language === "ar" ? "اربط حساب ولي أمر موجود في هذه المدرسة." : "Attach an existing parent account from this school."}</p>
                 </div>
                 <Select
                   label="Parent"
@@ -2711,14 +2778,14 @@ export function SchoolAdminPortalLive({
                   className="w-full"
                   disabled={!parentManager.studentId || availableParentOptions.length === 0}
                 >
-                  Link Existing Parent
+                  {t("Link Existing Parent")}
                 </Btn>
               </div>
 
               <div className="space-y-4 rounded-2xl border border-border bg-card p-4">
                 <div>
-                  <p className="text-sm font-bold text-foreground">Invite New Parent</p>
-                  <p className="text-xs text-muted-foreground">Create a parent account, then link it immediately.</p>
+                  <p className="text-sm font-bold text-foreground">{t("Invite New Parent")}</p>
+                  <p className="text-xs text-muted-foreground">{language === "ar" ? "أنشئ حساب ولي أمر ثم اربطه بالطالب مباشرةً." : "Create a parent account, then link it immediately."}</p>
                 </div>
                 <Input
                   label="Full Name"
@@ -2745,7 +2812,7 @@ export function SchoolAdminPortalLive({
                   ]}
                 />
                 <Btn onClick={() => void inviteParentForStudent()} className="w-full" disabled={!parentManager.studentId}>
-                  Invite and Link Parent
+                  {t("Invite and Link Parent")}
                 </Btn>
               </div>
             </div>

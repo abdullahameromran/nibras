@@ -61,6 +61,7 @@ export function useMessages(userId: string | null, schoolId: string | null) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
+  const refreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const fetchMessages = useCallback(async () => {
     if (!userId || !schoolId) {
@@ -211,6 +212,14 @@ export function useMessages(userId: string | null, schoolId: string | null) {
   useEffect(() => {
     if (!userId || !schoolId) return;
 
+    const scheduleRefresh = () => {
+      if (refreshTimerRef.current) clearTimeout(refreshTimerRef.current);
+      refreshTimerRef.current = setTimeout(() => {
+        refreshTimerRef.current = null;
+        void fetchMessages();
+      }, 100);
+    };
+
     const channel = supabase
       .channel(`messages:${userId}`)
       .on("postgres_changes", {
@@ -218,11 +227,21 @@ export function useMessages(userId: string | null, schoolId: string | null) {
         schema: "public",
         table: "message_recipients",
         filter: `recipient_id=eq.${userId}`,
-      }, () => { fetchMessages(); })
+      }, scheduleRefresh)
+      .on("postgres_changes", {
+        event: "UPDATE", schema: "public", table: "message_recipients", filter: `recipient_id=eq.${userId}`,
+      }, scheduleRefresh)
+      .on("postgres_changes", {
+        event: "INSERT", schema: "public", table: "messages", filter: `sender_id=eq.${userId}`,
+      }, scheduleRefresh)
       .subscribe();
 
     channelRef.current = channel;
-    return () => { channel.unsubscribe(); };
+    return () => {
+      if (refreshTimerRef.current) clearTimeout(refreshTimerRef.current);
+      refreshTimerRef.current = null;
+      void channel.unsubscribe();
+    };
   }, [userId, schoolId, fetchMessages]);
 
   const sendMessage = useCallback(async (recipientId: string, body: string, subject?: string) => {

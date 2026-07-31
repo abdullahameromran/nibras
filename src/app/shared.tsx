@@ -179,6 +179,7 @@ const ARABIC_TRANSLATIONS: Record<string, string> = {
   "No leads match your filters.": "لا يوجد عملاء محتملون مطابقون للمرشحات.",
   "Create Plan": "إنشاء باقة",
   "Save Changes": "حفظ التغييرات",
+  Reset: "إعادة تعيين",
   "Save Settings": "حفظ الإعدادات",
   Cancel: "إلغاء",
   Confirm: "تأكيد",
@@ -209,6 +210,21 @@ const ARABIC_TRANSLATIONS: Record<string, string> = {
   "Add Teacher": "إضافة معلم",
   "Add Student": "إضافة طالب",
   "Add Subject": "إضافة مادة",
+  "New Subject": "مادة جديدة",
+  "Subject Code": "رمز المادة",
+  "Enter subject name": "أدخل اسم المادة",
+  "No code": "لا يوجد رمز",
+  "Manage Parent Links": "إدارة روابط أولياء الأمور",
+  "Linked Parents": "أولياء الأمور المرتبطون",
+  "Link Existing Parent": "ربط ولي أمر موجود",
+  "Invite New Parent": "دعوة ولي أمر جديد",
+  "Invite and Link Parent": "دعوة ولي الأمر وربطه",
+  "Remove Link": "إزالة الرابط",
+  Relationship: "صلة القرابة",
+  Mother: "الأم",
+  Father: "الأب",
+  "Full Name": "الاسم الكامل",
+  "No parents are linked to this student yet.": "لا يوجد أولياء أمور مرتبطون بهذا الطالب بعد.",
   Assign: "تعيين",
   submissions: "التقديمات",
   "Assign Subjects": "تعيين المواد",
@@ -1839,6 +1855,8 @@ export function Sidebar({
   onLogout,
   userName,
   userRole,
+  brandLogoUrl,
+  brandName = "Nibras",
 }: {
   items: NavItem[]
   active: string
@@ -1846,6 +1864,8 @@ export function Sidebar({
   onLogout: () => void
   userName: string
   userRole: string
+  brandLogoUrl?: string | null
+  brandName?: string
 }) {
   const { language } = useLanguage()
   const { t } = useTranslation()
@@ -1860,8 +1880,8 @@ export function Sidebar({
   return (
     <aside className={`w-[220px] h-screen bg-card flex flex-col shrink-0 ${language === "ar" ? "border-l" : "border-r"} border-border`}>
       <div className="flex items-center gap-3 px-5 py-5 border-b border-border">
-        <img src={nibrasLogo} alt="Nibras" className="w-8 h-8 object-contain rounded-lg" />
-        <span className="font-bold text-foreground text-base leading-tight">Nibras</span>
+        <img src={brandLogoUrl || nibrasLogo} alt={brandName} className="w-8 h-8 object-contain rounded-lg" />
+        <span className="font-bold text-foreground text-base leading-tight truncate">{brandName}</span>
       </div>
       <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
         {items.map((item) => (
@@ -2044,6 +2064,8 @@ export function AppShell({
   userName,
   userRole,
   userId,
+  brandLogoUrl,
+  brandName,
 }: {
   children: React.ReactNode
   navItems: NavItem[]
@@ -2054,6 +2076,8 @@ export function AppShell({
   userName: string
   userRole: string
   userId?: string | null
+  brandLogoUrl?: string | null
+  brandName?: string
 }) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const { language } = useLanguage()
@@ -2113,6 +2137,8 @@ export function AppShell({
           onLogout={onLogout}
           userName={displayName}
           userRole={displayRole}
+          brandLogoUrl={brandLogoUrl}
+          brandName={brandName}
         />
       </div>
       <div className="nibras-shell-content relative z-0 flex-1 flex flex-col min-w-0 overflow-hidden">

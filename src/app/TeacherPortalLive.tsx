@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { Award, BookOpen, Calendar, CheckCircle, ChevronLeft, Clock, Download, FileText, Home, Layers, MessageSquare, Plus, Send, Users } from "lucide-react"
 import { Bar, BarChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts"
 import { useAcademicYears } from "@/hooks/useAcademicYears"
@@ -177,6 +177,7 @@ export function TeacherPortalLive({
   const [composeTarget, setComposeTarget] = useState<MessageTarget | null>(null)
   const [messageDraft, setMessageDraft] = useState("")
   const [messagesSearch, setMessagesSearch] = useState("")
+  const messageListRef = useRef<HTMLDivElement | null>(null)
   const [showCreateTest, setShowCreateTest] = useState(false)
   const [testForm, setTestForm] = useState<TestFormState>({
     classId: "",
@@ -576,6 +577,14 @@ export function TeacherPortalLive({
     () => dbMessages.conversations.find((conversation) => conversation.partnerId === selectedConversationId) ?? null,
     [dbMessages.conversations, selectedConversationId],
   )
+
+  useEffect(() => {
+    if (!selectedConversationId) return
+    window.requestAnimationFrame(() => {
+      const list = messageListRef.current
+      if (list) list.scrollTop = list.scrollHeight
+    })
+  }, [selectedConversationId, selectedConversation?.messages.length, selectedConversation?.messages.at(-1)?.id])
 
   const activeContact = useMemo(
     () => filteredContacts.find((contact) => contact.id === selectedConversationId) ?? contactRows.find((contact) => contact.id === selectedConversationId) ?? composeTarget,
@@ -1423,7 +1432,7 @@ export function TeacherPortalLive({
                   <p className="text-sm font-bold text-foreground">{activeContact?.name ?? "Choose a conversation"}</p>
                   <p className="text-xs text-muted-foreground">{activeContact?.subtitle ?? "Select a student, parent, or existing thread to start messaging."}</p>
                 </div>
-                <div className="flex-1 space-y-4 overflow-y-auto bg-muted/30 p-4">
+                <div ref={messageListRef} className="flex-1 space-y-4 overflow-y-auto bg-muted/30 p-4">
                   {(selectedConversation?.messages ?? [])
                     .slice()
                     .sort((left, right) => new Date(left.created_at).getTime() - new Date(right.created_at).getTime())

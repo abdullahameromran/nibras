@@ -260,8 +260,6 @@ export function useTests(filters: {
           .from("test_submissions")
           .update({ score: computedScore, graded_at: new Date().toISOString() })
           .eq("id", submission.id);
-      } else {
-        await supabase.rpc("compute_test_score", { p_submission_id: submission.id }).catch(() => null);
       }
     }
     await fetchTests();

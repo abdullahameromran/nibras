@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect, useCallback, useRef } from "react"
 import supabase from "@/lib/supabase"
 import {
   signIn as authSignIn,
@@ -114,6 +114,8 @@ function roleToPortal(role: string | null): Portal {
 }
 
 export function useAuth(): UseAuthReturn {
+  const currentUserIdRef = useRef<string | null>(null)
+  const loadingUserDataRef = useRef(false)
   const [state, setState] = useState<AuthState>({
     user: null,
     roles: [],
@@ -124,16 +126,20 @@ export function useAuth(): UseAuthReturn {
   })
 
   const loadUserData = useCallback(async (silent = false) => {
+    if (loadingUserDataRef.current) return
+    loadingUserDataRef.current = true
     if (!silent) setState((s) => ({ ...s, loading: true, error: null }))
     try {
       const [profile, roles] = await Promise.all([fetchCurrentProfile(), fetchUserRoles()])
       if (!profile) {
+        currentUserIdRef.current = null
         persistRoleContext(null, null)
         setState({ user: null, roles: [], activeRole: null, activeSchoolId: null, loading: false, error: null })
         return
       }
 
       if (profile.is_active === false) {
+        currentUserIdRef.current = null
         await authSignOut()
         persistRoleContext(null, null)
         setState({ user: null, roles: [], activeRole: null, activeSchoolId: null, loading: false, error: "Your account is inactive. Contact your administrator." })
@@ -141,6 +147,7 @@ export function useAuth(): UseAuthReturn {
       }
 
       if (!roles.length) {
+        currentUserIdRef.current = profile.id
         persistRoleContext(null, null)
         setState({
           user: profile,
@@ -154,11 +161,14 @@ export function useAuth(): UseAuthReturn {
       }
 
       const { activeRole, activeSchoolId } = pickInitialRoleContext(roles)
+      currentUserIdRef.current = profile.id
       persistRoleContext(activeRole, activeSchoolId)
 
       setState({ user: profile, roles, activeRole, activeSchoolId, loading: false, error: null })
     } catch (e) {
       setState((s) => ({ ...s, loading: false, error: String(e) }))
+    } finally {
+      loadingUserDataRef.current = false
     }
   }, [])
 
@@ -170,8 +180,8 @@ export function useAuth(): UseAuthReturn {
     })
 
     // Listen for auth changes
-    const { data: listener } = supabase.auth.onAuthStateChange((event) => {
-      if (event === "SIGNED_IN") loadUserData()
+    const { data: listener } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === "SIGNED_IN" && session?.user.id !== currentUserIdRef.current && !loadingUserDataRef.current) loadUserData()
       if (event === "TOKEN_REFRESHED") loadUserData(true)
       if (event === "PASSWORD_RECOVERY") {
         // Navigate the app to the /reset-password page so the user can set a new password
@@ -180,6 +190,7 @@ export function useAuth(): UseAuthReturn {
         setState((s) => ({ ...s, loading: false }))
       }
       if (event === "SIGNED_OUT") {
+        currentUserIdRef.current = null
         persistRoleContext(null, null)
         setState({ user: null, roles: [], activeRole: null, activeSchoolId: null, loading: false, error: null })
       }

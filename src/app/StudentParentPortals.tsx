@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import {
   Activity,
   Award,
@@ -273,6 +273,7 @@ function buildCourseSummaries(lessons: Lesson[], homework: Homework[], tests: Mo
               {
                 first_name: assignment.teacher_profile?.first_name,
                 last_name: assignment.teacher_profile?.last_name,
+                email: assignment.teacher_profile?.email,
               },
               "Teacher",
             )
@@ -323,6 +324,7 @@ function buildContacts(assignments: PortalTeacherAssignment[], conversations: Co
           {
             first_name: assignment.teacher_profile?.first_name,
             last_name: assignment.teacher_profile?.last_name,
+            email: assignment.teacher_profile?.email,
           },
           "Teacher",
         ),
@@ -473,6 +475,15 @@ function MessageCenter({
   const activeConversation = conversations.find((conversation) => conversation.partnerId === selectedPartnerId) ?? null
   const sortedMessages = activeConversation ? activeConversation.messages.slice().sort((left, right) => new Date(left.created_at).getTime() - new Date(right.created_at).getTime()) : []
   const activeContact = contacts.find((contact) => contact.id === selectedPartnerId) ?? null
+  const messageListRef = useRef<HTMLDivElement | null>(null)
+
+  useEffect(() => {
+    if (!selectedPartnerId) return
+    window.requestAnimationFrame(() => {
+      const list = messageListRef.current
+      if (list) list.scrollTop = list.scrollHeight
+    })
+  }, [selectedPartnerId, sortedMessages.length, sortedMessages.at(-1)?.id])
 
   return (
     <div className="bg-card rounded-2xl border border-border shadow-sm overflow-hidden h-[calc(100vh-200px)]">
@@ -519,7 +530,7 @@ function MessageCenter({
                   <p className="text-xs text-muted-foreground">{activeContact.subtitle}</p>
                 </div>
               </div>
-              <div className="flex-1 overflow-y-auto p-4 bg-muted/20 space-y-4">
+              <div ref={messageListRef} className="flex-1 overflow-y-auto p-4 bg-muted/20 space-y-4">
                 {sortedMessages.length === 0 && <EmptyState title="No messages yet" description="Start the conversation and your message will be sent through Supabase." />}
                 {sortedMessages.map((message) => {
                   const mine = message.sender_id === currentUserId

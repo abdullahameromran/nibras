@@ -106,6 +106,7 @@ import { useSubscriptionPlans } from "@/hooks/useSubscriptionPlans"
 import supabase from "@/lib/supabase"
 import { resetPassword as requestPasswordReset } from "@/lib/auth"
 import { formatPlanDisplayName } from "@/lib/plans"
+import { uploadSchoolLogo } from "@/lib/storage"
 
 // ─── Login Page ───────────────────────────────────────────────────────────────
 function LoginPage({ onLogin, onRequestPasswordReset }: { onLogin: (email: string, password: string) => Promise<string | null>; onRequestPasswordReset: (email: string) => Promise<string | null> }) {
@@ -440,6 +441,7 @@ type AdminSchoolRow = {
   students: number
   teachers: number
   created: string
+  logoUrl: string | null
 }
 
 type AdminPlanRow = {
@@ -623,6 +625,7 @@ function SuperAdminPortal({ view, setView, onLogout, userId }: { view: string; s
       students: typeof school.student_count === "number" ? school.student_count : typeof settings.student_count === "number" ? settings.student_count : 0,
       teachers: typeof school.teacher_count === "number" ? school.teacher_count : typeof settings.teacher_count === "number" ? settings.teacher_count : 0,
       created: new Date(school.created_at).toLocaleDateString(),
+      logoUrl: school.logo_url,
     }
   })
 
@@ -676,6 +679,7 @@ function SuperAdminPortal({ view, setView, onLogout, userId }: { view: string; s
             students: typeof s.student_count === "number" ? s.student_count : typeof settings.student_count === "number" ? settings.student_count : 0,
             teachers: typeof s.teacher_count === "number" ? s.teacher_count : typeof settings.teacher_count === "number" ? settings.teacher_count : 0,
             created: new Date(s.created_at).toLocaleDateString(),
+            logoUrl: s.logo_url,
           }
         }),
       )
@@ -719,6 +723,8 @@ function SuperAdminPortal({ view, setView, onLogout, userId }: { view: string; s
 
   const [showCreate, setShowCreate] = useState(false)
   const [showEdit, setShowEdit] = useState<string | null>(null)
+  const [editLogoUrl, setEditLogoUrl] = useState<string | null>(null)
+  const [logoUploading, setLogoUploading] = useState(false)
   const [showDelete, setShowDelete] = useState<string | null>(null)
   const [showActivate, setShowActivate] = useState<string | null>(null)
   const [showDeactivate, setShowDeactivate] = useState<string | null>(null)
@@ -802,6 +808,7 @@ function SuperAdminPortal({ view, setView, onLogout, userId }: { view: string; s
     }
     const result = await dbSchools.updateSchool(showEdit, {
       name: form.name.trim(),
+      logo_url: editLogoUrl,
       settings: {
         admin_name: form.admin.trim(),
         admin_email: form.email.trim(),
@@ -851,7 +858,28 @@ function SuperAdminPortal({ view, setView, onLogout, userId }: { view: string; s
   const openEdit = (s: AdminSchoolRow) => {
     setForm({ name: s.name, admin: s.admin, email: s.adminEmail, phone: s.phone, address: s.address, plan: s.plan })
     setErrors({})
+    setEditLogoUrl(s.logoUrl)
     setShowEdit(s.id)
+  }
+
+  const updateEditedSchoolLogo = async (file?: File) => {
+    if (!showEdit || !file) return
+    if (!file.type.startsWith("image/")) {
+      showToast("Please select an image file.", "error")
+      return
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      showToast("The logo must be 5 MB or smaller.", "error")
+      return
+    }
+    setLogoUploading(true)
+    const logoUrl = await uploadSchoolLogo(showEdit, file)
+    setLogoUploading(false)
+    if (!logoUrl) {
+      showToast("Could not upload the school logo.", "error")
+      return
+    }
+    setEditLogoUrl(logoUrl)
   }
 
   const openPlanModal = (plan?: AdminPlanRow) => {
@@ -1039,7 +1067,7 @@ function SuperAdminPortal({ view, setView, onLogout, userId }: { view: string; s
                     {schools.slice(0, 5).map((s) => (
                       <div key={s.id} className="flex items-center gap-3">
                         <div className="w-9 h-9 rounded-xl bg-secondary flex items-center justify-center shrink-0">
-                          <Building2 className="w-4 h-4 text-primary" />
+                          {s.logoUrl ? <img src={s.logoUrl} alt="" className="h-full w-full rounded-xl object-contain" /> : <Building2 className="w-4 h-4 text-primary" />}
                         </div>
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-semibold text-foreground truncate">{s.name}</p>
@@ -1096,7 +1124,7 @@ function SuperAdminPortal({ view, setView, onLogout, userId }: { view: string; s
                         <td className="px-4 py-3">
                           <div className="flex items-center gap-3">
                             <div className="w-8 h-8 rounded-lg bg-secondary flex items-center justify-center shrink-0">
-                              <Building2 className="w-3.5 h-3.5 text-primary" />
+                              {s.logoUrl ? <img src={s.logoUrl} alt="" className="h-full w-full rounded-lg object-contain" /> : <Building2 className="w-3.5 h-3.5 text-primary" />}
                             </div>
                             <span className="text-sm font-semibold text-foreground">{s.name}</span>
                           </div>
@@ -1511,6 +1539,20 @@ function SuperAdminPortal({ view, setView, onLogout, userId }: { view: string; s
       {showEdit !== null && (
         <Modal title="Edit School" onClose={() => setShowEdit(null)}>
           <div className="space-y-4">
+            <div className="flex items-center gap-4 rounded-xl bg-muted/40 p-4">
+              <div className="flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-border bg-card">
+                {editLogoUrl ? <img src={editLogoUrl} alt="School logo" className="h-full w-full object-contain" /> : <Building2 className="h-8 w-8 text-muted-foreground" />}
+              </div>
+              <div className="space-y-2">
+                <p className="text-sm font-semibold text-foreground">School Logo</p>
+                <p className="text-xs text-muted-foreground">Image up to 5 MB.</p>
+                <label className="inline-flex cursor-pointer items-center gap-2 rounded-xl bg-secondary px-4 py-2 text-sm font-semibold text-secondary-foreground hover:bg-secondary/80">
+                  <Upload className="h-4 w-4" />
+                  {logoUploading ? "Uploading..." : "Upload / Replace"}
+                  <input type="file" accept="image/*" className="hidden" disabled={logoUploading} onChange={(event) => { void updateEditedSchoolLogo(event.target.files?.[0]); event.currentTarget.value = "" }} />
+                </label>
+              </div>
+            </div>
             <Input label="School Name" value={form.name} onChange={(v) => setForm((p) => ({ ...p, name: v }))} required error={errors.name} />
             <Input label="Admin Name" value={form.admin} onChange={(v) => setForm((p) => ({ ...p, admin: v }))} />
             <Select
@@ -1520,7 +1562,7 @@ function SuperAdminPortal({ view, setView, onLogout, userId }: { view: string; s
               options={plans.map((pl) => ({ value: pl.name, label: `${formatPlanDisplayName(pl.name)} – $${pl.price}/mo` }))}
             />
             <div className="flex gap-3 pt-2">
-              <Btn onClick={saveEdit} className="flex-1">
+              <Btn onClick={saveEdit} className="flex-1" disabled={logoUploading}>
                 Save Changes
               </Btn>
               <Btn variant="secondary" onClick={() => setShowEdit(null)}>
