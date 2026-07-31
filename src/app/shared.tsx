@@ -1935,7 +1935,7 @@ export function Select({
       >
         <option value="">{t("Select…", "Select…")}</option>
         {options.map((o, index) => (
-          <option key={`${o.value}-${index}`} value={o.value}>
+          <option data-no-translate key={`${o.value}-${index}`} value={o.value}>
             {o.label}
           </option>
         ))}

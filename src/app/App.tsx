@@ -1161,12 +1161,12 @@ function SuperAdminPortal({ view, setView, onLogout, userId }: { view: string; s
                             <div className="w-8 h-8 rounded-lg bg-secondary flex items-center justify-center shrink-0">
                               {s.logoUrl ? <img src={s.logoUrl} alt="" className="h-full w-full rounded-lg object-contain" /> : <Building2 className="w-3.5 h-3.5 text-primary" />}
                             </div>
-                            <span className="text-sm font-semibold text-foreground">{s.name}</span>
+                            <span data-no-translate className="text-sm font-semibold text-foreground">{s.name}</span>
                           </div>
                         </td>
-                        <td className="px-4 py-3 text-sm text-foreground">{s.admin}</td>
+                        <td data-no-translate className="px-4 py-3 text-sm text-foreground">{s.admin}</td>
                         <td className="px-4 py-3">
-                          <Badge color={s.plan === "Premium" ? "purple" : s.plan === "Standard" ? "blue" : "gray"}>{formatPlanDisplayName(s.plan)}</Badge>
+                          <span data-no-translate><Badge color={s.plan === "Premium" ? "purple" : s.plan === "Standard" ? "blue" : "gray"}>{formatPlanDisplayName(s.plan)}</Badge></span>
                         </td>
                         <td className="px-4 py-3 text-sm text-foreground">{s.students}</td>
                         <td className="px-4 py-3 text-sm text-foreground">{s.teachers}</td>
@@ -1460,7 +1460,7 @@ function SuperAdminPortal({ view, setView, onLogout, userId }: { view: string; s
                         <div className="w-10 h-10 rounded-xl flex items-center justify-center mb-3" style={{ background: `${p.color}18` }}>
                           <CreditCard className="w-5 h-5" style={{ color: p.color }} />
                         </div>
-                        <h3 className="font-bold text-foreground text-lg">{formatPlanDisplayName(p.name)}</h3>
+                        <h3 data-no-translate className="font-bold text-foreground text-lg">{formatPlanDisplayName(p.name)}</h3>
                         <p className="text-sm text-muted-foreground">{p.schools} schools subscribed</p>
                       </div>
                       <button onClick={() => openPlanModal(p)} className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center hover:bg-secondary transition-colors">
@@ -1483,7 +1483,7 @@ function SuperAdminPortal({ view, setView, onLogout, userId }: { view: string; s
                       {p.features.map((f) => (
                         <div key={f} className="flex items-center gap-2 text-xs text-foreground">
                           <CheckCircle className="w-3.5 h-3.5 shrink-0" style={{ color: p.color }} />
-                          <span>{f}</span>
+                          <span data-no-translate>{f}</span>
                         </div>
                       ))}
                     </div>
@@ -1511,10 +1511,10 @@ function SuperAdminPortal({ view, setView, onLogout, userId }: { view: string; s
                   <tbody>
                     {schools.map((s, i) => (
                       <tr key={s.id} className="border-b border-border last:border-0 hover:bg-muted/30 transition-colors">
-                        <td className="px-4 py-3 text-sm font-semibold text-foreground">{s.name}</td>
-                        <td className="px-4 py-3 text-sm text-foreground">{s.admin}</td>
+                        <td data-no-translate className="px-4 py-3 text-sm font-semibold text-foreground">{s.name}</td>
+                        <td data-no-translate className="px-4 py-3 text-sm text-foreground">{s.admin}</td>
                         <td className="px-4 py-3">
-                          <Badge color={s.plan === "Premium" ? "purple" : s.plan === "Standard" ? "blue" : "gray"}>{formatPlanDisplayName(s.plan)}</Badge>
+                          <span data-no-translate><Badge color={s.plan === "Premium" ? "purple" : s.plan === "Standard" ? "blue" : "gray"}>{formatPlanDisplayName(s.plan)}</Badge></span>
                         </td>
                         <td className="px-4 py-3 text-sm text-foreground">{s.students}</td>
                         <td className="px-4 py-3">
