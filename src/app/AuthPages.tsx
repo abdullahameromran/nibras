@@ -1,29 +1,16 @@
-import { useEffect, useMemo, useState } from "react";
-import {
-  AlertCircle,
-  ArrowRight,
-  BookOpen,
-  Building2,
-  CheckCircle2,
-  Eye,
-  EyeOff,
-  KeyRound,
-  Mail,
-  ShieldCheck,
-  Sparkles,
-  Users,
-} from "lucide-react";
-import { resetPassword as requestPasswordReset, type SchoolSignupPayload, updatePassword } from "@/lib/auth";
-import { LanguageSwitcher, useTranslation } from "./shared";
-import nibrasLogo from "@/imports/WhatsApp_Image_2026-07-16_at_3.02.45_PM.jpeg";
+import { useEffect, useMemo, useState } from "react"
+import { AlertCircle, ArrowRight, BookOpen, Building2, CheckCircle2, Eye, EyeOff, KeyRound, Mail, ShieldCheck, Sparkles, Users } from "lucide-react"
+import { resetPassword as requestPasswordReset, sendMagicLink as requestMagicLink, type SchoolSignupPayload, updatePassword } from "@/lib/auth"
+import { LanguageSwitcher, useTranslation } from "./shared"
+import nibrasLogo from "@/imports/WhatsApp_Image_2026-07-16_at_3.02.45_PM.jpeg"
 
-type AuthMode = "login" | "signup";
-type NoticeType = "error" | "success" | "info";
+type AuthMode = "login" | "signup"
+type NoticeType = "error" | "success" | "info"
 
 type NoticeState = {
-  type: NoticeType;
-  message: string;
-} | null;
+  type: NoticeType
+  message: string
+} | null
 
 const AUTH_TEXT = {
   ar: {
@@ -180,11 +167,11 @@ const AUTH_TEXT = {
     updatingPasswordBusy: "Updating password...",
     backToLogin: "Back to login",
   },
-};
+}
 
 function normalizePath(pathname: string) {
-  const trimmed = pathname.replace(/\/+$/, "");
-  return trimmed || "/";
+  const trimmed = pathname.replace(/\/+$/, "")
+  return trimmed || "/"
 }
 
 function slugify(value: string) {
@@ -192,25 +179,25 @@ function slugify(value: string) {
     .trim()
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "");
+    .replace(/^-+|-+$/g, "")
 }
 
 function NoticeBanner({ notice }: { notice: NoticeState }) {
-  if (!notice) return null;
+  if (!notice) return null
 
   const tone =
     notice.type === "error"
       ? "border-red-200 bg-red-50 text-red-700"
       : notice.type === "success"
         ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-        : "border-purple-200 bg-purple-50 text-purple-700";
+        : "border-purple-200 bg-purple-50 text-purple-700"
 
   return (
     <div className={`flex items-start gap-3 rounded-2xl border px-4 py-3.5 text-sm font-medium shadow-sm transition-all animate-in fade-in ${tone}`}>
       <AlertCircle className="mt-0.5 h-5 w-5 shrink-0" />
       <p className="leading-relaxed">{notice.message}</p>
     </div>
-  );
+  )
 }
 
 function AuthField({
@@ -222,20 +209,24 @@ function AuthField({
   placeholder,
   autoComplete,
   trailingAction,
+  error,
 }: {
-  label: string;
-  icon: React.ReactNode;
-  type?: string;
-  value: string;
-  onChange: (value: string) => void;
-  placeholder: string;
-  autoComplete?: string;
-  trailingAction?: React.ReactNode;
+  label: string
+  icon: React.ReactNode
+  type?: string
+  value: string
+  onChange: (value: string) => void
+  placeholder: string
+  autoComplete?: string
+  trailingAction?: React.ReactNode
+  error?: string | null
 }) {
   return (
     <label className="block space-y-1.5">
       <span className="text-xs font-bold uppercase tracking-wider text-[#1e0f3e]">{label}</span>
-      <div className="flex items-center rounded-2xl border border-purple-900/15 bg-white px-4 py-3.5 shadow-sm transition-all focus-within:border-[#7c3aed] focus-within:ring-2 focus-within:ring-[#7c3aed]/20">
+      <div
+        className={`flex items-center rounded-2xl border bg-white px-4 py-3.5 shadow-sm transition-all focus-within:border-[#7c3aed] focus-within:ring-2 focus-within:ring-[#7c3aed]/20 ${error ? "border-red-400 ring-1 ring-red-200" : "border-purple-900/15"}`}
+      >
         <span className="ml-3 text-purple-600/70 shrink-0">{icon}</span>
         <input
           type={type}
@@ -247,19 +238,16 @@ function AuthField({
         />
         {trailingAction}
       </div>
+      {error && <p className="text-[11px] font-semibold text-red-500 mt-0.5">{error}</p>}
     </label>
-  );
+  )
 }
 
 function AuthShell({ children }: { children: React.ReactNode }) {
-  const { isRTL } = useTranslation();
+  const { isRTL } = useTranslation()
 
   return (
-    <div
-      data-no-translate
-      className="relative min-h-screen overflow-hidden bg-[linear-gradient(135deg,#180838_0%,#2e1065_40%,#4c1d95_70%,#6d28d9_100%)]"
-      dir={isRTL ? "rtl" : "ltr"}
-    >
+    <div data-no-translate className="relative min-h-screen overflow-hidden bg-[linear-gradient(135deg,#180838_0%,#2e1065_40%,#4c1d95_70%,#6d28d9_100%)]" dir={isRTL ? "rtl" : "ltr"}>
       {/* Decorative ambient background glows */}
       <div className="pointer-events-none absolute inset-0 overflow-hidden">
         <div className="absolute left-[-10rem] top-[-10rem] h-96 w-96 rounded-full bg-[#7c3aed]/25 blur-3xl" />
@@ -273,26 +261,22 @@ function AuthShell({ children }: { children: React.ReactNode }) {
         </div>
       </div>
     </div>
-  );
+  )
 }
 
 function MarketingPanel() {
-  const { language } = useTranslation();
-  const t = AUTH_TEXT[language === "ar" ? "ar" : "en"];
+  const { language } = useTranslation()
+  const t = AUTH_TEXT[language === "ar" ? "ar" : "en"]
 
   return (
     <div className="relative overflow-hidden bg-[linear-gradient(160deg,#1e0f3e_0%,#2e1065_60%,#4c1d95_100%)] px-6 py-8 text-white sm:px-10 sm:py-10 lg:px-12 lg:py-12 flex flex-col justify-between">
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(124,58,237,0.25),transparent_40%),radial-gradient(circle_at_bottom_left,rgba(245,158,11,0.18),transparent_40%)] pointer-events-none" />
-      
+
       <div className="relative z-10">
         {/* Header bar with Nibras Logo & Language Switcher */}
         <div className="mb-10 flex items-center justify-between gap-4">
           <div className="inline-flex items-center gap-3 rounded-2xl border border-white/20 bg-white/10 px-4 py-2 backdrop-blur-md">
-            <img
-              src={nibrasLogo}
-              alt="نبراس"
-              className="h-9 w-auto object-contain rounded-xl bg-white p-1"
-            />
+            <img src={nibrasLogo} alt="نبراس" className="h-9 w-auto object-contain rounded-xl bg-white p-1" />
             <span className="font-bold text-sm tracking-wide text-white">{t.brandName}</span>
           </div>
           <LanguageSwitcher />
@@ -304,12 +288,8 @@ function MarketingPanel() {
             <Sparkles className="h-4 w-4" />
             {t.secureLoginBadge}
           </div>
-          <h1 className="text-3xl font-extrabold leading-tight text-white sm:text-4xl lg:text-5xl">
-            {t.marketingTitle}
-          </h1>
-          <p className="mt-4 text-sm leading-relaxed text-purple-100/90 sm:text-base">
-            {t.marketingSubtitle}
-          </p>
+          <h1 className="text-3xl font-extrabold leading-tight text-white sm:text-4xl lg:text-5xl">{t.marketingTitle}</h1>
+          <p className="mt-4 text-sm leading-relaxed text-purple-100/90 sm:text-base">{t.marketingSubtitle}</p>
         </div>
 
         {/* Feature Cards Grid */}
@@ -358,7 +338,7 @@ function MarketingPanel() {
         </div>
       </div>
     </div>
-  );
+  )
 }
 
 export function AuthPage({
@@ -366,21 +346,21 @@ export function AuthPage({
   onSignUpSchool,
   authError,
 }: {
-  onLogin: (email: string, password: string) => Promise<string | null>;
-  onSignUpSchool: (payload: SchoolSignupPayload) => Promise<string | null>;
-  authError?: string | null;
+  onLogin: (email: string, password: string) => Promise<string | null>
+  onSignUpSchool: (payload: SchoolSignupPayload) => Promise<string | null>
+  authError?: string | null
 }) {
-  const { language, isRTL } = useTranslation();
-  const t = AUTH_TEXT[language === "ar" ? "ar" : "en"];
+  const { language, isRTL } = useTranslation()
+  const t = AUTH_TEXT[language === "ar" ? "ar" : "en"]
 
-  const [mode, setMode] = useState<AuthMode>(() => (normalizePath(window.location.pathname) === "/signup" ? "signup" : "login"));
-  const [notice, setNotice] = useState<NoticeState>(null);
-  const [isBusy, setIsBusy] = useState(false);
-  const [showReset, setShowReset] = useState(false);
-  const [showLoginPassword, setShowLoginPassword] = useState(false);
-  const [showSignupPassword, setShowSignupPassword] = useState(false);
-  const [login, setLogin] = useState({ email: "", password: "" });
-  const [resetEmail, setResetEmail] = useState("");
+  const [mode, setMode] = useState<AuthMode>(() => (normalizePath(window.location.pathname) === "/signup" ? "signup" : "login"))
+  const [notice, setNotice] = useState<NoticeState>(null)
+  const [isBusy, setIsBusy] = useState(false)
+  const [showReset, setShowReset] = useState(false)
+  const [showLoginPassword, setShowLoginPassword] = useState(false)
+  const [showSignupPassword, setShowSignupPassword] = useState(false)
+  const [login, setLogin] = useState({ email: "", password: "" })
+  const [resetEmail, setResetEmail] = useState("")
 
   const [signup, setSignup] = useState({
     schoolName: "",
@@ -391,123 +371,148 @@ export function AuthPage({
     password: "",
     confirmPassword: "",
     timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "Africa/Cairo",
-  });
+  })
+
+  const [signupErrors, setSignupErrors] = useState<{
+    schoolName?: string | null
+    firstName?: string | null
+    lastName?: string | null
+    email?: string | null
+    password?: string | null
+    confirmPassword?: string | null
+  }>({})
 
   useEffect(() => {
     const handlePopState = () => {
-      const path = normalizePath(window.location.pathname);
-      setMode(path === "/signup" ? "signup" : "login");
-    };
+      const path = normalizePath(window.location.pathname)
+      setMode(path === "/signup" ? "signup" : "login")
+    }
 
-    window.addEventListener("popstate", handlePopState);
-    return () => window.removeEventListener("popstate", handlePopState);
-  }, []);
+    window.addEventListener("popstate", handlePopState)
+    return () => window.removeEventListener("popstate", handlePopState)
+  }, [])
 
-  const suggestedSlug = useMemo(() => slugify(signup.schoolName), [signup.schoolName]);
+  const suggestedSlug = useMemo(() => slugify(signup.schoolName), [signup.schoolName])
 
   const switchMode = (nextMode: AuthMode) => {
-    setMode(nextMode);
-    setNotice(null);
-    setShowReset(false);
-    const nextPath = nextMode === "signup" ? "/signup" : "/login";
+    setMode(nextMode)
+    setNotice(null)
+    setShowReset(false)
+    const nextPath = nextMode === "signup" ? "/signup" : "/login"
     if (normalizePath(window.location.pathname) !== nextPath) {
-      window.history.replaceState(null, "", nextPath);
+      window.history.replaceState(null, "", nextPath)
     }
-  };
+  }
 
   const handleLogin = async (event: React.FormEvent) => {
-    event.preventDefault();
+    event.preventDefault()
     if (!login.email.trim() || !login.password.trim()) {
       setNotice({
         type: "error",
         message: language === "ar" ? "يرجى إدخال البريد الإلكتروني وكلمة المرور للمتابعة." : "Enter your email address and password to continue.",
-      });
-      return;
+      })
+      return
     }
 
-    setIsBusy(true);
-    const error = await onLogin(login.email.trim(), login.password);
-    setIsBusy(false);
+    setIsBusy(true)
+    const error = await onLogin(login.email.trim(), login.password)
+    setIsBusy(false)
 
     if (error) {
-      setNotice({ type: "error", message: error });
-      return;
+      setNotice({ type: "error", message: error })
+      return
     }
 
     setNotice({
       type: "success",
       message: language === "ar" ? "تم تسجيل الدخول بنجاح. جاري التوجيه..." : "Signing you in now.",
-    });
-  };
+    })
+  }
 
   const handleResetRequest = async (event: React.FormEvent) => {
-    event.preventDefault();
+    event.preventDefault()
     if (!resetEmail.trim()) {
       setNotice({
         type: "error",
         message: language === "ar" ? "يرجى إدخال البريد الإلكتروني لاستلام تعليمات التعيين." : "Enter your email address to receive reset instructions.",
-      });
-      return;
+      })
+      return
     }
 
-    setIsBusy(true);
-    const error = await requestPasswordReset(resetEmail.trim());
-    setIsBusy(false);
+    setIsBusy(true)
+    const error = await requestPasswordReset(resetEmail.trim())
+    setIsBusy(false)
 
     if (error) {
-      setNotice({ type: "error", message: error });
-      return;
+      setNotice({ type: "error", message: error })
+      return
     }
 
     setNotice({
       type: "success",
       message: language === "ar" ? "تم إرسال رابط تعيين كلمة المرور إلى بريدك الإلكتروني." : "Password reset instructions were sent to your email address.",
-    });
-    setShowReset(false);
-  };
+    })
+    setShowReset(false)
+  }
 
-  const handleSchoolSignup = async (event: React.FormEvent) => {
-    event.preventDefault();
-
-    if (
-      !signup.schoolName.trim() ||
-      !signup.firstName.trim() ||
-      !signup.lastName.trim() ||
-      !signup.email.trim() ||
-      !signup.password
-    ) {
+  const handleMagicLinkRequest = async () => {
+    if (!login.email.trim()) {
       setNotice({
         type: "error",
-        message: language === "ar" ? "يرجى استكمال جميع البيانات المطلوبة للمدرسة والمدير." : "Complete all required school and admin fields before creating the account.",
-      });
-      return;
+        message: language === "ar" ? "يرجى إدخال البريد الإلكتروني أولاً لإرسال رابط الدخول." : "Enter your email address first to receive a magic link.",
+      })
+      return
+    }
+
+    setIsBusy(true)
+    const error = await requestMagicLink(login.email.trim())
+    setIsBusy(false)
+
+    if (error) {
+      setNotice({ type: "error", message: error })
+      return
+    }
+
+    setNotice({
+      type: "success",
+      message: language === "ar" ? "تم إرسال رابط الدخول المباشر إلى بريدك الإلكتروني." : "Magic sign-in link sent to your email address.",
+    })
+  }
+
+  const handleSchoolSignup = async (event: React.FormEvent) => {
+    event.preventDefault()
+
+    const fieldErrors: typeof signupErrors = {}
+    if (!signup.schoolName.trim()) fieldErrors.schoolName = language === "ar" ? "اسم المدرسة مطلوب." : "School Name is required."
+    if (!signup.firstName.trim()) fieldErrors.firstName = language === "ar" ? "الاسم الأول للمدير مطلوب." : "Admin First Name is required."
+    if (!signup.lastName.trim()) fieldErrors.lastName = language === "ar" ? "اسم العائلة للمدير مطلوب." : "Admin Last Name is required."
+    if (!signup.email.trim()) fieldErrors.email = language === "ar" ? "البريد الإلكتروني للمدير مطلوب." : "Admin Email is required."
+    if (!signup.password) fieldErrors.password = language === "ar" ? "كلمة المرور مطلوبة." : "Password is required."
+
+    if (Object.keys(fieldErrors).length > 0) {
+      setSignupErrors(fieldErrors)
+      setNotice(null)
+      return
     }
 
     if (!/\S+@\S+\.\S+/.test(signup.email)) {
-      setNotice({
-        type: "error",
-        message: language === "ar" ? "يرجى إدخال بريد إلكتروني صحيح للمدير." : "Enter a valid admin email address.",
-      });
-      return;
+      setSignupErrors({ email: language === "ar" ? "يرجى إدخال بريد إلكتروني صحيح." : "Enter a valid admin email address." })
+      return
     }
 
     if (signup.password.length < 6) {
-      setNotice({
-        type: "error",
-        message: language === "ar" ? "يجب أن تتكون كلمة المرور من 6 أحرف على الأقل." : "Use a password with at least 6 characters.",
-      });
-      return;
+      setSignupErrors({ password: language === "ar" ? "يجب أن تتكون كلمة المرور من 6 أحرف على الأقل." : "Use a password with at least 6 characters." })
+      return
     }
 
     if (signup.password !== signup.confirmPassword) {
-      setNotice({
-        type: "error",
-        message: language === "ar" ? "تأكيد كلمة المرور غير متطابق." : "Password confirmation does not match.",
-      });
-      return;
+      setSignupErrors({ confirmPassword: language === "ar" ? "تأكيد كلمة المرور غير متطابق." : "Password confirmation does not match." })
+      return
     }
 
-    setIsBusy(true);
+    setSignupErrors({})
+
+    setIsBusy(true)
     const error = await onSignUpSchool({
       school_name: signup.schoolName.trim(),
       slug: signup.slug.trim() || undefined,
@@ -516,19 +521,19 @@ export function AuthPage({
       admin_password: signup.password,
       admin_first_name: signup.firstName.trim(),
       admin_last_name: signup.lastName.trim(),
-    });
-    setIsBusy(false);
+    })
+    setIsBusy(false)
 
     if (error) {
-      setNotice({ type: "error", message: error });
-      return;
+      setNotice({ type: "error", message: error })
+      return
     }
 
     setNotice({
       type: "success",
       message: language === "ar" ? "تم إنشاء حساب المدرسة بنجاح! جاري التوجيه إلى لوحة التحكم..." : "Your school workspace is ready. Redirecting to the dashboard.",
-    });
-  };
+    })
+  }
 
   return (
     <AuthShell>
@@ -540,15 +545,9 @@ export function AuthPage({
           {/* Top Form Header */}
           <div className="mb-6 flex items-center justify-between gap-4">
             <div>
-              <span className="inline-block rounded-full bg-purple-100 px-3 py-1 text-xs font-bold text-purple-700">
-                {t.cardBadge}
-              </span>
-              <h2 className="mt-2 text-2xl sm:text-3xl font-black text-[#1e0f3e]">
-                {mode === "login" ? t.loginTitle : t.signupTitle}
-              </h2>
-              <p className="mt-2 text-xs sm:text-sm leading-relaxed text-slate-500 font-medium">
-                {mode === "login" ? t.loginSubtitle : t.signupSubtitle}
-              </p>
+              <span className="inline-block rounded-full bg-purple-100 px-3 py-1 text-xs font-bold text-purple-700">{t.cardBadge}</span>
+              <h2 className="mt-2 text-2xl sm:text-3xl font-black text-[#1e0f3e]">{mode === "login" ? t.loginTitle : t.signupTitle}</h2>
+              <p className="mt-2 text-xs sm:text-sm leading-relaxed text-slate-500 font-medium">{mode === "login" ? t.loginSubtitle : t.signupSubtitle}</p>
             </div>
             <div className="hidden rounded-2xl border border-purple-100 bg-purple-50/50 p-3 text-purple-700 sm:block shrink-0">
               <ShieldCheck className="h-7 w-7 text-purple-600" />
@@ -561,9 +560,7 @@ export function AuthPage({
               type="button"
               onClick={() => switchMode("login")}
               className={`rounded-xl px-4 py-2.5 text-sm font-bold transition-all ${
-                mode === "login"
-                  ? "bg-white text-[#1e0f3e] shadow-md shadow-purple-900/5"
-                  : "text-purple-700/60 hover:text-purple-900"
+                mode === "login" ? "bg-white text-[#1e0f3e] shadow-md shadow-purple-900/5" : "text-purple-700/60 hover:text-purple-900"
               }`}
             >
               {t.tabLogin}
@@ -572,9 +569,7 @@ export function AuthPage({
               type="button"
               onClick={() => switchMode("signup")}
               className={`rounded-xl px-4 py-2.5 text-sm font-bold transition-all ${
-                mode === "signup"
-                  ? "bg-white text-[#1e0f3e] shadow-md shadow-purple-900/5"
-                  : "text-purple-700/60 hover:text-purple-900"
+                mode === "signup" ? "bg-white text-[#1e0f3e] shadow-md shadow-purple-900/5" : "text-purple-700/60 hover:text-purple-900"
               }`}
             >
               {t.tabSignup}
@@ -594,8 +589,8 @@ export function AuthPage({
                     type="email"
                     value={login.email}
                     onChange={(value) => {
-                      setLogin((current) => ({ ...current, email: value }));
-                      setNotice(null);
+                      setLogin((current) => ({ ...current, email: value }))
+                      setNotice(null)
                     }}
                     placeholder={t.emailPlaceholder}
                     autoComplete="email"
@@ -606,8 +601,8 @@ export function AuthPage({
                     type={showLoginPassword ? "text" : "password"}
                     value={login.password}
                     onChange={(value) => {
-                      setLogin((current) => ({ ...current, password: value }));
-                      setNotice(null);
+                      setLogin((current) => ({ ...current, password: value }))
+                      setNotice(null)
                     }}
                     placeholder={t.passwordPlaceholder}
                     autoComplete="current-password"
@@ -628,8 +623,8 @@ export function AuthPage({
                     <button
                       type="button"
                       onClick={() => {
-                        setShowReset((current) => !current);
-                        setNotice(null);
+                        setShowReset((current) => !current)
+                        setNotice(null)
                       }}
                       className="font-bold text-purple-600 transition hover:text-purple-800 shrink-0"
                     >
@@ -649,6 +644,23 @@ export function AuthPage({
                     <span>{isBusy ? t.loginBusy : t.loginButton}</span>
                     {!isBusy && <ArrowRight className={`h-4 w-4 ${isRTL ? "rotate-180" : ""}`} />}
                   </button>
+
+                  <div className="relative my-3 text-center">
+                    <div className="absolute inset-0 flex items-center">
+                      <div className="w-full border-t border-purple-100" />
+                    </div>
+                    <span className="relative bg-purple-50/20 px-3 text-[11px] font-bold text-slate-400 uppercase tracking-wider">{language === "ar" ? "أو" : "OR"}</span>
+                  </div>
+
+                  <button
+                    type="button"
+                    disabled={isBusy}
+                    onClick={handleMagicLinkRequest}
+                    className="w-full rounded-2xl border border-purple-200 bg-white py-3 px-4 text-xs font-bold text-purple-700 transition hover:bg-purple-50 hover:border-purple-300 disabled:opacity-70 shadow-sm flex items-center justify-center gap-2"
+                  >
+                    <Mail className="h-4 w-4 text-purple-500" />
+                    <span>{language === "ar" ? "إرسال رابط الدخول المباشر (Magic Link)" : "Send Magic Link for passwordless login"}</span>
+                  </button>
                 </form>
 
                 {showReset && (
@@ -661,8 +673,8 @@ export function AuthPage({
                       type="email"
                       value={resetEmail}
                       onChange={(value) => {
-                        setResetEmail(value);
-                        setNotice(null);
+                        setResetEmail(value)
+                        setNotice(null)
                       }}
                       placeholder={t.emailPlaceholder}
                       autoComplete="email"
@@ -690,10 +702,12 @@ export function AuthPage({
                           ...current,
                           schoolName: value,
                           slug: current.slug || slugify(value),
-                        }));
-                        setNotice(null);
+                        }))
+                        setNotice(null)
+                        setSignupErrors((e) => ({ ...e, schoolName: null }))
                       }}
                       placeholder={t.schoolNamePlaceholder}
+                      error={signupErrors.schoolName}
                     />
                   </div>
 
@@ -702,11 +716,13 @@ export function AuthPage({
                     icon={<Users className="h-5 w-5" />}
                     value={signup.firstName}
                     onChange={(value) => {
-                      setSignup((current) => ({ ...current, firstName: value }));
-                      setNotice(null);
+                      setSignup((current) => ({ ...current, firstName: value }))
+                      setNotice(null)
+                      setSignupErrors((e) => ({ ...e, firstName: null }))
                     }}
                     placeholder={t.firstNamePlaceholder}
                     autoComplete="given-name"
+                    error={signupErrors.firstName}
                   />
 
                   <AuthField
@@ -714,11 +730,13 @@ export function AuthPage({
                     icon={<Users className="h-5 w-5" />}
                     value={signup.lastName}
                     onChange={(value) => {
-                      setSignup((current) => ({ ...current, lastName: value }));
-                      setNotice(null);
+                      setSignup((current) => ({ ...current, lastName: value }))
+                      setNotice(null)
+                      setSignupErrors((e) => ({ ...e, lastName: null }))
                     }}
                     placeholder={t.lastNamePlaceholder}
                     autoComplete="family-name"
+                    error={signupErrors.lastName}
                   />
 
                   <div className="sm:col-span-2">
@@ -728,11 +746,13 @@ export function AuthPage({
                       type="email"
                       value={signup.email}
                       onChange={(value) => {
-                        setSignup((current) => ({ ...current, email: value }));
-                        setNotice(null);
+                        setSignup((current) => ({ ...current, email: value }))
+                        setNotice(null)
+                        setSignupErrors((e) => ({ ...e, email: null }))
                       }}
                       placeholder={t.adminEmailPlaceholder}
                       autoComplete="email"
+                      error={signupErrors.email}
                     />
                   </div>
 
@@ -742,8 +762,8 @@ export function AuthPage({
                       icon={<Sparkles className="h-5 w-5" />}
                       value={signup.slug}
                       onChange={(value) => {
-                        setSignup((current) => ({ ...current, slug: slugify(value) }));
-                        setNotice(null);
+                        setSignup((current) => ({ ...current, slug: slugify(value) }))
+                        setNotice(null)
                       }}
                       placeholder={suggestedSlug || t.schoolSlugPlaceholder}
                     />
@@ -756,11 +776,13 @@ export function AuthPage({
                     type={showSignupPassword ? "text" : "password"}
                     value={signup.password}
                     onChange={(value) => {
-                      setSignup((current) => ({ ...current, password: value }));
-                      setNotice(null);
+                      setSignup((current) => ({ ...current, password: value }))
+                      setNotice(null)
+                      setSignupErrors((e) => ({ ...e, password: null }))
                     }}
                     placeholder={t.createPasswordPlaceholder}
                     autoComplete="new-password"
+                    error={signupErrors.password}
                     trailingAction={
                       <button
                         type="button"
@@ -779,11 +801,13 @@ export function AuthPage({
                     type={showSignupPassword ? "text" : "password"}
                     value={signup.confirmPassword}
                     onChange={(value) => {
-                      setSignup((current) => ({ ...current, confirmPassword: value }));
-                      setNotice(null);
+                      setSignup((current) => ({ ...current, confirmPassword: value }))
+                      setNotice(null)
+                      setSignupErrors((e) => ({ ...e, confirmPassword: null }))
                     }}
                     placeholder={t.confirmPasswordPlaceholder}
                     autoComplete="new-password"
+                    error={signupErrors.confirmPassword}
                   />
                 </div>
 
@@ -823,60 +847,60 @@ export function AuthPage({
         </div>
       </div>
     </AuthShell>
-  );
+  )
 }
 
 export function ResetPasswordPage() {
-  const { language, isRTL } = useTranslation();
-  const t = AUTH_TEXT[language === "ar" ? "ar" : "en"];
+  const { language, isRTL } = useTranslation()
+  const t = AUTH_TEXT[language === "ar" ? "ar" : "en"]
 
-  const [password, setPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
-  const [isBusy, setIsBusy] = useState(false);
-  const [notice, setNotice] = useState<NoticeState>(null);
+  const [password, setPassword] = useState("")
+  const [confirmPassword, setConfirmPassword] = useState("")
+  const [showPassword, setShowPassword] = useState(false)
+  const [isBusy, setIsBusy] = useState(false)
+  const [notice, setNotice] = useState<NoticeState>(null)
 
   const handleSubmit = async (event: React.FormEvent) => {
-    event.preventDefault();
+    event.preventDefault()
 
     if (!password) {
       setNotice({
         type: "error",
         message: language === "ar" ? "يرجى إدخال كلمة المرور الجديدة." : "Enter your new password.",
-      });
-      return;
+      })
+      return
     }
 
     if (password.length < 6) {
       setNotice({
         type: "error",
         message: language === "ar" ? "يجب أن تكون كلمة المرور 6 أحرف على الأقل." : "Use a password with at least 6 characters.",
-      });
-      return;
+      })
+      return
     }
 
     if (password !== confirmPassword) {
       setNotice({
         type: "error",
         message: language === "ar" ? "تأكيد كلمة المرور غير متطابق." : "Password confirmation does not match.",
-      });
-      return;
+      })
+      return
     }
 
-    setIsBusy(true);
-    const error = await updatePassword(password);
-    setIsBusy(false);
+    setIsBusy(true)
+    const error = await updatePassword(password)
+    setIsBusy(false)
 
     if (error) {
-      setNotice({ type: "error", message: error });
-      return;
+      setNotice({ type: "error", message: error })
+      return
     }
 
     setNotice({
       type: "success",
       message: language === "ar" ? "تم تحديث كلمة المرور بنجاح. يمكنك العودة لتسجيل الدخول." : "Your password has been updated. You can return to login now.",
-    });
-  };
+    })
+  }
 
   return (
     <AuthShell>
@@ -886,9 +910,7 @@ export function ResetPasswordPage() {
         <div className="mx-auto flex h-full w-full max-w-xl flex-col justify-center">
           <div className="rounded-3xl border border-purple-100 bg-purple-50/20 p-6 shadow-sm sm:p-7">
             <div className="mb-6 text-right">
-              <span className="inline-block rounded-full bg-purple-100 px-3 py-1 text-xs font-bold text-purple-700">
-                {t.cardBadge}
-              </span>
+              <span className="inline-block rounded-full bg-purple-100 px-3 py-1 text-xs font-bold text-purple-700">{t.cardBadge}</span>
               <h2 className="mt-2 text-2xl font-black text-[#1e0f3e]">{t.resetHeaderTitle}</h2>
               <p className="mt-2 text-xs sm:text-sm text-slate-500 font-medium">{t.resetHeaderDesc}</p>
             </div>
@@ -903,8 +925,8 @@ export function ResetPasswordPage() {
                   type={showPassword ? "text" : "password"}
                   value={password}
                   onChange={(value) => {
-                    setPassword(value);
-                    setNotice(null);
+                    setPassword(value)
+                    setNotice(null)
                   }}
                   placeholder={t.newPasswordPlaceholder}
                   autoComplete="new-password"
@@ -926,8 +948,8 @@ export function ResetPasswordPage() {
                   type={showPassword ? "text" : "password"}
                   value={confirmPassword}
                   onChange={(value) => {
-                    setConfirmPassword(value);
-                    setNotice(null);
+                    setConfirmPassword(value)
+                    setNotice(null)
                   }}
                   placeholder={t.confirmNewPasswordPlaceholder}
                   autoComplete="new-password"
@@ -958,5 +980,5 @@ export function ResetPasswordPage() {
         </div>
       </div>
     </AuthShell>
-  );
+  )
 }

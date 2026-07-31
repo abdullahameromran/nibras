@@ -1,40 +1,47 @@
-import supabase from "./supabase";
+import supabase from "./supabase"
 
-const EDGE_URL = import.meta.env.VITE_SUPABASE_URL + "/functions/v1";
+const EDGE_URL = import.meta.env.VITE_SUPABASE_URL + "/functions/v1"
 
-export type UserRole = "super_admin" | "school_admin" | "teacher" | "student" | "parent";
+/**
+ * The canonical public URL of the app. Set VITE_SITE_URL in your .env / Vercel
+ * environment variables to your production domain (e.g. https://www.nibrasedtech.com).
+ * Falls back to the current window origin so local dev keeps working.
+ */
+export const SITE_URL: string = (import.meta.env.VITE_SITE_URL as string | undefined) ?? (typeof window !== "undefined" ? window.location.origin : "")
+
+export type UserRole = "super_admin" | "school_admin" | "teacher" | "student" | "parent"
 
 export interface UserRoleRecord {
-  id: string;
-  user_id: string;
-  school_id: string | null;
-  role: UserRole;
-  is_active: boolean;
+  id: string
+  user_id: string
+  school_id: string | null
+  role: UserRole
+  is_active: boolean
 }
 
 export interface AuthUser {
-  id: string;
-  email: string;
-  first_name?: string;
-  last_name?: string;
-  avatar_url?: string;
-  is_active?: boolean;
+  id: string
+  email: string
+  first_name?: string
+  last_name?: string
+  avatar_url?: string
+  is_active?: boolean
 }
 
 export interface SchoolSignupPayload {
-  school_name: string;
-  slug?: string;
-  timezone?: string;
-  admin_email: string;
-  admin_password: string;
-  admin_first_name: string;
-  admin_last_name: string;
+  school_name: string
+  slug?: string
+  timezone?: string
+  admin_email: string
+  admin_password: string
+  admin_first_name: string
+  admin_last_name: string
 }
 
 /** Sign in with email + password. Returns error string or null. */
 export async function signIn(email: string, password: string): Promise<string | null> {
-  const { error } = await supabase.auth.signInWithPassword({ email, password });
-  return error ? error.message : null;
+  const { error } = await supabase.auth.signInWithPassword({ email, password })
+  return error ? error.message : null
 }
 
 /** Create a school and its first school-admin account through the public signup edge function. */
@@ -44,95 +51,88 @@ export async function signUpSchool(payload: SchoolSignupPayload): Promise<string
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
-    });
-    const data = await res.json().catch(() => null);
+    })
+    const data = await res.json().catch(() => null)
     if (!res.ok) {
-      return typeof data?.error === "string" ? data.error : "Could not create your school account right now.";
+      return typeof data?.error === "string" ? data.error : "Could not create your school account right now."
     }
-    return null;
+    return null
   } catch (error) {
-    return error instanceof Error ? error.message : "Could not connect to the signup service.";
+    return error instanceof Error ? error.message : "Could not connect to the signup service."
   }
 }
 
 /** Sign out the current user. */
 export async function signOut(): Promise<void> {
-  await supabase.auth.signOut();
+  await supabase.auth.signOut()
 }
 
 /** Send a password-reset email. */
 export async function resetPassword(email: string): Promise<string | null> {
+  const redirectTo = `${SITE_URL}/reset-password`
   const { error } = await supabase.auth.resetPasswordForEmail(email, {
-    redirectTo: `${window.location.origin}/reset`,
-  });
-  return error ? error.message : null;
+    redirectTo,
+  })
+  return error ? error.message : null
+}
+
+/** Send a Magic Link (passwordless login) email. */
+export async function sendMagicLink(email: string): Promise<string | null> {
+  const { error } = await supabase.auth.signInWithOtp({
+    email,
+    options: {
+      emailRedirectTo: `${SITE_URL}/`,
+    },
+  })
+  return error ? error.message : null
 }
 
 /** Update the authenticated user's password (called after reset redirect). */
 export async function updatePassword(newPassword: string): Promise<string | null> {
-  const { error } = await supabase.auth.updateUser({ password: newPassword });
-  return error ? error.message : null;
+  const { error } = await supabase.auth.updateUser({ password: newPassword })
+  return error ? error.message : null
 }
 
 /** Fetch all role records for the currently authenticated user. */
 export async function fetchUserRoles(): Promise<UserRoleRecord[]> {
-  const { data: sessionData } = await supabase.auth.getSession();
-  const currentUserId = sessionData?.session?.user?.id ?? null;
-  if (!currentUserId) return [];
+  const { data: sessionData } = await supabase.auth.getSession()
+  const currentUserId = sessionData?.session?.user?.id ?? null
+  if (!currentUserId) return []
 
-  const { data, error } = await supabase
-    .from("user_school_roles")
-    .select("id, user_id, school_id, role, is_active")
-    .eq("user_id", currentUserId)
-    .eq("is_active", true);
-  if (error) return [];
+  const { data, error } = await supabase.from("user_school_roles").select("id, user_id, school_id, role, is_active").eq("user_id", currentUserId).eq("is_active", true)
+  if (error) return []
 
-  const roleRows = (data as UserRoleRecord[] | null) ?? [];
-  const schoolIds = Array.from(
-    new Set(
-      roleRows
-        .map((row) => row.school_id)
-        .filter((schoolId): schoolId is string => Boolean(schoolId)),
-    ),
-  );
+  const roleRows = (data as UserRoleRecord[] | null) ?? []
+  const schoolIds = Array.from(new Set(roleRows.map((row) => row.school_id).filter((schoolId): schoolId is string => Boolean(schoolId))))
 
-  const schoolStatusById = new Map<string, { is_active: boolean; deleted_at: string | null }>();
+  const schoolStatusById = new Map<string, { is_active: boolean; deleted_at: string | null }>()
 
   if (schoolIds.length > 0) {
-    const { data: schoolData } = await supabase
-      .from("schools")
-      .select("id, is_active, deleted_at")
-      .in("id", schoolIds);
+    const { data: schoolData } = await supabase.from("schools").select("id, is_active, deleted_at").in("id", schoolIds)
 
-    ((schoolData as Array<{ id: string; is_active: boolean; deleted_at: string | null }> | null) ?? []).forEach(
-      (school) => {
-        schoolStatusById.set(school.id, {
-          is_active: school.is_active,
-          deleted_at: school.deleted_at,
-        });
-      },
-    );
+    ;((schoolData as Array<{ id: string; is_active: boolean; deleted_at: string | null }> | null) ?? []).forEach((school) => {
+      schoolStatusById.set(school.id, {
+        is_active: school.is_active,
+        deleted_at: school.deleted_at,
+      })
+    })
   }
 
   return roleRows.filter((row) => {
-    if (row.role === "super_admin") return true;
-    if (!row.school_id) return true;
-    const school = schoolStatusById.get(row.school_id);
-    if (!school) return true;
-    return school.is_active && !school.deleted_at;
-  });
+    if (row.role === "super_admin") return true
+    if (!row.school_id) return true
+    const school = schoolStatusById.get(row.school_id)
+    if (!school) return true
+    return school.is_active && !school.deleted_at
+  })
 }
 
 /** Fetch the profile record for the current user. */
 export async function fetchCurrentProfile(): Promise<AuthUser | null> {
-  const { data: sessionData } = await supabase.auth.getSession();
-  if (!sessionData?.session?.user) return null;
-  const user = sessionData.session.user;
-  const { data, error } = await supabase
-    .from("profiles")
-    .select("id, email, first_name, last_name, avatar_url, is_active")
-    .eq("id", user.id)
-    .maybeSingle();
-  if (error || !data) return { id: user.id, email: user.email ?? "" };
-  return data as AuthUser;
+  const { data: sessionData } = await supabase.auth.getSession()
+  if (!sessionData?.session?.user) return null
+  const user = sessionData.session.user
+  const { data, error } = await supabase.from("profiles").select("id, email, first_name, last_name, avatar_url, is_active").eq("id", user.id).maybeSingle()
+  if (error || !data) return { id: user.id, email: user.email ?? "" }
+  return data as AuthUser
 }

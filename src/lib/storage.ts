@@ -1,314 +1,287 @@
-import supabase from "./supabase";
+import supabase from "./supabase"
+import { SITE_URL } from "./auth"
 
-const EDGE_URL = import.meta.env.VITE_SUPABASE_URL + "/functions/v1";
-const STORAGE_PUBLIC_PREFIX = "/storage/v1/object/public/";
-const STORAGE_SIGNED_PREFIX = "/storage/v1/object/sign/";
-const STORAGE_AUTHENTICATED_PREFIX = "/storage/v1/object/authenticated/";
+const EDGE_URL = import.meta.env.VITE_SUPABASE_URL + "/functions/v1"
+const STORAGE_PUBLIC_PREFIX = "/storage/v1/object/public/"
+const STORAGE_SIGNED_PREFIX = "/storage/v1/object/sign/"
+const STORAGE_AUTHENTICATED_PREFIX = "/storage/v1/object/authenticated/"
 
 function hasAbsoluteScheme(value: string) {
-  return /^[a-z][a-z\d+.-]*:/i.test(value);
+  return /^[a-z][a-z\d+.-]*:/i.test(value)
 }
 
 function decodeStoragePath(value: string) {
   try {
-    return decodeURIComponent(value);
+    return decodeURIComponent(value)
   } catch {
-    return value;
+    return value
   }
 }
 
 function extractStorageObjectPath(bucket: string, rawUrl: string) {
-  const trimmed = rawUrl.trim();
-  if (!trimmed) return null;
+  const trimmed = rawUrl.trim()
+  if (!trimmed) return null
 
-  const normalized = trimmed.startsWith("//") ? `https:${trimmed}` : trimmed;
-  const withoutOrigin = normalized.replace(/^https?:\/\/[^/]+/i, "");
-  const storageMatch = withoutOrigin.match(
-    /\/storage\/v1\/object\/(?:public|sign|authenticated)\/([^/?#]+)\/([^?#]+)/i,
-  );
+  const normalized = trimmed.startsWith("//") ? `https:${trimmed}` : trimmed
+  const withoutOrigin = normalized.replace(/^https?:\/\/[^/]+/i, "")
+  const storageMatch = withoutOrigin.match(/\/storage\/v1\/object\/(?:public|sign|authenticated)\/([^/?#]+)\/([^?#]+)/i)
 
   if (storageMatch) {
-    const [, matchedBucket, matchedPath] = storageMatch;
-    if (matchedBucket !== bucket) return null;
-    return decodeStoragePath(matchedPath.replace(/^\/+/, ""));
+    const [, matchedBucket, matchedPath] = storageMatch
+    if (matchedBucket !== bucket) return null
+    return decodeStoragePath(matchedPath.replace(/^\/+/, ""))
   }
 
-  const cleaned = normalized.replace(/^\/+/, "");
+  const cleaned = normalized.replace(/^\/+/, "")
   if (cleaned.startsWith(`${bucket}/`)) {
-    return decodeStoragePath(cleaned.slice(bucket.length + 1));
+    return decodeStoragePath(cleaned.slice(bucket.length + 1))
   }
 
   if (hasAbsoluteScheme(normalized)) {
-    return null;
+    return null
   }
 
-  return decodeStoragePath(cleaned);
+  return decodeStoragePath(cleaned)
 }
 
 function buildPublicStorageUrl(bucket: string, rawPath: string) {
-  const cleanedPath = rawPath.replace(/^\/+/, "");
-  const bucketPath = cleanedPath.startsWith(`${bucket}/`)
-    ? cleanedPath.slice(bucket.length + 1)
-    : cleanedPath;
-  const { data } = supabase.storage.from(bucket).getPublicUrl(bucketPath);
-  return data.publicUrl;
+  const cleanedPath = rawPath.replace(/^\/+/, "")
+  const bucketPath = cleanedPath.startsWith(`${bucket}/`) ? cleanedPath.slice(bucket.length + 1) : cleanedPath
+  const { data } = supabase.storage.from(bucket).getPublicUrl(bucketPath)
+  return data.publicUrl
 }
 
 async function findExistingStoragePath(bucket: string, rawPath: string) {
-  const cleanedPath = rawPath.replace(/^\/+/, "");
-  const segments = cleanedPath.split("/").filter(Boolean);
-  if (segments.length < 2) return null;
+  const cleanedPath = rawPath.replace(/^\/+/, "")
+  const segments = cleanedPath.split("/").filter(Boolean)
+  if (segments.length < 2) return null
 
-  const expectedName = segments.pop();
-  if (!expectedName) return null;
+  const expectedName = segments.pop()
+  if (!expectedName) return null
 
-  const folderPath = segments.join("/");
+  const folderPath = segments.join("/")
   const { data, error } = await supabase.storage.from(bucket).list(folderPath, {
     limit: 100,
     search: expectedName,
     sortBy: { column: "name", order: "asc" },
-  });
+  })
 
   if (error) {
-    console.error("findExistingStoragePath list:", error);
-    return null;
+    console.error("findExistingStoragePath list:", error)
+    return null
   }
 
-  const match =
-    data?.find((item) => item.name === expectedName) ??
-    data?.find((item) => item.name.endsWith(`_${expectedName}`)) ??
-    data?.find((item) => item.name.includes(expectedName));
+  const match = data?.find((item) => item.name === expectedName) ?? data?.find((item) => item.name.endsWith(`_${expectedName}`)) ?? data?.find((item) => item.name.includes(expectedName))
 
-  return match ? `${folderPath}/${match.name}` : null;
+  return match ? `${folderPath}/${match.name}` : null
 }
 
 export function resolveStoragePublicUrl(bucket: string, rawUrl?: string | null): string | null {
-  if (!rawUrl) return null;
+  if (!rawUrl) return null
 
-  const trimmed = rawUrl.trim();
-  if (!trimmed) return null;
-  if (trimmed.startsWith("//")) return `https:${trimmed}`;
+  const trimmed = rawUrl.trim()
+  if (!trimmed) return null
+  if (trimmed.startsWith("//")) return `https:${trimmed}`
 
-  const storagePath = extractStorageObjectPath(bucket, trimmed);
-  if (hasAbsoluteScheme(trimmed) && !storagePath) return trimmed;
+  const storagePath = extractStorageObjectPath(bucket, trimmed)
+  if (hasAbsoluteScheme(trimmed) && !storagePath) return trimmed
 
-  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL?.replace(/\/+$/, "") ?? "";
+  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL?.replace(/\/+$/, "") ?? ""
   if (trimmed.startsWith(STORAGE_PUBLIC_PREFIX)) {
-    return supabaseUrl ? `${supabaseUrl}${trimmed}` : trimmed;
+    return supabaseUrl ? `${supabaseUrl}${trimmed}` : trimmed
   }
 
   if (trimmed.startsWith(STORAGE_SIGNED_PREFIX) || trimmed.startsWith(STORAGE_AUTHENTICATED_PREFIX)) {
-    return supabaseUrl ? `${supabaseUrl}${trimmed}` : trimmed;
+    return supabaseUrl ? `${supabaseUrl}${trimmed}` : trimmed
   }
 
-  const cleaned = trimmed.replace(/^\/+/, "");
+  const cleaned = trimmed.replace(/^\/+/, "")
   if (cleaned.startsWith(STORAGE_PUBLIC_PREFIX.slice(1))) {
-    return supabaseUrl ? `${supabaseUrl}/${cleaned}` : `/${cleaned}`;
+    return supabaseUrl ? `${supabaseUrl}/${cleaned}` : `/${cleaned}`
   }
 
   if (cleaned.startsWith(STORAGE_SIGNED_PREFIX.slice(1)) || cleaned.startsWith(STORAGE_AUTHENTICATED_PREFIX.slice(1))) {
-    return supabaseUrl ? `${supabaseUrl}/${cleaned}` : `/${cleaned}`;
+    return supabaseUrl ? `${supabaseUrl}/${cleaned}` : `/${cleaned}`
   }
 
-  return buildPublicStorageUrl(bucket, storagePath ?? cleaned);
+  return buildPublicStorageUrl(bucket, storagePath ?? cleaned)
 }
 
-export async function getStorageObjectUrl(
-  bucket: string,
-  rawUrl?: string | null,
-  expiresIn = 60 * 60,
-): Promise<string | null> {
-  if (!rawUrl) return null;
+export async function getStorageObjectUrl(bucket: string, rawUrl?: string | null, expiresIn = 60 * 60): Promise<string | null> {
+  if (!rawUrl) return null
 
-  const trimmed = rawUrl.trim();
-  if (!trimmed) return null;
-  if (trimmed.startsWith("//")) return `https:${trimmed}`;
+  const trimmed = rawUrl.trim()
+  if (!trimmed) return null
+  if (trimmed.startsWith("//")) return `https:${trimmed}`
 
-  const storagePath = extractStorageObjectPath(bucket, trimmed);
+  const storagePath = extractStorageObjectPath(bucket, trimmed)
   if (!storagePath) {
-    return hasAbsoluteScheme(trimmed) ? trimmed : resolveStoragePublicUrl(bucket, trimmed);
+    return hasAbsoluteScheme(trimmed) ? trimmed : resolveStoragePublicUrl(bucket, trimmed)
   }
 
-  const { data, error } = await supabase.storage.from(bucket).createSignedUrl(storagePath, expiresIn);
+  const { data, error } = await supabase.storage.from(bucket).createSignedUrl(storagePath, expiresIn)
   if (error) {
-    console.error("getStorageObjectUrl:", error);
+    console.error("getStorageObjectUrl:", error)
 
-    const fallbackPath = await findExistingStoragePath(bucket, storagePath);
+    const fallbackPath = await findExistingStoragePath(bucket, storagePath)
     if (fallbackPath && fallbackPath !== storagePath) {
-      const { data: fallbackSignedData, error: fallbackSignedError } = await supabase.storage
-        .from(bucket)
-        .createSignedUrl(fallbackPath, expiresIn);
+      const { data: fallbackSignedData, error: fallbackSignedError } = await supabase.storage.from(bucket).createSignedUrl(fallbackPath, expiresIn)
 
       if (!fallbackSignedError && fallbackSignedData?.signedUrl) {
-        return fallbackSignedData.signedUrl;
+        return fallbackSignedData.signedUrl
       }
 
-      const { data: fallbackDownloadData, error: fallbackDownloadError } = await supabase.storage
-        .from(bucket)
-        .download(fallbackPath);
+      const { data: fallbackDownloadData, error: fallbackDownloadError } = await supabase.storage.from(bucket).download(fallbackPath)
 
       if (!fallbackDownloadError) {
-        return URL.createObjectURL(fallbackDownloadData);
+        return URL.createObjectURL(fallbackDownloadData)
       }
 
-      console.error("getStorageObjectUrl fallback path download:", fallbackDownloadError);
+      console.error("getStorageObjectUrl fallback path download:", fallbackDownloadError)
     }
 
-    const { data: downloadData, error: downloadError } = await supabase.storage
-      .from(bucket)
-      .download(storagePath);
+    const { data: downloadData, error: downloadError } = await supabase.storage.from(bucket).download(storagePath)
     if (downloadError) {
-      console.error("getStorageObjectUrl download fallback:", downloadError);
-      return null;
+      console.error("getStorageObjectUrl download fallback:", downloadError)
+      return null
     }
 
-    return URL.createObjectURL(downloadData);
+    return URL.createObjectURL(downloadData)
   }
 
-  return data?.signedUrl ?? null;
+  return data?.signedUrl ?? null
 }
 
 export function resolveLessonAttachmentUrl(rawUrl?: string | null) {
-  return resolveStoragePublicUrl("lesson-attachments", rawUrl);
+  return resolveStoragePublicUrl("lesson-attachments", rawUrl)
 }
 
 export async function getLessonAttachmentAccessUrl(rawUrl?: string | null) {
-  return getStorageObjectUrl("lesson-attachments", rawUrl);
+  return getStorageObjectUrl("lesson-attachments", rawUrl)
 }
 
 /** Get the Authorization header for the current user session. */
 async function authHeader(): Promise<Record<string, string>> {
-  const { data } = await supabase.auth.getSession();
-  const token = data?.session?.access_token;
-  return token ? { Authorization: `Bearer ${token}` } : {};
+  const { data } = await supabase.auth.getSession()
+  const token = data?.session?.access_token
+  return token ? { Authorization: `Bearer ${token}` } : {}
 }
 
 /** Upload a user avatar to the `avatars` bucket. Returns the public URL. */
 export async function uploadAvatar(userId: string, file: File): Promise<string | null> {
-  const ext = file.name.split(".").pop();
-  const path = `${userId}/avatar.${ext}`;
-  const { error } = await supabase.storage
-    .from("avatars")
-    .upload(path, file, { upsert: true });
-  if (error) { console.error("uploadAvatar:", error); return null; }
-  const { data } = supabase.storage.from("avatars").getPublicUrl(path);
-  return data.publicUrl;
+  const ext = file.name.split(".").pop()
+  const path = `${userId}/avatar.${ext}`
+  const { error } = await supabase.storage.from("avatars").upload(path, file, { upsert: true })
+  if (error) {
+    console.error("uploadAvatar:", error)
+    return null
+  }
+  const { data } = supabase.storage.from("avatars").getPublicUrl(path)
+  return data.publicUrl
 }
 
 /** Upload a lesson attachment. Returns the stored object path. */
-export async function uploadLessonAttachment(
-  schoolId: string,
-  lessonId: string,
-  file: File
-): Promise<string | null> {
-  const path = `${schoolId}/${lessonId}/${Date.now()}_${file.name}`;
-  const { error } = await supabase.storage
-    .from("lesson-attachments")
-    .upload(path, file, { upsert: false });
-  if (error) { console.error("uploadLessonAttachment:", error); return null; }
-  return path;
+export async function uploadLessonAttachment(schoolId: string, lessonId: string, file: File): Promise<string | null> {
+  const path = `${schoolId}/${lessonId}/${Date.now()}_${file.name}`
+  const { error } = await supabase.storage.from("lesson-attachments").upload(path, file, { upsert: false })
+  if (error) {
+    console.error("uploadLessonAttachment:", error)
+    return null
+  }
+  return path
 }
 
 /** Upload a student document. Returns the public URL. */
-export async function uploadStudentDocument(
-  schoolId: string,
-  studentId: string,
-  file: File
-): Promise<string | null> {
-  const path = `${schoolId}/${studentId}/${Date.now()}_${file.name}`;
-  const { error } = await supabase.storage
-    .from("student-documents")
-    .upload(path, file, { upsert: false });
-  if (error) { console.error("uploadStudentDocument:", error); return null; }
-  const { data } = supabase.storage.from("student-documents").getPublicUrl(path);
-  return data.publicUrl;
+export async function uploadStudentDocument(schoolId: string, studentId: string, file: File): Promise<string | null> {
+  const path = `${schoolId}/${studentId}/${Date.now()}_${file.name}`
+  const { error } = await supabase.storage.from("student-documents").upload(path, file, { upsert: false })
+  if (error) {
+    console.error("uploadStudentDocument:", error)
+    return null
+  }
+  const { data } = supabase.storage.from("student-documents").getPublicUrl(path)
+  return data.publicUrl
 }
 
 /** Upload a school logo. Returns the public URL. */
 export async function uploadSchoolLogo(schoolId: string, file: File): Promise<string | null> {
-  const ext = file.name.split(".").pop();
-  const path = `${schoolId}/logo.${ext}`;
-  const { error } = await supabase.storage
-    .from("school-logos")
-    .upload(path, file, { upsert: true });
-  if (error) { console.error("uploadSchoolLogo:", error); return null; }
-  const { data } = supabase.storage.from("school-logos").getPublicUrl(path);
-  return data.publicUrl;
+  const ext = file.name.split(".").pop()
+  const path = `${schoolId}/logo.${ext}`
+  const { error } = await supabase.storage.from("school-logos").upload(path, file, { upsert: true })
+  if (error) {
+    console.error("uploadSchoolLogo:", error)
+    return null
+  }
+  const { data } = supabase.storage.from("school-logos").getPublicUrl(path)
+  return data.publicUrl
 }
 
 /** Call the provision-school edge function (Super Admin only). */
 export async function callProvisionSchool(payload: {
-  school_name: string;
-  slug?: string;
-  timezone?: string;
-  plan_id: string;
-  admin_email: string;
-  admin_first_name?: string;
-  admin_last_name?: string;
+  school_name: string
+  slug?: string
+  timezone?: string
+  plan_id: string
+  admin_email: string
+  admin_first_name?: string
+  admin_last_name?: string
+  redirectTo?: string
 }) {
-  const headers = await authHeader();
+  const headers = await authHeader()
   const res = await fetch(`${EDGE_URL}/provision-school`, {
     method: "POST",
     headers: { "Content-Type": "application/json", ...headers },
-    body: JSON.stringify(payload),
-  });
-  return res.json();
+    body: JSON.stringify({
+      redirectTo: SITE_URL,
+      ...payload,
+    }),
+  })
+  return res.json()
 }
 
 /** Call the invite-user edge function (School Admin). */
-export async function callInviteUser(payload: {
-  school_id: string;
-  email: string;
-  role: string;
-  first_name?: string;
-  last_name?: string;
-}) {
-  const headers = await authHeader();
+export async function callInviteUser(payload: { school_id: string; email: string; role: string; first_name?: string; last_name?: string; redirectTo?: string }) {
+  const headers = await authHeader()
   const res = await fetch(`${EDGE_URL}/invite-user`, {
     method: "POST",
     headers: { "Content-Type": "application/json", ...headers },
-    body: JSON.stringify(payload),
-  });
-  return res.json();
+    body: JSON.stringify({
+      redirectTo: SITE_URL,
+      ...payload,
+    }),
+  })
+  return res.json()
 }
 
 /** Call the send-announcement edge function. */
 export async function callSendAnnouncement(announcementId: string) {
-  const headers = await authHeader();
+  const headers = await authHeader()
   const res = await fetch(`${EDGE_URL}/send-announcement`, {
     method: "POST",
     headers: { "Content-Type": "application/json", ...headers },
     body: JSON.stringify({ announcement_id: announcementId }),
-  });
-  return res.json();
+  })
+  return res.json()
 }
 
 /** Call the export-data edge function. Returns a CSV blob. */
-export async function callExportData(payload: {
-  entity_type: string;
-  school_id?: string;
-  filters?: Record<string, unknown>;
-}) {
-  const headers = await authHeader();
+export async function callExportData(payload: { entity_type: string; school_id?: string; filters?: Record<string, unknown> }) {
+  const headers = await authHeader()
   const res = await fetch(`${EDGE_URL}/export-data`, {
     method: "POST",
     headers: { "Content-Type": "application/json", ...headers },
     body: JSON.stringify(payload),
-  });
-  return res;
+  })
+  return res
 }
 
 /** Call the soft-delete-entity edge function (Super Admin). */
-export async function callSoftDelete(payload: {
-  entity_type: string;
-  entity_id: string;
-  hard_delete?: boolean;
-}) {
-  const headers = await authHeader();
+export async function callSoftDelete(payload: { entity_type: string; entity_id: string; hard_delete?: boolean }) {
+  const headers = await authHeader()
   const res = await fetch(`${EDGE_URL}/soft-delete-entity`, {
     method: "POST",
     headers: { "Content-Type": "application/json", ...headers },
     body: JSON.stringify(payload),
-  });
-  return res.json();
+  })
+  return res.json()
 }
