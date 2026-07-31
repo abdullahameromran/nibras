@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import supabase from "@/lib/supabase";
+import { useRealtimeRefresh } from "./useRealtimeRefresh";
 
 export interface LessonAttachment {
   id: string;
@@ -72,6 +73,7 @@ export function useLessons(filters: {
   }, [filters.schoolId, filters.classId, filters.teacherId, filters.studentId]);
 
   useEffect(() => { fetchLessons(); }, [fetchLessons]);
+  useRealtimeRefresh(fetchLessons, ["lessons", "lesson_attachments", "lesson_completions"]);
 
   const createLesson = useCallback(async (lesson: {
     school_id: string;

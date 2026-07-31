@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react"
 import supabase from "@/lib/supabase"
+import { useRealtimeRefresh } from "./useRealtimeRefresh"
 
 export type AttendanceStatus = "present" | "absent" | "late" | "excused"
 
@@ -77,6 +78,7 @@ export function useAttendance(filters: { schoolId?: string | null; lessonId?: st
   useEffect(() => {
     fetchAttendance()
   }, [fetchAttendance])
+  useRealtimeRefresh(() => fetchAttendance(true), ["attendance_records"])
 
   const upsertAttendance = useCallback(
     async (record: { school_id: string; lesson_id: string; student_id: string; status: AttendanceStatus; recorded_by: string }) => {

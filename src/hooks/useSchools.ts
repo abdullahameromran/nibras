@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import supabase from "@/lib/supabase";
+import { useRealtimeRefresh } from "./useRealtimeRefresh";
 import { callProvisionSchool, callSoftDelete } from "@/lib/storage";
 
 export interface School {
@@ -136,6 +137,7 @@ export function useSchools() {
   }, []);
 
   useEffect(() => { fetchSchools(); }, [fetchSchools]);
+  useRealtimeRefresh(fetchSchools, ["schools", "school_subscriptions", "subscription_plans"]);
 
   const createSchool = useCallback(async (payload: {
     school_name: string;

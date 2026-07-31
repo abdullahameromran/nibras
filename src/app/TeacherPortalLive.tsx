@@ -650,7 +650,11 @@ export function TeacherPortalLive({
           .filter((test) => test.class_id === resultClassId && test.subject_id === resultSubjectId)
           .flatMap((test) => (test.test_submissions ?? []).filter((submission) => submission.student_id === student.id).map((submission) => submission.score))
           .filter((score): score is number => typeof score === "number")
-        const calculatedScore = average(assessmentScores)
+        const homeworkScores = teacherHomework
+          .filter((homework) => homework.lessons?.class_id === resultClassId && homework.lessons?.subject_id === resultSubjectId)
+          .flatMap((homework) => (homework.homework_submissions ?? []).filter((submission) => submission.student_id === student.id).map((submission) => submission.score))
+          .filter((score): score is number => typeof score === "number")
+        const calculatedScore = average([...assessmentScores, ...homeworkScores])
         return { student, grade, score: grade?.grade_value ?? calculatedScore }
       })
       .sort((left, right) => {
@@ -658,16 +662,27 @@ export function TeacherPortalLive({
         const rightValue = right.score ?? -1
         return rightValue - leftValue || left.student.name.localeCompare(right.student.name)
       })
-  }, [dbFinalGrades.grades, resultClassId, resultSubjectId, teacherStudents, teacherTests])
+  }, [dbFinalGrades.grades, resultClassId, resultSubjectId, teacherHomework, teacherStudents, teacherTests])
 
   const resultAverage = useMemo(() => {
     const values = resultRows.map((row) => row.score).filter((value): value is number => typeof value === "number")
     return average(values)
   }, [resultRows])
 
+  const resultGradeSeed = useMemo(
+    () => resultRows.map((row) => `${row.student.id}:${row.grade?.id ?? "calculated"}:${row.score ?? ""}`).join("|"),
+    [resultRows],
+  )
+
   useEffect(() => {
-    setResultGradeDrafts(Object.fromEntries(resultRows.map((row) => [row.student.id, row.score == null ? "" : String(Math.round(row.score * 100) / 100)])))
-  }, [resultClassId, resultSubjectId, resultRows])
+    const next = Object.fromEntries(resultRows.map((row) => [row.student.id, row.score == null ? "" : String(Math.round(row.score * 100) / 100)]))
+    setResultGradeDrafts((current) => {
+      const currentKeys = Object.keys(current)
+      const nextKeys = Object.keys(next)
+      const unchanged = currentKeys.length === nextKeys.length && nextKeys.every((key) => current[key] === next[key])
+      return unchanged ? current : next
+    })
+  }, [resultClassId, resultSubjectId, resultGradeSeed])
 
   const saveFinalGradeDrafts = async (submitForApproval: boolean) => {
     if (!schoolId || !dbYears.currentYear?.id || !resultClassId || !resultSubjectId || !user?.id) return

@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import supabase from "@/lib/supabase";
+import { useRealtimeRefresh } from "./useRealtimeRefresh";
 
 export type GradeStatus = "draft" | "submitted" | "approved";
 
@@ -64,6 +65,8 @@ export function useFinalGrades(filters: {
 
   useEffect(() => { fetchGrades(); }, [fetchGrades]);
 
+  useRealtimeRefresh(fetchGrades, ["final_grades"]);
+
   const upsertGrade = useCallback(async (grade: Partial<FinalGrade> & Pick<FinalGrade, "school_id" | "academic_year_id" | "class_id" | "subject_id" | "student_id">) => {
     const { data, error: err } = await supabase
       .from("final_grades")
@@ -76,12 +79,15 @@ export function useFinalGrades(filters: {
   }, [fetchGrades]);
 
   const submitGrades = useCallback(async (ids: string[], submittedBy: string) => {
-    const { error: err } = await supabase
+    if (ids.length === 0) return { error: "No grade drafts were selected." };
+    const { data, error: err } = await supabase
       .from("final_grades")
       .update({ status: "submitted", submitted_by: submittedBy, submitted_at: new Date().toISOString() })
       .in("id", ids)
-      .eq("status", "draft");
+      .eq("status", "draft")
+      .select("id");
     if (err) return { error: err.message };
+    if ((data?.length ?? 0) !== ids.length) return { error: "Some grade drafts could not be submitted. Refresh and try again." };
     await fetchGrades();
     return { error: null };
   }, [fetchGrades]);

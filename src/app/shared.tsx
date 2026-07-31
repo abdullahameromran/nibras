@@ -232,6 +232,8 @@ const ARABIC_TRANSLATIONS: Record<string, string> = {
   "Final grades must be between 0 and 100.": "يجب أن تكون الدرجات النهائية بين 0 و100.",
   "Could not save final grades.": "تعذر حفظ الدرجات النهائية.",
   "Grades submitted for approval.": "تم إرسال الدرجات للاعتماد.",
+  "No grade drafts were selected.": "لم يتم تحديد أي مسودات درجات.",
+  "Some grade drafts could not be submitted. Refresh and try again.": "تعذر إرسال بعض مسودات الدرجات. حدّث الصفحة وحاول مرة أخرى.",
   "Grade drafts saved.": "تم حفظ مسودات الدرجات.",
   "Grade approved successfully": "تم اعتماد الدرجة بنجاح",
   "Not entered": "لم تُدخل بعد",
@@ -368,6 +370,8 @@ const ARABIC_TRANSLATIONS: Record<string, string> = {
   "Update Password": "تحديث كلمة المرور",
   "Passwords must match and contain at least 8 characters.": "يجب أن تتطابق كلمتا المرور وألا تقل عن 8 أحرف.",
   "Password updated.": "تم تحديث كلمة المرور.",
+  "Password updated successfully.": "تم تحديث كلمة المرور بنجاح.",
+  "Updating Password...": "جارٍ تحديث كلمة المرور...",
   "Lesson Link Preview": "معاينة رابط الدرس",
   "Open in new tab": "فتح في علامة تبويب جديدة",
   "If the preview is blocked by the source website, open the link in a new tab.": "إذا منع الموقع عرض المعاينة، افتح الرابط في علامة تبويب جديدة.",
@@ -1803,7 +1807,7 @@ export function Toast({ message, type = "success", onClose }: { message: string;
   const icon =
     type === "success" ? <CheckCircle className="w-4 h-4 text-emerald-500" /> : type === "error" ? <AlertCircle className="w-4 h-4 text-red-500" /> : <AlertCircle className="w-4 h-4 text-blue-500" />
   return (
-    <div className={`fixed top-4 right-4 z-[100] flex items-center gap-3 px-4 py-3 rounded-xl border shadow-lg ${cls} animate-in slide-in-from-right`}>
+    <div role="status" aria-live="polite" className={`fixed top-4 right-4 z-[10000] flex items-center gap-3 px-4 py-3 rounded-xl border shadow-lg ${cls} animate-in slide-in-from-right`}>
       {icon}
       <span className="text-sm font-medium">{t(message, message)}</span>
       <button onClick={onClose} className="ml-2 opacity-60 hover:opacity-100">

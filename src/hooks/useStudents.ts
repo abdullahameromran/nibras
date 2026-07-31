@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import supabase from "@/lib/supabase";
+import { useRealtimeRefresh } from "./useRealtimeRefresh";
 import { callInviteUser } from "@/lib/storage";
 
 export interface Student {
@@ -227,6 +228,7 @@ export function useStudents(schoolId: string | null, classId?: string | null) {
   }, [schoolId, classId]);
 
   useEffect(() => { fetchStudents(); }, [fetchStudents]);
+  useRealtimeRefresh(fetchStudents, ["profiles", "user_school_roles", "student_enrollments"]);
 
   const inviteStudent = useCallback(async (payload: {
     email: string;

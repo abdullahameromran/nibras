@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import supabase from "@/lib/supabase";
+import { useRealtimeRefresh } from "./useRealtimeRefresh";
 import { callSendAnnouncement } from "@/lib/storage";
 
 export type AnnouncementTargetType = "school" | "grade_level" | "class" | "role";
@@ -51,6 +52,7 @@ export function useAnnouncements(schoolId: string | null) {
   }, [schoolId]);
 
   useEffect(() => { fetchAnnouncements(); }, [fetchAnnouncements]);
+  useRealtimeRefresh(fetchAnnouncements, ["announcements"]);
 
   const createAnnouncement = useCallback(async (payload: {
     school_id: string;

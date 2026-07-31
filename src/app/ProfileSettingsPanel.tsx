@@ -11,6 +11,7 @@ export function ProfileSettingsPanel({ userId }: { userId: string | null }) {
   const [form, setForm] = useState({ firstName: "", lastName: "", phone: "" })
   const [uploading, setUploading] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [savingPassword, setSavingPassword] = useState(false)
   const [emailNotifications, setEmailNotifications] = useState(true)
   const [passwordForm, setPasswordForm] = useState({ password: "", confirm: "" })
   const [toast, setToast] = useState<{ msg: string; type: "success" | "error" } | null>(null)
@@ -50,9 +51,15 @@ export function ProfileSettingsPanel({ userId }: { userId: string | null }) {
       setToast({ msg: "Passwords must match and contain at least 8 characters.", type: "error" })
       return
     }
+    setSavingPassword(true)
     const error = await updatePassword(passwordForm.password)
-    if (!error) setPasswordForm({ password: "", confirm: "" })
-    setToast(error ? { msg: error, type: "error" } : { msg: "Password updated.", type: "success" })
+    setSavingPassword(false)
+    if (error) {
+      setToast({ msg: error, type: "error" })
+      return
+    }
+    setPasswordForm({ password: "", confirm: "" })
+    setToast({ msg: "Password updated successfully.", type: "success" })
   }
 
   const updateAvatar = async (file?: File) => {
@@ -102,7 +109,7 @@ export function ProfileSettingsPanel({ userId }: { userId: string | null }) {
           <Input label="New Password" type="password" value={passwordForm.password} onChange={(password) => setPasswordForm((current) => ({ ...current, password }))} />
           <Input label="Confirm Password" type="password" value={passwordForm.confirm} onChange={(confirm) => setPasswordForm((current) => ({ ...current, confirm }))} />
         </div>
-        <Btn className="mt-4" variant="secondary" onClick={() => void savePassword()}>{t("Update Password")}</Btn>
+        <Btn className="mt-4" variant="secondary" disabled={savingPassword} onClick={() => void savePassword()}>{savingPassword ? t("Updating Password...") : t("Update Password")}</Btn>
       </div>
       {toast && <Toast message={toast.msg} type={toast.type} onClose={() => setToast(null)} />}
     </div>

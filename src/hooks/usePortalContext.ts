@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import supabase from "@/lib/supabase";
+import { useRealtimeRefresh } from "./useRealtimeRefresh";
 
 export interface PortalClassContext {
   id: string;
@@ -108,6 +109,7 @@ export function useStudentEnrollment(schoolId: string | null, studentId: string 
   useEffect(() => {
     fetchEnrollment();
   }, [fetchEnrollment]);
+  useRealtimeRefresh(fetchEnrollment, ["student_enrollments", "classes", "grade_levels", "academic_years"]);
 
   return { enrollment, loading, error, fetchEnrollment };
 }
@@ -175,6 +177,7 @@ export function useClassTeacherAssignments(schoolId: string | null, classId: str
   useEffect(() => {
     fetchAssignments();
   }, [fetchAssignments]);
+  useRealtimeRefresh(fetchAssignments, ["teacher_subject_assignments", "profiles", "subjects"]);
 
   return { assignments, loading, error, fetchAssignments };
 }
@@ -321,6 +324,7 @@ export function useParentChildren(parentId: string | null, schoolId: string | nu
   useEffect(() => {
     fetchChildren();
   }, [fetchChildren]);
+  useRealtimeRefresh(fetchChildren, ["parent_student_links", "student_enrollments", "profiles", "classes"]);
 
   return { children, loading, error, fetchChildren };
 }

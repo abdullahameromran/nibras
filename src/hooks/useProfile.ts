@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import supabase from "@/lib/supabase";
+import { useRealtimeRefresh } from "./useRealtimeRefresh";
 import { formatDisplayName, getDisplayInitials } from "@/lib/display";
 
 export interface Profile {
@@ -35,6 +36,7 @@ export function useProfile(userId: string | null) {
   }, [userId]);
 
   useEffect(() => { fetchProfile(); }, [fetchProfile]);
+  useRealtimeRefresh(fetchProfile, ["profiles"]);
 
   const updateProfile = useCallback(async (updates: Partial<Omit<Profile, "id" | "created_at" | "updated_at">>) => {
     if (!userId) return { error: "Not authenticated" };

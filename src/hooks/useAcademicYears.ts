@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import supabase from "@/lib/supabase";
+import { useRealtimeRefresh } from "./useRealtimeRefresh";
 
 export interface AcademicYear {
   id: string;
@@ -31,6 +32,7 @@ export function useAcademicYears(schoolId: string | null) {
   }, [schoolId]);
 
   useEffect(() => { fetchYears(); }, [fetchYears]);
+  useRealtimeRefresh(fetchYears, ["academic_years"]);
 
   const createYear = useCallback(async (year: Omit<AcademicYear, "id" | "created_at">) => {
     const { data, error: err } = await supabase

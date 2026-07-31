@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import supabase from "@/lib/supabase";
+import { useRealtimeRefresh } from "./useRealtimeRefresh";
 
 export interface GradeLevel {
   id: string;
@@ -28,6 +29,7 @@ export function useGradeLevels(schoolId: string | null) {
   }, [schoolId]);
 
   useEffect(() => { fetchGradeLevels(); }, [fetchGradeLevels]);
+  useRealtimeRefresh(fetchGradeLevels, ["grade_levels"]);
 
   const createGradeLevel = useCallback(async (gl: Omit<GradeLevel, "id">) => {
     const { data, error: err } = await supabase

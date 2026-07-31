@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import supabase from "@/lib/supabase";
+import { useRealtimeRefresh } from "./useRealtimeRefresh";
 
 export interface SchoolClass {
   id: string;
@@ -34,6 +35,7 @@ export function useClasses(schoolId: string | null, academicYearId?: string | nu
   }, [schoolId, academicYearId]);
 
   useEffect(() => { fetchClasses(); }, [fetchClasses]);
+  useRealtimeRefresh(fetchClasses, ["classes"]);
 
   const createClass = useCallback(async (cls: Omit<SchoolClass, "id" | "created_at" | "grade_levels" | "academic_years">) => {
     const { data, error: err } = await supabase

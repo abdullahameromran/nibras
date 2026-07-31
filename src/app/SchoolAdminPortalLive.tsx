@@ -85,6 +85,21 @@ const SCHOOL_NAV: NavItem[] = [
 
 type ToastState = { msg: string; type: "success" | "error" } | null;
 
+function scoreToLetter(score: number | null | undefined) {
+  if (score == null) return "Pending";
+  if (score >= 97) return "A+";
+  if (score >= 93) return "A";
+  if (score >= 90) return "A-";
+  if (score >= 87) return "B+";
+  if (score >= 83) return "B";
+  if (score >= 80) return "B-";
+  if (score >= 77) return "C+";
+  if (score >= 73) return "C";
+  if (score >= 70) return "C-";
+  if (score >= 60) return "D";
+  return "F";
+}
+
 type SemesterRow = {
   id: string;
   name: string;
@@ -1040,12 +1055,20 @@ export function SchoolAdminPortalLive({
           item.subject_id === finalSubjectId &&
           (!dbYears.currentYear || item.academic_year_id === dbYears.currentYear.id),
       );
-      return {
-        student,
-        grade,
-      };
+      const testScores = dbTests.tests
+        .filter((test) => test.class_id === finalClassId && test.subject_id === finalSubjectId)
+        .flatMap((test) => (test.test_submissions ?? []).filter((submission) => submission.student_id === student.id).map((submission) => submission.score))
+        .filter((score): score is number => typeof score === "number");
+      const homeworkScores = dbHomework.homework
+        .filter((homework) => homework.lessons?.class_id === finalClassId && homework.lessons?.subject_id === finalSubjectId)
+        .flatMap((homework) => (homework.homework_submissions ?? []).filter((submission) => submission.student_id === student.id).map((submission) => submission.score))
+        .filter((score): score is number => typeof score === "number");
+      const scores = [...testScores, ...homeworkScores];
+      const calculatedScore = scores.length > 0 ? scores.reduce((sum, score) => sum + score, 0) / scores.length : null;
+      const score = grade?.grade_value ?? calculatedScore;
+      return { student, grade, score, gradeLetter: grade?.grade_letter ?? scoreToLetter(score) };
     });
-  }, [dbFinalGrades.grades, dbYears.currentYear, finalClassId, finalGradeStudents, finalSubjectId]);
+  }, [dbFinalGrades.grades, dbHomework.homework, dbTests.tests, dbYears.currentYear, finalClassId, finalGradeStudents, finalSubjectId]);
 
   const openAssignmentEditor = (selection: GradeClassSelection) => {
     const existing = dbTeacherAssignments.assignments.filter((assignment) => assignment.class_id === selection.classId);
@@ -2588,8 +2611,8 @@ export function SchoolAdminPortalLive({
                         rank: index + 1,
                         student: row.student.name,
                         email: row.student.email,
-                        grade_value: row.grade?.grade_value ?? "",
-                        grade_letter: row.grade?.grade_letter ?? "",
+                        grade_value: row.score ?? "",
+                        grade_letter: row.score == null ? "" : row.gradeLetter,
                         status: row.grade?.status ?? "not entered",
                       })),
                       "school-final-grades.csv",
@@ -2604,7 +2627,7 @@ export function SchoolAdminPortalLive({
             <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
               <div className="border-b border-border bg-muted/40 px-5 py-3">
                 <span className="text-sm font-semibold text-foreground">
-                  {gradeLevelNameById.get(finalGradeLevelId) ?? t("Grade Level", "Grade")} • {classNameById.get(finalClassId) ?? t("Class", "Class")} • {finalGradeSubjectOptions.find((item) => item.value === finalSubjectId)?.label ?? t("Subject", "Subject")}
+                  {finalGradeStructures.find((item) => item.gradeId === finalGradeLevelId)?.grade ?? t("Grade Level", "Grade")} • {finalGradeClassOptions.find((item) => item.value === finalClassId)?.label ?? t("Class", "Class")} • {finalGradeSubjectOptions.find((item) => item.value === finalSubjectId)?.label ?? t("Subject", "Subject")}
                 </span>
               </div>
               <div className="overflow-x-auto">
@@ -2626,10 +2649,10 @@ export function SchoolAdminPortalLive({
                             <span className="text-sm font-semibold text-foreground">{row.student.name}</span>
                           </div>
                         </td>
-                        <td className="px-4 py-3 text-sm text-foreground">{row.grade?.grade_value ?? t("Pending", "Pending")}</td>
+                        <td className="px-4 py-3 text-sm text-foreground">{row.score == null ? t("Pending", "Pending") : Math.round(row.score * 100) / 100}</td>
                         <td className="px-4 py-3">
-                          <Badge color={row.grade?.grade_letter?.startsWith("A") ? "green" : row.grade?.grade_letter?.startsWith("B") ? "blue" : "gray"}>
-                            {row.grade?.grade_letter ?? t("Pending", "Pending")}
+                          <Badge color={row.gradeLetter.startsWith("A") ? "green" : row.gradeLetter.startsWith("B") ? "blue" : "gray"}>
+                            {row.score == null ? t("Pending", "Pending") : t(row.gradeLetter, row.gradeLetter)}
                           </Badge>
                         </td>
                         <td className="px-4 py-3 text-sm text-foreground">{row.grade?.remarks ?? "—"}</td>

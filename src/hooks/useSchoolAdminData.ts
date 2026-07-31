@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import supabase from "@/lib/supabase";
+import { useRealtimeRefresh } from "./useRealtimeRefresh";
 
 export interface SchoolRecord {
   id: string;
@@ -98,6 +99,7 @@ export function useSchoolDetails(schoolId: string | null) {
   useEffect(() => {
     fetchSchoolDetails();
   }, [fetchSchoolDetails]);
+  useRealtimeRefresh(fetchSchoolDetails, ["schools", "school_subscriptions", "subscription_plans"]);
 
   const updateSchool = useCallback(async (updates: {
     name?: string;
@@ -234,6 +236,7 @@ export function useSchoolTeacherAssignments(schoolId: string | null) {
   useEffect(() => {
     fetchAssignments();
   }, [fetchAssignments]);
+  useRealtimeRefresh(fetchAssignments, ["teacher_subject_assignments", "profiles", "subjects", "classes"]);
 
   const replaceClassAssignments = useCallback(async (classId: string, items: Array<{ subject_id: string; teacher_id: string }>) => {
     if (!schoolId) return { error: "No school selected" };
@@ -326,6 +329,7 @@ export function useSchoolParentLinks(schoolId: string | null) {
   useEffect(() => {
     fetchLinks();
   }, [fetchLinks]);
+  useRealtimeRefresh(fetchLinks, ["parent_student_links", "profiles"]);
 
   return { links, loading, error, fetchLinks };
 }
@@ -426,6 +430,7 @@ export function useSchoolEnrollments(schoolId: string | null) {
   useEffect(() => {
     fetchEnrollments();
   }, [fetchEnrollments]);
+  useRealtimeRefresh(fetchEnrollments, ["student_enrollments", "profiles", "classes"]);
 
   return { enrollments, loading, error, fetchEnrollments };
 }

@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import supabase from "@/lib/supabase";
+import { useRealtimeRefresh } from "./useRealtimeRefresh";
 
 export interface TimetableEntry {
   id: string;
@@ -51,6 +52,7 @@ export function useTimetable(schoolId: string | null, filters?: {
   }, [schoolId, filters?.classId, filters?.teacherId, filters?.academicYearId]);
 
   useEffect(() => { fetchTimetable(); }, [fetchTimetable]);
+  useRealtimeRefresh(fetchTimetable, ["timetable_entries", "working_days", "time_slots"]);
 
   const createEntry = useCallback(async (entry: Omit<TimetableEntry, "id" | "working_days" | "time_slots" | "classes" | "subjects" | "profiles">) => {
     const { data, error: err } = await supabase
@@ -118,6 +120,7 @@ export function useWorkingDays(schoolId: string | null) {
   }, [schoolId]);
 
   useEffect(() => { fetchWorkingDays(); }, [fetchWorkingDays]);
+  useRealtimeRefresh(fetchWorkingDays, ["working_days"]);
 
   const saveWorkingDays = useCallback(async (days: Omit<WorkingDay, "id">[]) => {
     // Delete existing then insert new
@@ -160,6 +163,7 @@ export function useTimeSlots(schoolId: string | null) {
   }, [schoolId]);
 
   useEffect(() => { fetchTimeSlots(); }, [fetchTimeSlots]);
+  useRealtimeRefresh(fetchTimeSlots, ["time_slots"]);
 
   const createTimeSlot = useCallback(async (slot: Omit<TimeSlot, "id">) => {
     const { data, error: err } = await supabase.from("time_slots").insert(slot).select().single();

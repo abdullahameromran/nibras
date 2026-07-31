@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import supabase from "@/lib/supabase";
+import { useRealtimeRefresh } from "./useRealtimeRefresh";
 
 export interface TestChoice {
   id: string;
@@ -115,11 +116,10 @@ export function useTests(filters: {
         test_choices ( id, choice_text, is_correct, sort_order )
       )
     `;
-    if (filters.teacherId || !filters.studentId) {
-      selectStr += `, test_submissions ( id, student_id, submitted_at, score, graded_at, profiles(id, first_name, last_name, avatar_url), test_answers(id, question_id, selected_choice_id, is_correct) )`;
-    }
     if (filters.studentId) {
       selectStr += `, test_submissions ( id, student_id, submitted_at, score, graded_at, test_answers(id, question_id, selected_choice_id, is_correct) )`;
+    } else {
+      selectStr += `, test_submissions ( id, student_id, submitted_at, score, graded_at )`;
     }
 
     let query = supabase
@@ -173,6 +173,7 @@ export function useTests(filters: {
   }, [computeTestScore, filters.schoolId, filters.classId, filters.teacherId, filters.studentId, filters.kind, persistComputedScore]);
 
   useEffect(() => { fetchTests(); }, [fetchTests]);
+  useRealtimeRefresh(fetchTests, ["monthly_tests", "test_questions", "test_choices", "test_submissions", "test_answers"]);
 
   const createTest = useCallback(async (payload: {
     school_id: string;

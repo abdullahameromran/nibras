@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import supabase from "@/lib/supabase";
+import { useRealtimeRefresh } from "./useRealtimeRefresh";
 
 export interface HomeworkChoice {
   id: string;
@@ -70,10 +71,8 @@ export function useHomework(filters: {
         homework_choices ( id, choice_text, is_correct, sort_order )
       )
     `;
-    if (filters.teacherId || filters.classId || filters.studentId) {
-      const profileEmbed = filters.teacherId || filters.classId
-        ? ", profiles(id, first_name, last_name, avatar_url)"
-        : "";
+    {
+      const profileEmbed = "";
       const answerEmbed = filters.studentId
         ? ", homework_answers(id, question_id, selected_choice_id, is_correct)"
         : "";
@@ -104,6 +103,7 @@ export function useHomework(filters: {
   }, [filters.schoolId, filters.lessonId, filters.classId, filters.teacherId, filters.studentId]);
 
   useEffect(() => { fetchHomework(); }, [fetchHomework]);
+  useRealtimeRefresh(fetchHomework, ["homework", "homework_questions", "homework_choices", "homework_submissions", "homework_answers"]);
 
   const createHomework = useCallback(async (payload: {
     school_id: string;

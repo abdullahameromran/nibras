@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import supabase from "@/lib/supabase";
+import { useRealtimeRefresh } from "./useRealtimeRefresh";
 
 export interface Lead {
   id: string;
@@ -37,6 +38,7 @@ export function useLeads() {
   }, []);
 
   useEffect(() => { fetchLeads(); }, [fetchLeads]);
+  useRealtimeRefresh(fetchLeads, ["leads"]);
 
   const updateLeadStatus = useCallback(async (id: string, status: string) => {
     const updates: Partial<Lead> = { status };
