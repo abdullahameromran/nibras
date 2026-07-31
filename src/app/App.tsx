@@ -1,3 +1,4 @@
+// @refresh reset
 import { useState, useCallback, useEffect, useMemo } from "react"
 import {
   LayoutDashboard,
@@ -90,6 +91,7 @@ import {
   LanguageProvider,
   LanguageSwitcher,
   useLanguage,
+  useTranslation,
   LessonWorkspace,
   EmptyState,
   LoadingState,
@@ -603,6 +605,8 @@ function normalizeLeadStatus(status: string) {
 }
 
 function SuperAdminPortal({ view, setView, onLogout, userId }: { view: string; setView: (v: string) => void; onLogout: () => void; userId?: string | null }) {
+  const { t, language } = useTranslation()
+  const isArabic = language === "ar"
   const dbSchools = useSchools()
   const dbLeads = useLeads()
   const dbPlans = useSubscriptionPlans()
@@ -657,6 +661,9 @@ function SuperAdminPortal({ view, setView, onLogout, userId }: { view: string; s
     color: PLAN_COLORS[idx % PLAN_COLORS.length],
     schools: schools.filter((school) => school.plan === plan.name).length,
   }))
+  const schoolPlanOptions = Array.from(
+    new Map(plans.map((plan) => [plan.name, { value: plan.name, label: `${formatPlanDisplayName(plan.name)} – $${plan.price}/mo` }])).values(),
+  )
   const setSchools = (_value: AdminSchoolRow[]) => {}
   const setPlans = (_value: AdminPlanRow[]) => {}
   const setLeads = (_value: AdminLeadRow[]) => {}
@@ -1114,12 +1121,13 @@ function SuperAdminPortal({ view, setView, onLogout, userId }: { view: string; s
           <div className="space-y-5">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <Search className={`absolute top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground ${isArabic ? "right-3" : "left-3"}`} />
                 <input
                   value={schoolSearch}
                   onChange={(e) => setSchoolSearch(e.target.value)}
                   placeholder="Search schools…"
-                  className="pl-9 pr-4 py-2 rounded-xl border border-border bg-card text-sm outline-none focus:ring-2 focus:ring-primary/30 w-60"
+                  dir={isArabic ? "rtl" : "ltr"}
+                  className={`${isArabic ? "pr-10 pl-4" : "pl-10 pr-4"} py-2 rounded-xl border border-border bg-card text-sm outline-none focus:ring-2 focus:ring-primary/30 w-60`}
                 />
               </div>
               <Btn
@@ -1225,7 +1233,7 @@ function SuperAdminPortal({ view, setView, onLogout, userId }: { view: string; s
                   </div>
                   <div>
                     <p className="text-2xl font-bold text-foreground">{p.value}</p>
-                    <p className="text-xs text-muted-foreground">{p.label}</p>
+                    <p className="text-xs text-muted-foreground">{t(p.label)}</p>
                   </div>
                 </div>
               ))}
@@ -1234,20 +1242,22 @@ function SuperAdminPortal({ view, setView, onLogout, userId }: { view: string; s
             {/* Filters row */}
             <div className="flex flex-wrap items-center gap-3">
               <div className="relative flex-1 min-w-[200px]">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <Search className={`absolute top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground ${isArabic ? "right-3" : "left-3"}`} />
                 <input
                   value={leadSearch}
                   onChange={(e) => setLeadSearch(e.target.value)}
-                  placeholder="Search by school or contact name…"
-                  className="pl-9 pr-4 py-2 rounded-xl border border-border bg-card text-sm outline-none focus:ring-2 focus:ring-primary/30 w-full"
+                  placeholder={t("Search by school or contact name…")}
+                  dir={isArabic ? "rtl" : "ltr"}
+                  className={`${isArabic ? "pr-10 pl-4" : "pl-10 pr-4"} py-2 rounded-xl border border-border bg-card text-sm outline-none focus:ring-2 focus:ring-primary/30 w-full`}
                 />
               </div>
               <select
                 value={leadGovFilter}
                 onChange={(e) => setLeadGovFilter(e.target.value)}
+                dir={isArabic ? "rtl" : "ltr"}
                 className="px-3 py-2 rounded-xl border border-border bg-card text-sm outline-none focus:ring-2 focus:ring-primary/30 text-foreground"
               >
-                <option value="">All Governorates</option>
+                <option value="">{t("All Governorates")}</option>
                 {leadGovernorates.map((g) => (
                   <option key={g} value={g}>
                     {g}
@@ -1257,12 +1267,13 @@ function SuperAdminPortal({ view, setView, onLogout, userId }: { view: string; s
               <select
                 value={leadTypeFilter}
                 onChange={(e) => setLeadTypeFilter(e.target.value)}
+                dir={isArabic ? "rtl" : "ltr"}
                 className="px-3 py-2 rounded-xl border border-border bg-card text-sm outline-none focus:ring-2 focus:ring-primary/30 text-foreground"
               >
-                <option value="">All Types</option>
-                {["Private", "International", "National"].map((t) => (
-                  <option key={t} value={t}>
-                    {t}
+                <option value="">{t("All Types")}</option>
+                {["Private", "International", "National"].map((schoolType) => (
+                  <option key={schoolType} value={schoolType}>
+                    {t(schoolType)}
                   </option>
                 ))}
               </select>
@@ -1275,12 +1286,12 @@ function SuperAdminPortal({ view, setView, onLogout, userId }: { view: string; s
                   }}
                   className="text-xs text-muted-foreground hover:text-foreground underline underline-offset-2 transition-colors"
                 >
-                  Clear filters
+                  {t("Clear filters")}
                 </button>
               )}
-              <div className="ml-auto">
+              <div className="ms-auto">
                 <Btn icon={<Download className="w-4 h-4" />} variant="secondary" onClick={exportLeadsCSV}>
-                  Export CSV
+                  {t("Export CSV")}
                 </Btn>
               </div>
             </div>
@@ -1549,7 +1560,7 @@ function SuperAdminPortal({ view, setView, onLogout, userId }: { view: string; s
               onChange={(v) => setForm((p) => ({ ...p, plan: v }))}
               required
               error={errors.plan}
-              options={plans.map((pl) => ({ value: pl.name, label: `${formatPlanDisplayName(pl.name)} – $${pl.price}/mo` }))}
+              options={schoolPlanOptions}
             />
             <div className="flex gap-3 pt-2">
               <Btn onClick={createSchool} className="flex-1">
@@ -1587,7 +1598,7 @@ function SuperAdminPortal({ view, setView, onLogout, userId }: { view: string; s
               label="Subscription Plan"
               value={form.plan}
               onChange={(v) => setForm((p) => ({ ...p, plan: v }))}
-              options={plans.map((pl) => ({ value: pl.name, label: `${formatPlanDisplayName(pl.name)} – $${pl.price}/mo` }))}
+              options={schoolPlanOptions}
             />
             <div className="flex gap-3 pt-2">
               <Btn onClick={saveEdit} className="flex-1" disabled={logoUploading}>

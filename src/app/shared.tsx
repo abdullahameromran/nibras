@@ -185,6 +185,7 @@ const ARABIC_TRANSLATIONS: Record<string, string> = {
   "No schools match your search.": "لا توجد مدارس مطابقة للبحث.",
   "All Governorates": "كل المحافظات",
   "All Types": "كل الأنواع",
+  "Search by school or contact name…": "ابحث باسم المدرسة أو جهة الاتصال…",
   "Clear filters": "مسح المرشحات",
   "No leads match your filters.": "لا يوجد عملاء محتملون مطابقون للمرشحات.",
   "Create Plan": "إنشاء باقة",
@@ -249,6 +250,9 @@ const ARABIC_TRANSLATIONS: Record<string, string> = {
   "teachers may only target classes they are assigned to": "يمكن للمعلمين إرسال الإعلانات إلى الفصول المعيّنين لها فقط.",
   "class does not belong to this school": "الفصل لا ينتمي إلى هذه المدرسة.",
   "student does not belong to this school": "الطالب لا ينتمي إلى هذه المدرسة.",
+  "table and id are required": "تعذر تحديد السجل المطلوب حذفه.",
+  "record not found": "لم يتم العثور على السجل المطلوب.",
+  "super admin only": "هذا الإجراء متاح للمسؤول العام فقط.",
   "New Time Slot": "حصة جديدة",
   "Edit Time Slot": "تعديل الحصة",
   "Start Time": "وقت البداية",
@@ -1930,9 +1934,9 @@ export function Select({
         className={`w-full px-3 py-2.5 rounded-xl border text-sm transition-all outline-none focus:ring-2 focus:ring-primary/30 bg-muted ${error ? "border-red-400" : "border-border focus:border-primary"}`}
       >
         <option value="">{t("Select…", "Select…")}</option>
-        {options.map((o) => (
-          <option key={o.value} value={o.value}>
-            {t(o.label, o.label)}
+        {options.map((o, index) => (
+          <option key={`${o.value}-${index}`} value={o.value}>
+            {o.label}
           </option>
         ))}
       </select>

@@ -48,14 +48,18 @@ Deno.serve(async (req) => {
     if (!existing) return json({ error: "record not found" }, 404);
 
     // Audit log BEFORE the delete, capturing a full snapshot for recovery.
-    await admin.from("audit_logs").insert({
-      school_id: existing.school_id ?? null,
+    // A school audit row must not retain a foreign-key reference to the school
+    // that is about to be permanently deleted. Preserve that id in metadata.
+    const auditSchoolId = table === "schools" ? null : existing.school_id ?? null;
+    const { error: auditError } = await admin.from("audit_logs").insert({
+      school_id: auditSchoolId,
       actor_id: callerId,
       action: hard ? "hard_delete" : "soft_delete",
       entity_type: table,
       entity_id: id,
-      metadata: { snapshot: existing },
+      metadata: { school_id: table === "schools" ? id : existing.school_id ?? null, snapshot: existing },
     });
+    if (auditError) return json({ error: auditError.message }, 400);
 
     if (hard) {
       const { error: delErr } = await admin.from(table).delete().eq("id", id);

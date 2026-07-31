@@ -285,7 +285,11 @@ export async function callSoftDelete(payload: { entity_type: string; entity_id: 
   const res = await fetch(`${EDGE_URL}/soft-delete-entity`, {
     method: "POST",
     headers: { "Content-Type": "application/json", ...headers },
-    body: JSON.stringify(payload),
+    body: JSON.stringify({
+      table: payload.entity_type,
+      id: payload.entity_id,
+      hard: payload.hard_delete ?? false,
+    }),
   })
   return res.json()
 }
