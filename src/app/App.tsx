@@ -3090,8 +3090,11 @@ function ParentPortal({ view, setView, onLogout }: { view: string; setView: (v: 
 // ─── Main App ─────────────────────────────────────────────────────────────────
 export default function App() {
   const auth = useAuth()
-  const [view, setView] = useState("dashboard")
   const [currentPath, setCurrentPath] = useState(() => normalizeAppPath(window.location.pathname))
+  const [view, setView] = useState(() => {
+    const segments = normalizeAppPath(window.location.pathname).split("/").filter(Boolean)
+    return segments[0] === "dashboard" ? segments[1] || "dashboard" : "dashboard"
+  })
 
   // Detect password-reset link: pathname /reset-password OR hash fragment contains type=recovery
   const isResetRoute = currentPath === "/reset-password" || window.location.hash.includes("type=recovery")

@@ -1067,7 +1067,7 @@ export function StudentPortal({ view, setView, onLogout, schoolId, user }: Stude
   }
 
   if (profileQuery.loading || enrollmentQuery.loading) {
-    return <LoadingState label="Loading your student data from Supabase..." />
+    return <LoadingState label="Loading data..." />
   }
 
   return (
@@ -1150,7 +1150,7 @@ export function StudentPortal({ view, setView, onLogout, schoolId, user }: Stude
             </div>
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
               <div className="lg:col-span-2 bg-card rounded-2xl p-5 border border-border shadow-sm">
-                <h3 className="font-bold text-foreground mb-4">Performance Trend</h3>
+                <h3 className="font-bold text-foreground mb-4">{t("Performance Trend")}</h3>
                 {performanceTrend.length > 0 ? (
                   <ResponsiveContainer width="100%" height={220}>
                     <LineChart data={performanceTrend}>
@@ -1166,32 +1166,32 @@ export function StudentPortal({ view, setView, onLogout, schoolId, user }: Stude
               </div>
               <div className="space-y-4">
                 <div className="bg-card rounded-2xl p-5 border border-border shadow-sm">
-                  <h4 className="font-bold text-foreground text-sm mb-3">Upcoming Homework</h4>
+                  <h4 className="font-bold text-foreground text-sm mb-3">{t("Upcoming Homework")}</h4>
                   <div className="space-y-3">
                     {pendingHomework.slice(0, 3).map((item) => (
                       <div key={item.id} className="p-3 bg-muted rounded-xl">
                         <p className="text-sm font-semibold text-foreground">{item.title}</p>
-                        <p className="text-xs text-muted-foreground mt-1">Due {formatDate(item.due_date)}</p>
+                        <p className="text-xs text-muted-foreground mt-1">{t("Due")} {formatDate(item.due_date)}</p>
                       </div>
                     ))}
-                    {pendingHomework.length === 0 && <p className="text-sm text-muted-foreground">No pending homework.</p>}
+                    {pendingHomework.length === 0 && <p className="text-sm text-muted-foreground">{t("No pending homework.")}</p>}
                   </div>
                 </div>
                 <div className="bg-card rounded-2xl p-5 border border-border shadow-sm space-y-3">
                   <div className="flex items-center justify-between">
-                    <span className="text-sm font-semibold text-foreground">Attendance Rate</span>
+                    <span className="text-sm font-semibold text-foreground">{t("Attendance Rate")}</span>
                     <span className="text-lg font-bold text-primary">{attendanceRate}%</span>
                   </div>
                   <div className="flex items-center justify-between">
-                    <span className="text-sm text-muted-foreground">Completed Lessons</span>
+                    <span className="text-sm text-muted-foreground">{t("Completed Lessons")}</span>
                     <span className="text-sm font-semibold text-foreground">{completedLessons}</span>
                   </div>
                   <div className="flex items-center justify-between">
-                    <span className="text-sm text-muted-foreground">Unread Messages</span>
+                    <span className="text-sm text-muted-foreground">{t("Unread Messages")}</span>
                     <span className="text-sm font-semibold text-foreground">{messagesQuery.totalUnread}</span>
                   </div>
                   <div className="flex items-center justify-between">
-                    <span className="text-sm text-muted-foreground">Announcements</span>
+                    <span className="text-sm text-muted-foreground">{t("Announcements")}</span>
                     <span className="text-sm font-semibold text-foreground">{announcements.length}</span>
                   </div>
                 </div>
@@ -1527,7 +1527,7 @@ export function StudentPortal({ view, setView, onLogout, schoolId, user }: Stude
             </div>
             <div className="bg-card rounded-2xl border border-border shadow-sm overflow-hidden">
               <div className="px-6 py-4 border-b border-border">
-                <h3 className="text-sm font-bold text-foreground">Final Grades</h3>
+                <h3 className="text-sm font-bold text-foreground">{t("Final Grades")}</h3>
               </div>
               <div className="overflow-x-auto">
                 <table className="w-full min-w-[620px]">
@@ -1535,7 +1535,7 @@ export function StudentPortal({ view, setView, onLogout, schoolId, user }: Stude
                     <tr className="bg-muted/40 border-b border-border">
                       {["Course", "Score", "GPA", "Grade", "Status"].map((header) => (
                         <th key={header} className="px-6 py-3 text-left text-xs font-semibold text-muted-foreground">
-                          {header}
+                          {t(header)}
                         </th>
                       ))}
                     </tr>
@@ -1546,11 +1546,11 @@ export function StudentPortal({ view, setView, onLogout, schoolId, user }: Stude
                       const gradeLabel = item.grade_letter || scoreToLetter(score)
                       return (
                         <tr key={item.id} className="border-b border-border last:border-0">
-                          <td className="px-6 py-4 text-sm font-semibold text-foreground">{item.subjects?.name ?? "Course"}</td>
+                          <td className="px-6 py-4 text-sm font-semibold text-foreground">{item.subjects?.name ?? t("Course")}</td>
                           <td className="px-6 py-4 text-sm text-foreground">{score ?? "-"}</td>
                           <td className="px-6 py-4 text-sm text-foreground">{scoreToGpa(score)}</td>
                           <td className="px-6 py-4">{renderGradeBadge(gradeLabel)}</td>
-                          <td className="px-6 py-4 text-sm capitalize text-muted-foreground">{item.status}</td>
+                          <td className="px-6 py-4 text-sm capitalize text-muted-foreground">{t(item.status)}</td>
                         </tr>
                       )
                     })}
