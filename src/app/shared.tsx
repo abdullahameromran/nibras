@@ -59,6 +59,7 @@ import {
   LoaderCircle,
   Inbox,
   TriangleAlert,
+  ExternalLink,
 } from "lucide-react"
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip, LineChart, Line, AreaChart, Area, PieChart as RPieChart, Pie, Cell } from "recharts"
 import { useNotifications } from "@/hooks/useNotifications"
@@ -80,7 +81,14 @@ interface LanguageContextValue {
   setLanguage: (language: Language) => void
 }
 
-const LanguageContext = createContext<LanguageContextValue | null>(null)
+// Keep one context identity across Vite HMR module replacements. Without this,
+// an updated consumer can briefly reference a different context instance than
+// the still-mounted provider and crash even though the provider is present.
+const languageContextRegistry = globalThis as typeof globalThis & {
+  __nibrasLanguageContext?: React.Context<LanguageContextValue | null>
+}
+const LanguageContext = languageContextRegistry.__nibrasLanguageContext ?? createContext<LanguageContextValue | null>(null)
+languageContextRegistry.__nibrasLanguageContext = LanguageContext
 
 const ARABIC_TRANSLATIONS: Record<string, string> = {
   "Attendance saved": "تم حفظ الحضور بنجاح.",
@@ -199,6 +207,27 @@ const ARABIC_TRANSLATIONS: Record<string, string> = {
   Semesters: "الفصول الدراسية",
   "Add Semester": "إضافة فصل دراسي",
   "Add Slot": "إضافة حصة",
+  "Hide Add Period": "إخفاء إضافة حصة",
+  "teacher must be assigned to this subject and class before scheduling": "يجب تعيين المعلم لهذه المادة وهذا الفصل قبل إضافته إلى الجدول.",
+  "academic year start date must be on or before end date": "يجب أن يكون تاريخ بداية العام الدراسي قبل تاريخ نهايته أو مساويًا له.",
+  "time slot start time must be before end time": "يجب أن يكون وقت بداية الحصة قبل وقت نهايتها.",
+  "not authenticated": "يجب تسجيل الدخول أولاً.",
+  "Authentication required": "يجب تسجيل الدخول أولاً.",
+  "not authorized": "ليس لديك صلاحية لتنفيذ هذا الإجراء.",
+  "not authorized for this school": "ليس لديك صلاحية لتنفيذ هذا الإجراء في هذه المدرسة.",
+  "You are not allowed to update this school": "ليس لديك صلاحية لتعديل هذه المدرسة.",
+  "School not found": "لم يتم العثور على المدرسة.",
+  "school is required": "يجب تحديد المدرسة.",
+  "recipient is required": "يجب تحديد المستلم.",
+  "message body is required": "نص الرسالة مطلوب.",
+  "not authorized to send messages in this school": "ليس لديك صلاحية لإرسال رسائل في هذه المدرسة.",
+  "recipient does not belong to this school": "المستلم لا ينتمي إلى هذه المدرسة.",
+  "students cannot message parents directly": "لا يمكن للطلاب مراسلة أولياء الأمور مباشرة.",
+  "final grade already approved and locked": "تم اعتماد الدرجة النهائية ولا يمكن تعديلها.",
+  "teachers may only target announcements at a specific class": "يمكن للمعلمين إرسال الإعلانات إلى فصل محدد فقط.",
+  "teachers may only target classes they are assigned to": "يمكن للمعلمين إرسال الإعلانات إلى الفصول المعيّنين لها فقط.",
+  "class does not belong to this school": "الفصل لا ينتمي إلى هذه المدرسة.",
+  "student does not belong to this school": "الطالب لا ينتمي إلى هذه المدرسة.",
   "New Time Slot": "حصة جديدة",
   "Edit Time Slot": "تعديل الحصة",
   "Start Time": "وقت البداية",
@@ -225,6 +254,98 @@ const ARABIC_TRANSLATIONS: Record<string, string> = {
   Father: "الأب",
   "Full Name": "الاسم الكامل",
   "No parents are linked to this student yet.": "لا يوجد أولياء أمور مرتبطون بهذا الطالب بعد.",
+  "Parent Dashboard": "لوحة تحكم ولي الأمر",
+  "Parent Portal": "بوابة ولي الأمر",
+  "Homework Results": "نتائج الواجبات",
+  "No linked children found": "لا يوجد طلاب مرتبطون",
+  "This parent account is connected, but there are no child records linked in Supabase yet.": "حساب ولي الأمر متصل، ولكن لا توجد سجلات طلاب مرتبطة به بعد.",
+  "No class": "لا يوجد فصل",
+  "Overall Grade": "التقدير العام",
+  "Pending Homework": "الواجبات المعلقة",
+  "Completed Tests": "الاختبارات المكتملة",
+  "Academic Performance Trend": "اتجاه الأداء الأكاديمي",
+  "No scored work yet": "لا توجد أعمال مصححة بعد",
+  "Homework and test scores from Supabase will populate the trend here.": "ستظهر درجات الواجبات والاختبارات هنا عند توفرها.",
+  "Subject Performance": "الأداء حسب المادة",
+  Course: "المادة",
+  "No subject grades published yet.": "لم تُنشر درجات المواد بعد.",
+  "No announcements published for parents yet.": "لم تُنشر إعلانات لأولياء الأمور بعد.",
+  "Average GPA": "متوسط المعدل التراكمي",
+  "Homework Submitted": "الواجبات المسلّمة",
+  "Tests Taken": "الاختبارات المؤداة",
+  "Overall Average": "المتوسط العام",
+  "Subject-wise Performance": "الأداء حسب المواد",
+  "No grade data yet": "لا توجد بيانات درجات بعد",
+  "Final grades for this child will appear here once they are approved in Supabase.": "ستظهر الدرجات النهائية لهذا الطالب هنا بعد اعتمادها.",
+  "Present or Late": "حاضر أو متأخر",
+  "Attendance Rate": "معدل الحضور",
+  "Total Records": "إجمالي السجلات",
+  "Monthly Attendance Trend": "اتجاه الحضور الشهري",
+  "No attendance records yet": "لا توجد سجلات حضور بعد",
+  "Attendance recorded in Supabase will appear here for the selected child.": "ستظهر سجلات حضور الطالب المحدد هنا.",
+  Due: "موعد التسليم",
+  "Waiting for submission": "في انتظار التسليم",
+  "No homework records": "لا توجد سجلات واجبات",
+  "Homework and submission scores from Supabase will appear here.": "ستظهر الواجبات ودرجات التسليم هنا.",
+  Scheduled: "مجدول",
+  "Awaiting completion": "في انتظار الإكمال",
+  "No test records": "لا توجد سجلات اختبارات",
+  "Monthly tests and child submissions from Supabase will appear here.": "ستظهر الاختبارات الشهرية وتسليمات الطالب هنا.",
+  "Subjects Graded": "المواد المصححة",
+  Score: "الدرجة",
+  Grade: "التقدير",
+  "No final grades published": "لم تُنشر درجات نهائية",
+  "Approved grade rows for this child will appear here.": "ستظهر درجات الطالب المعتمدة هنا.",
+  "No announcements yet": "لا توجد إعلانات بعد",
+  "Parent-targeted announcements from Supabase will appear here.": "ستظهر هنا الإعلانات الموجهة لأولياء الأمور.",
+  "Teacher Messages": "رسائل المعلمين",
+  "Conversations and teacher contacts from Supabase": "المحادثات وجهات اتصال المعلمين",
+  "No contacts yet": "لا توجد جهات اتصال بعد",
+  "Teacher contacts will appear once subjects are assigned to this class.": "ستظهر جهات اتصال المعلمين بعد تعيين المواد لهذا الفصل.",
+  "No messages yet": "لا توجد رسائل بعد",
+  "Start the conversation and your message will be sent through Supabase.": "ابدأ المحادثة وسيتم إرسال رسالتك مباشرةً.",
+  "Type your message": "اكتب رسالتك",
+  "Choose a teacher contact to read messages or send a new one.": "اختر معلماً لقراءة الرسائل أو إرسال رسالة جديدة.",
+  "Connecting your parent portal...": "جارٍ الاتصال ببوابة ولي الأمر...",
+  "Loading your parent portal from Supabase...": "جارٍ تحميل بوابة ولي الأمر...",
+  "Write a message before sending.": "اكتب رسالة قبل الإرسال.",
+  "Message sent.": "تم إرسال الرسالة.",
+  "Profile & Settings": "الملف الشخصي والإعدادات",
+  "Manage your personal information and profile photo.": "إدارة بياناتك الشخصية وصورة الملف الشخصي.",
+  "First Name": "الاسم الأول",
+  "Last Name": "اسم العائلة",
+  "Loading profile...": "جارٍ تحميل الملف الشخصي...",
+  "First name is required.": "الاسم الأول مطلوب.",
+  "Profile updated.": "تم تحديث الملف الشخصي.",
+  "Select an image up to 5 MB.": "اختر صورة بحجم لا يتجاوز 5 ميجابايت.",
+  "Could not upload avatar.": "تعذر رفع صورة الملف الشخصي.",
+  "Profile photo updated.": "تم تحديث صورة الملف الشخصي.",
+  "Uploading...": "جارٍ الرفع...",
+  "Upload / Replace": "رفع / استبدال",
+  "Saving...": "جارٍ الحفظ...",
+  "Attendance History": "سجل الحضور",
+  "Attendance history will appear here after a teacher records it.": "سيظهر سجل الحضور هنا بعد أن يسجله المعلم.",
+  Date: "التاريخ",
+  Present: "حاضر",
+  Absent: "غائب",
+  Late: "متأخر",
+  Excused: "بعذر",
+  "Parent Accounts": "حسابات أولياء الأمور",
+  "Edit Account": "تعديل الحساب",
+  "Account Active": "الحساب نشط",
+  "Account updated successfully": "تم تحديث الحساب بنجاح",
+  "Complete the platform settings with valid values.": "أكمل إعدادات المنصة بقيم صحيحة.",
+  "Platform settings updated.": "تم تحديث إعدادات المنصة.",
+  "Email Notifications": "إشعارات البريد الإلكتروني",
+  "Change Password": "تغيير كلمة المرور",
+  "New Password": "كلمة المرور الجديدة",
+  "Confirm Password": "تأكيد كلمة المرور",
+  "Update Password": "تحديث كلمة المرور",
+  "Passwords must match and contain at least 8 characters.": "يجب أن تتطابق كلمتا المرور وألا تقل عن 8 أحرف.",
+  "Password updated.": "تم تحديث كلمة المرور.",
+  "Lesson Link Preview": "معاينة رابط الدرس",
+  "Open in new tab": "فتح في علامة تبويب جديدة",
+  "If the preview is blocked by the source website, open the link in a new tab.": "إذا منع الموقع عرض المعاينة، افتح الرابط في علامة تبويب جديدة.",
   Assign: "تعيين",
   submissions: "التقديمات",
   "Assign Subjects": "تعيين المواد",
@@ -350,6 +471,21 @@ const ARABIC_TRANSLATIONS: Record<string, string> = {
   "Archived items": "العناصر المؤرشفة",
   "Edit Lesson": "تعديل الدرس",
   "Edit Homework": "تعديل الواجب",
+  "Delete Lesson": "حذف الدرس",
+  "Homework Title": "عنوان الواجب",
+  "Add Choice": "إضافة اختيار",
+  "Lesson updated successfully.": "تم تحديث الدرس بنجاح.",
+  "Delete this lesson and hide all related content?": "هل تريد حذف هذا الدرس وإخفاء كل المحتوى المرتبط به؟",
+  "Lesson deleted successfully.": "تم حذف الدرس بنجاح.",
+  "Attachments added successfully.": "تمت إضافة المرفقات بنجاح.",
+  "Remove this attachment?": "هل تريد إزالة هذا المرفق؟",
+  "Attachment removed.": "تمت إزالة المرفق.",
+  "Homework updated.": "تم تحديث الواجب.",
+  "Homework created.": "تم إنشاء الواجب.",
+  "Delete this homework?": "هل تريد حذف هذا الواجب؟",
+  "Homework deleted.": "تم حذف الواجب.",
+  "Existing questions remain unchanged to protect student submissions.": "ستبقى الأسئلة الحالية دون تغيير لحماية تسليمات الطلاب.",
+  "Please complete every question with at least two choices and one correct answer.": "يرجى إكمال كل سؤال باختيارين على الأقل وتحديد إجابة صحيحة.",
   "Edit Task": "تعديل المهمة",
   "Delete item": "حذف العنصر",
   "Archive item": "أرشفة العنصر",
@@ -1109,6 +1245,12 @@ Object.assign(ARABIC_TRANSLATIONS, {
   Submissions: "التسليمات",
   "Class Avg": "متوسط الفصل",
   "Top Score": "أعلى درجة",
+  "Questions & Choices": "الأسئلة والاختيارات",
+  "Saved MCQ questions for this test.": "أسئلة الاختيار من متعدد المحفوظة لهذا الاختبار.",
+  "No questions saved": "لا توجد أسئلة محفوظة",
+  "Add MCQ questions when creating the test so this section can show the real exam content.": "أضف أسئلة اختيار من متعدد عند إنشاء الاختبار ليعرض هذا القسم محتوى الاختبار الفعلي.",
+  choices: "اختيارات",
+  "Multiple Choice": "اختيار من متعدد",
   Export: "تصدير",
   "No test submissions yet": "لا توجد تسليمات اختبار بعد",
   "Student results will appear here after they submit this test.": "ستظهر نتائج الطلاب هنا بعد تسليم هذا الاختبار.",
@@ -1390,7 +1532,20 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
 
 export function useLanguage() {
   const context = useContext(LanguageContext)
-  if (!context) throw new Error("useLanguage must be used inside LanguageProvider")
+  if (!context) {
+    // During a Vite HMR boundary replacement, an old consumer may render once
+    // before the provider remounts. Keep that transient render safe; normal app
+    // renders always receive the provider value below.
+    const language: Language = typeof window !== "undefined" && window.localStorage.getItem("nibras-language") === "ar" ? "ar" : "en"
+    return {
+      language,
+      setLanguage: (nextLanguage: Language) => {
+        if (typeof window === "undefined") return
+        window.localStorage.setItem("nibras-language", nextLanguage)
+        window.location.reload()
+      },
+    }
+  }
   return context
 }
 
@@ -1821,6 +1976,51 @@ export function CircleProgress({ value, max, label, sub }: { value: number; max:
       <p className="text-xs font-semibold text-foreground mt-2 text-center">{label}</p>
       {sub && <p className="text-[10px] text-muted-foreground text-center">{sub}</p>}
     </div>
+  )
+}
+
+function lessonEmbed(url: string) {
+  try {
+    const parsed = new URL(url)
+    const host = parsed.hostname.replace(/^www\./, "")
+    if (host === "youtu.be") return { kind: "embed" as const, url: `https://www.youtube.com/embed/${parsed.pathname.slice(1)}` }
+    if (host.endsWith("youtube.com")) {
+      const videoId = parsed.searchParams.get("v") ?? parsed.pathname.match(/\/(?:embed|shorts)\/([^/?]+)/)?.[1]
+      if (videoId) return { kind: "embed" as const, url: `https://www.youtube.com/embed/${videoId}` }
+    }
+    if (host.endsWith("vimeo.com")) {
+      const videoId = parsed.pathname.split("/").filter(Boolean).pop()
+      if (videoId) return { kind: "embed" as const, url: `https://player.vimeo.com/video/${videoId}` }
+    }
+    if (/\.(mp4|webm|ogg|mov|m4v)(?:$|[?#])/i.test(url)) return { kind: "video" as const, url }
+    return { kind: "embed" as const, url }
+  } catch {
+    return null
+  }
+}
+
+export function LessonLinkPreview({ url }: { url?: string | null }) {
+  const { t } = useTranslation()
+  if (!url) return null
+  const preview = lessonEmbed(url)
+  if (!preview) return null
+  return (
+    <section className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
+      <div className="flex items-center justify-between gap-3 border-b border-border px-4 py-3">
+        <h4 className="text-sm font-bold text-foreground">{t("Lesson Link Preview")}</h4>
+        <a href={url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline">
+          <ExternalLink className="h-3.5 w-3.5" /> {t("Open in new tab")}
+        </a>
+      </div>
+      <div className="aspect-video w-full bg-black/5">
+        {preview.kind === "video" ? (
+          <video src={preview.url} controls preload="metadata" className="h-full w-full bg-black object-contain" />
+        ) : (
+          <iframe src={preview.url} title={t("Lesson Link Preview")} className="h-full w-full border-0" loading="lazy" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowFullScreen />
+        )}
+      </div>
+      <p className="px-4 py-2 text-xs text-muted-foreground">{t("If the preview is blocked by the source website, open the link in a new tab.")}</p>
+    </section>
   )
 }
 

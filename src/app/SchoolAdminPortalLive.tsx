@@ -1,3 +1,4 @@
+// @refresh reset
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Award,
@@ -67,6 +68,7 @@ import { useTimetable, useTimeSlots, useWorkingDays } from "@/hooks/useTimetable
 import { formatDisplayName } from "@/lib/display";
 import { formatPlanDisplayName } from "@/lib/plans";
 import { uploadSchoolLogo } from "@/lib/storage";
+import { ProfileSettingsPanel } from "./ProfileSettingsPanel";
 
 const SCHOOL_NAV: NavItem[] = [
   { id: "dashboard", label: "Dashboard", icon: <Users className="w-4 h-4" /> },
@@ -121,7 +123,10 @@ type StudentRow = {
   parentName: string;
   grade: string;
   points: number;
+  status: "active" | "inactive";
 };
+
+type MemberEditorState = { role: "teacher" | "student" | "parent"; id: string; firstName: string; lastName: string; phone: string; active: boolean; classId: string };
 
 type ParentManagerState = {
   studentId: string;
@@ -262,6 +267,7 @@ export function SchoolAdminPortalLive({
   const [newSemester, setNewSemester] = useState({ name: "", start: "", end: "" });
   const [timeSlotDraft, setTimeSlotDraft] = useState({ start: "", end: "", isBreak: false });
   const [editingTimeSlotId, setEditingTimeSlotId] = useState<string | null>(null);
+  const [showTimeSlotForm, setShowTimeSlotForm] = useState(false);
   const [teacherForm, setTeacherForm] = useState({ name: "", email: "" });
   const [studentForm, setStudentForm] = useState({ name: "", email: "", classId: "" });
   const [parentInviteForm, setParentInviteForm] = useState({ name: "", email: "", relationship: "parent" });
@@ -278,6 +284,7 @@ export function SchoolAdminPortalLive({
   const [selectedConversationId, setSelectedConversationId] = useState<string | null>(null);
   const [composeRecipientId, setComposeRecipientId] = useState("");
   const [messageDraft, setMessageDraft] = useState("");
+  const [memberEditor, setMemberEditor] = useState<MemberEditorState | null>(null);
   const messageListRef = useRef<HTMLDivElement | null>(null);
 
   const saveGradeLevel = async () => {
@@ -470,7 +477,7 @@ export function SchoolAdminPortalLive({
         email: teacher.email,
         subject: subjectNames.join(", ") || "Not assigned",
         classes: classNames,
-        status: teacher.is_active ? "active" : "inactive",
+        status: teacher.role_active === false ? "inactive" : "active",
         weeklyHours: dbTimetable.entries.filter((entry) => entry.teacher_id === teacher.id).length,
       };
     });
@@ -490,6 +497,7 @@ export function SchoolAdminPortalLive({
         parentName: parentNameByStudentId.get(student.id) ?? "Not linked",
         grade: gradeFromAverage(score),
         points: attendanceCountByStudentId.get(student.id) ?? 0,
+        status: student.role_active === false ? "inactive" : "active",
       };
     });
   }, [attendanceCountByStudentId, averageFinalGradeByStudentId, dbStudents.students, latestEnrollmentByStudentId, parentNameByStudentId]);
@@ -506,7 +514,7 @@ export function SchoolAdminPortalLive({
 
   const availableParentOptions = useMemo(() => {
     const linkedParentIds = new Set(managedStudentParentLinks.map((link) => link.parent_id));
-    return dbParents.parents
+    return dbParents.parents.filter((parent) => parent.role_active !== false)
       .filter((parent) => !linkedParentIds.has(parent.id))
       .map((parent) => ({
         value: parent.id,
@@ -1092,6 +1100,36 @@ export function SchoolAdminPortalLive({
     showToast("School logo updated");
   };
 
+  const openMemberEditor = (role: MemberEditorState["role"], id: string) => {
+    const member = role === "teacher" ? dbTeachers.teachers.find((item) => item.id === id) : role === "student" ? dbStudents.students.find((item) => item.id === id) : dbParents.parents.find((item) => item.id === id);
+    if (!member) return;
+    setMemberEditor({
+      role,
+      id,
+      firstName: member.first_name ?? "",
+      lastName: member.last_name ?? "",
+      phone: member.phone ?? "",
+      active: member.role_active !== false,
+      classId: role === "student" ? dbStudents.students.find((item) => item.id === id)?.class_id ?? "" : "",
+    });
+  };
+
+  const saveMember = async () => {
+    if (!memberEditor || !memberEditor.firstName.trim()) return;
+    const updates = { first_name: memberEditor.firstName.trim(), last_name: memberEditor.lastName.trim(), phone: memberEditor.phone.trim(), is_active: memberEditor.active };
+    const result = memberEditor.role === "teacher"
+      ? await dbTeachers.updateTeacher(memberEditor.id, updates)
+      : memberEditor.role === "student"
+        ? await dbStudents.updateStudent(memberEditor.id, { ...updates, class_id: memberEditor.classId || undefined })
+        : await dbParents.updateParent(memberEditor.id, updates);
+    if (result.error) {
+      showToast(result.error, "error");
+      return;
+    }
+    setMemberEditor(null);
+    showToast("Account updated successfully");
+  };
+
   const createAcademicYear = async () => {
     if (!schoolId) return;
     if (!yearForm.name || !yearForm.start || !yearForm.end) {
@@ -1174,6 +1212,7 @@ export function SchoolAdminPortalLive({
     const currentSlot = editingTimeSlotId
       ? dbTimeSlots.timeSlots.find((slot) => slot.id === editingTimeSlotId)
       : null;
+    const wasEditing = Boolean(editingTimeSlotId);
     const result = editingTimeSlotId
       ? await dbTimeSlots.updateTimeSlot(editingTimeSlotId, {
           label,
@@ -1193,7 +1232,8 @@ export function SchoolAdminPortalLive({
       return;
     }
     resetTimeSlotForm();
-    showToast(editingTimeSlotId ? "Time slot updated" : "Time slot added");
+    setShowTimeSlotForm(false);
+    showToast(wasEditing ? "Time slot updated" : "Time slot added");
   };
 
   const removeTimeSlot = async (id: string) => {
@@ -1212,6 +1252,7 @@ export function SchoolAdminPortalLive({
     const slot = dbTimeSlots.timeSlots.find((item) => item.id === id);
     if (!slot) return;
     setEditingTimeSlotId(slot.id);
+    setShowTimeSlotForm(true);
     setTimeSlotDraft({
       start: slot.start_time,
       end: slot.end_time,
@@ -1764,7 +1805,7 @@ export function SchoolAdminPortalLive({
                       }}
                     />
                   </label>
-                </div>
+                  </div>
               </div>
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <Input label="School Name" value={schoolForm.name} onChange={(value) => setSchoolForm((current) => ({ ...current, name: value }))} required />
@@ -1809,6 +1850,7 @@ export function SchoolAdminPortalLive({
                 </div>
               </div>
             </div>
+            <ProfileSettingsPanel userId={user?.id ?? null} />
           </div>
         )}
 
@@ -1858,8 +1900,12 @@ export function SchoolAdminPortalLive({
                 <div className="rounded-2xl border border-border bg-card p-6 shadow-sm space-y-4">
                   <div className="flex items-center justify-between">
                     <h3 className="font-bold text-foreground">Time Slots</h3>
-                    <Btn size="sm" icon={<Plus className="h-4 w-4" />} onClick={resetTimeSlotForm}>
-                      Add Slot
+                    <Btn size="sm" icon={<Plus className={`h-4 w-4 transition-transform ${showTimeSlotForm ? "rotate-45" : ""}`} />} onClick={() => {
+                      if (showTimeSlotForm) resetTimeSlotForm();
+                      else resetTimeSlotForm();
+                      setShowTimeSlotForm((current) => !current);
+                    }}>
+                      {showTimeSlotForm ? t("Hide Add Period") : t("Add Slot")}
                     </Btn>
                   </div>
                   <div className="space-y-3">
@@ -1889,11 +1935,11 @@ export function SchoolAdminPortalLive({
                     {dbTimeSlots.timeSlots.length === 0 && <p className="text-sm text-muted-foreground">No time slots configured yet.</p>}
                   </div>
                 </div>
-                <div className="rounded-2xl border border-border bg-card p-6 shadow-sm space-y-4">
+                {showTimeSlotForm && <div className="rounded-2xl border border-border bg-card p-6 shadow-sm space-y-4">
                   <div className="flex items-center justify-between gap-3">
                     <h3 className="font-bold text-foreground">{editingTimeSlotId ? "Edit Time Slot" : "New Time Slot"}</h3>
                     {editingTimeSlotId && (
-                      <Btn size="sm" variant="secondary" onClick={resetTimeSlotForm}>
+                      <Btn size="sm" variant="secondary" onClick={() => { resetTimeSlotForm(); setShowTimeSlotForm(false); }}>
                         Cancel
                       </Btn>
                     )}
@@ -1909,7 +1955,7 @@ export function SchoolAdminPortalLive({
                   <Btn onClick={() => void saveTimeSlot()}>
                     {editingTimeSlotId ? "Save Changes" : "Add Slot"}
                   </Btn>
-                </div>
+                </div>}
               </div>
             )}
 
@@ -2318,9 +2364,10 @@ export function SchoolAdminPortalLive({
                         <td className="px-4 py-3 text-sm font-medium text-foreground">{teacher.weeklyHours} slots</td>
                         <td className="px-4 py-3"><Badge color={teacher.status === "active" ? "green" : "gray"}>{teacher.status}</Badge></td>
                         <td className="px-4 py-3">
-                          <button onClick={() => setSelectedTeacherId(teacher.id)} className="rounded-lg bg-muted p-2 text-muted-foreground transition hover:bg-secondary">
-                            <Eye className="h-3.5 w-3.5" />
-                          </button>
+                          <div className="flex gap-2">
+                            <button onClick={() => setSelectedTeacherId(teacher.id)} className="rounded-lg bg-muted p-2 text-muted-foreground transition hover:bg-secondary"><Eye className="h-3.5 w-3.5" /></button>
+                            <button onClick={() => openMemberEditor("teacher", teacher.id)} className="rounded-lg bg-muted p-2 text-muted-foreground transition hover:bg-secondary"><Edit className="h-3.5 w-3.5" /></button>
+                          </div>
                         </td>
                       </tr>
                     ))}
@@ -2415,7 +2462,7 @@ export function SchoolAdminPortalLive({
                 <table className="w-full min-w-[720px]">
                   <thead>
                     <tr className="border-b border-border bg-muted/40">
-                      {["Student", "Class", "Parent / Guardian", "Grade", "Attendance Points", "Actions"].map((heading) => (
+                      {["Student", "Class", "Parent / Guardian", "Grade", "Attendance Points", "Status", "Actions"].map((heading) => (
                         <th key={heading} className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground">{heading}</th>
                       ))}
                     </tr>
@@ -2436,10 +2483,12 @@ export function SchoolAdminPortalLive({
                         <td className="px-4 py-3 text-sm text-foreground">{student.parentName}</td>
                         <td className="px-4 py-3"><Badge color={student.grade === "A" ? "green" : student.grade === "B" ? "blue" : student.grade === "Pending" ? "gray" : "yellow"}>{student.grade}</Badge></td>
                         <td className="px-4 py-3 text-sm font-medium text-foreground">{student.points}</td>
+                        <td className="px-4 py-3"><Badge color={student.status === "active" ? "green" : "gray"}>{t(student.status === "active" ? "Active" : "Inactive")}</Badge></td>
                         <td className="px-4 py-3">
-                          <Btn size="sm" variant="secondary" onClick={() => openParentManager(student.id)}>
-                            Manage Parents
-                          </Btn>
+                          <div className="flex gap-2">
+                            <Btn size="sm" variant="secondary" onClick={() => openParentManager(student.id)}>Manage Parents</Btn>
+                            <button onClick={() => openMemberEditor("student", student.id)} className="rounded-lg bg-muted p-2 text-muted-foreground transition hover:bg-secondary"><Edit className="h-3.5 w-3.5" /></button>
+                          </div>
                         </td>
                       </tr>
                     ))}
@@ -2816,6 +2865,33 @@ export function SchoolAdminPortalLive({
                 </Btn>
               </div>
             </div>
+            <div className="space-y-3 rounded-2xl border border-border bg-card p-4">
+              <p className="text-sm font-bold text-foreground">{t("Parent Accounts")}</p>
+              {dbParents.parents.map((parent) => (
+                <div key={parent.id} className="flex items-center justify-between rounded-xl bg-muted/40 p-3">
+                  <div><p className="text-sm font-semibold text-foreground">{formatName(parent.first_name, parent.last_name, parent.email)}</p><p className="text-xs text-muted-foreground">{parent.email} • {parent.role_active === false ? t("Inactive") : t("Active")}</p></div>
+                    <button onClick={() => openMemberEditor("parent", parent.id)} className="rounded-lg bg-card p-2 text-muted-foreground"><Edit className="h-4 w-4" /></button>
+                  </div>
+              ))}
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {memberEditor && (
+        <Modal title={t("Edit Account")} onClose={() => setMemberEditor(null)}>
+          <div className="space-y-4">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Input label="First Name" value={memberEditor.firstName} onChange={(firstName) => setMemberEditor((current) => current ? { ...current, firstName } : current)} required />
+              <Input label="Last Name" value={memberEditor.lastName} onChange={(lastName) => setMemberEditor((current) => current ? { ...current, lastName } : current)} />
+            </div>
+            <Input label="Phone" value={memberEditor.phone} onChange={(phone) => setMemberEditor((current) => current ? { ...current, phone } : current)} />
+            {memberEditor.role === "student" && <Select label="Class" value={memberEditor.classId} onChange={(classId) => setMemberEditor((current) => current ? { ...current, classId } : current)} options={classOptions} />}
+            <label className="flex items-center gap-3 rounded-xl bg-muted p-3 text-sm font-semibold text-foreground">
+              <input type="checkbox" checked={memberEditor.active} onChange={(event) => setMemberEditor((current) => current ? { ...current, active: event.target.checked } : current)} />
+              {t("Account Active")}
+            </label>
+            <div className="flex gap-3"><Btn className="flex-1" onClick={() => void saveMember()}>{t("Save Changes")}</Btn><Btn variant="secondary" onClick={() => setMemberEditor(null)}>{t("Cancel")}</Btn></div>
           </div>
         </Modal>
       )}

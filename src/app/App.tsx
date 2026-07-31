@@ -107,6 +107,7 @@ import supabase from "@/lib/supabase"
 import { resetPassword as requestPasswordReset } from "@/lib/auth"
 import { formatPlanDisplayName } from "@/lib/plans"
 import { uploadSchoolLogo } from "@/lib/storage"
+import { ProfileSettingsPanel } from "./ProfileSettingsPanel"
 
 // ─── Login Page ───────────────────────────────────────────────────────────────
 function LoginPage({ onLogin, onRequestPasswordReset }: { onLogin: (email: string, password: string) => Promise<string | null>; onRequestPasswordReset: (email: string) => Promise<string | null> }) {
@@ -478,9 +479,9 @@ type DashboardPortal = Exclude<Portal, "login">
 const PORTAL_VIEWS: Record<DashboardPortal, string[]> = {
   "super-admin": ["dashboard", "schools", "leads", "analytics", "subscriptions", "settings"],
   "school-admin": ["dashboard", "settings", "academic", "grades-classes", "teachers", "students", "timetable", "final-grades", "announcements", "messages"],
-  teacher: ["dashboard", "classes", "tests", "results", "students", "messages", "timetable"],
-  student: ["dashboard", "courses", "tests", "grades", "timetable", "announcements", "messages"],
-  parent: ["dashboard", "progress", "attendance", "homework", "tests", "grades", "announcements", "messages"],
+  teacher: ["dashboard", "classes", "tests", "results", "students", "messages", "timetable", "profile"],
+  student: ["dashboard", "courses", "tests", "grades", "timetable", "announcements", "messages", "attendance", "profile"],
+  parent: ["dashboard", "progress", "attendance", "homework", "tests", "grades", "announcements", "messages", "timetable", "profile"],
 }
 
 function normalizeAppPath(path: string) {
@@ -741,11 +742,37 @@ function SuperAdminPortal({ view, setView, onLogout, userId }: { view: string; s
   const [leadGovFilter, setLeadGovFilter] = useState("")
   const [leadTypeFilter, setLeadTypeFilter] = useState("")
   const [showContactModal, setShowContactModal] = useState<string | null>(null)
+  const [platformForm, setPlatformForm] = useState({ name: "Nibras", supportEmail: "support@nibras.edu", maxSchoolsPerPlan: "50" })
+
+  useEffect(() => {
+    void supabase.from("platform_settings").select("value").eq("key", "general").maybeSingle().then(({ data }) => {
+      const value = (data?.value ?? {}) as Record<string, unknown>
+      setPlatformForm({
+        name: typeof value.name === "string" ? value.name : "Nibras",
+        supportEmail: typeof value.support_email === "string" ? value.support_email : "support@nibras.edu",
+        maxSchoolsPerPlan: typeof value.max_schools_per_plan === "number" ? String(value.max_schools_per_plan) : "50",
+      })
+    })
+  }, [])
 
   const showToast = useCallback((msg: string, type: "success" | "error" = "success") => {
     setToast({ msg, type })
     setTimeout(() => setToast(null), 3000)
   }, [])
+
+  const savePlatformSettings = async () => {
+    const maxSchools = Number.parseInt(platformForm.maxSchoolsPerPlan, 10)
+    if (!platformForm.name.trim() || !platformForm.supportEmail.trim() || !Number.isFinite(maxSchools) || maxSchools < 1) {
+      showToast("Complete the platform settings with valid values.", "error")
+      return
+    }
+    const { error } = await supabase.from("platform_settings").upsert({
+      key: "general",
+      value: { name: platformForm.name.trim(), support_email: platformForm.supportEmail.trim(), max_schools_per_plan: maxSchools },
+      updated_at: new Date().toISOString(),
+    })
+    showToast(error ? error.message : "Platform settings updated.", error ? "error" : "success")
+  }
 
   const validate = () => {
     const e: Record<string, string> = {}
@@ -1494,14 +1521,15 @@ function SuperAdminPortal({ view, setView, onLogout, userId }: { view: string; s
 
         {/* ── Settings ── */}
         {view === "settings" && (
-          <div className="max-w-xl space-y-5">
+          <div className="max-w-3xl space-y-5">
             <div className="bg-card rounded-2xl p-6 border border-border shadow-sm space-y-4">
               <h3 className="font-bold text-foreground">Platform Settings</h3>
-              <Input label="Platform Name" value="Nibras" onChange={() => {}} />
-              <Input label="Support Email" value="support@nibras.edu" onChange={() => {}} type="email" />
-              <Input label="Max Schools per Plan" value="50" onChange={() => {}} />
-              <Btn>Save Settings</Btn>
+              <Input label="Platform Name" value={platformForm.name} onChange={(name) => setPlatformForm((current) => ({ ...current, name }))} />
+              <Input label="Support Email" value={platformForm.supportEmail} onChange={(supportEmail) => setPlatformForm((current) => ({ ...current, supportEmail }))} type="email" />
+              <Input label="Max Schools per Plan" value={platformForm.maxSchoolsPerPlan} onChange={(maxSchoolsPerPlan) => setPlatformForm((current) => ({ ...current, maxSchoolsPerPlan }))} />
+              <Btn onClick={() => void savePlatformSettings()}>Save Settings</Btn>
             </div>
+            <ProfileSettingsPanel userId={userId ?? null} />
           </div>
         )}
       </AppShell>

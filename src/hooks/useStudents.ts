@@ -15,6 +15,7 @@ export interface Student {
   class_id?: string;
   class_name?: string;
   enrollment_status?: string;
+  role_active?: boolean;
 }
 
 type StudentProfileRow = Pick<
@@ -34,6 +35,7 @@ type StudentRoleRow = {
   id: string;
   user_id: string;
   school_id: string;
+  is_active: boolean;
 };
 
 function normalizeClassRow(
@@ -166,11 +168,11 @@ export function useStudents(schoolId: string | null, classId?: string | null) {
         .select(`
           id,
           user_id,
-          school_id
+          school_id,
+          is_active
         `)
         .eq("school_id", schoolId)
-        .eq("role", "student")
-        .eq("is_active", true);
+        .eq("role", "student");
 
       const roleRows = ((roleData as StudentRoleRow[] | null) ?? []);
       const { error: enrollmentsError, rows: enrollmentRows } = await fetchEnrollmentRows();
@@ -207,7 +209,7 @@ export function useStudents(schoolId: string | null, classId?: string | null) {
         .map((studentId) => {
           const enrollment = firstEnrollmentByStudentId.get(studentId);
           const schoolClass = normalizeClassRow(enrollment?.classes ?? null);
-          return buildStudentRecord({
+          const student = buildStudentRecord({
             profile: profilesById.get(studentId) ?? null,
             fallbackId: studentId,
             enrollmentId: enrollment?.id,
@@ -215,6 +217,8 @@ export function useStudents(schoolId: string | null, classId?: string | null) {
             className: schoolClass?.name ?? undefined,
             enrollmentStatus: enrollment?.status,
           });
+          const role = roleRows.find((row) => row.user_id === studentId);
+          return { ...student, role_active: role?.is_active ?? true };
         })
         .filter((student) => Boolean(student.id));
       setStudents(nextStudents);
@@ -241,10 +245,10 @@ export function useStudents(schoolId: string | null, classId?: string | null) {
     if (result.error) return { error: result.error };
     // If class_id provided, enroll in class
     if (payload.class_id && result.user_id) {
-      const { error: enrollError } = await supabase.from("class_enrollments").insert({
-        school_id: schoolId,
-        class_id: payload.class_id,
-        student_id: result.user_id,
+      const { error: enrollError } = await supabase.rpc("enroll_school_student", {
+        p_school_id: schoolId,
+        p_class_id: payload.class_id,
+        p_student_id: result.user_id,
       });
       if (enrollError) {
         await fetchStudents();
@@ -256,18 +260,32 @@ export function useStudents(schoolId: string | null, classId?: string | null) {
   }, [schoolId, fetchStudents]);
 
   const enrollStudent = useCallback(async (studentId: string, newClassId: string) => {
-    const { error: err } = await supabase
-      .from("class_enrollments")
-      .upsert({
-        school_id: schoolId,
-        class_id: newClassId,
-        student_id: studentId,
-        status: "active",
-      }, { onConflict: "class_id,student_id" });
+    if (!schoolId) return { error: "No school selected" };
+    const { error: err } = await supabase.rpc("enroll_school_student", {
+      p_school_id: schoolId,
+      p_student_id: studentId,
+      p_class_id: newClassId,
+    });
     if (err) return { error: err.message };
     await fetchStudents();
     return { error: null };
   }, [schoolId, fetchStudents]);
 
-  return { students, loading, error, fetchStudents, inviteStudent, enrollStudent };
+  const updateStudent = useCallback(async (userId: string, updates: { first_name: string; last_name?: string; phone?: string; is_active: boolean; class_id?: string }) => {
+    if (!schoolId) return { error: "No school selected" };
+    const { error: memberError } = await supabase.rpc("manage_school_member", {
+      p_school_id: schoolId, p_user_id: userId, p_role: "student",
+      p_first_name: updates.first_name, p_last_name: updates.last_name ?? null,
+      p_phone: updates.phone ?? null, p_role_active: updates.is_active,
+    });
+    if (memberError) return { error: memberError.message };
+    if (updates.class_id) {
+      const enrollmentResult = await enrollStudent(userId, updates.class_id);
+      if (enrollmentResult.error) return enrollmentResult;
+    }
+    await fetchStudents();
+    return { error: null };
+  }, [schoolId, enrollStudent, fetchStudents]);
+
+  return { students, loading, error, fetchStudents, inviteStudent, enrollStudent, updateStudent };
 }

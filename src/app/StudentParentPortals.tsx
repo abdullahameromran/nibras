@@ -1,3 +1,4 @@
+// @refresh reset
 import { useCallback, useEffect, useRef, useState } from "react"
 import {
   Activity,
@@ -18,6 +19,7 @@ import {
   MessageSquare,
   PlayCircle,
   Send,
+  Settings,
   TrendingUp,
   Users,
 } from "lucide-react"
@@ -34,7 +36,8 @@ import { useStorageObjectUrl, useStorageObjectUrlMap } from "@/hooks/useStorageU
 import { MonthlyTest, TestSubmission, useTests } from "@/hooks/useTests"
 import { TimetableEntry, useTimetable } from "@/hooks/useTimetable"
 import { formatDisplayName, shouldPreferFallbackDisplayName } from "@/lib/display"
-import { AppShell, Avatar, Badge, Btn, EmptyState, LoadingState, NavItem, StatCard, Toast } from "./shared"
+import { AppShell, Avatar, Badge, Btn, EmptyState, LessonLinkPreview, LoadingState, NavItem, StatCard, Toast, useTranslation } from "./shared"
+import { ProfileSettingsPanel } from "./ProfileSettingsPanel"
 
 type PortalUser = { id: string; email?: string | null } | null
 
@@ -90,6 +93,8 @@ const STUDENT_NAV: NavItem[] = [
   { id: "timetable", label: "Timetable", icon: <Calendar className="w-4 h-4" /> },
   { id: "announcements", label: "Announcements", icon: <Megaphone className="w-4 h-4" /> },
   { id: "messages", label: "Messages", icon: <MessageSquare className="w-4 h-4" /> },
+  { id: "attendance", label: "Attendance", icon: <CheckSquare className="w-4 h-4" /> },
+  { id: "profile", label: "Profile & Settings", icon: <Settings className="w-4 h-4" /> },
 ]
 
 const PARENT_NAV: NavItem[] = [
@@ -101,6 +106,8 @@ const PARENT_NAV: NavItem[] = [
   { id: "grades", label: "Final Grades", icon: <Award className="w-4 h-4" /> },
   { id: "announcements", label: "Announcements", icon: <Megaphone className="w-4 h-4" /> },
   { id: "messages", label: "Messages", icon: <MessageSquare className="w-4 h-4" /> },
+  { id: "timetable", label: "Timetable", icon: <Calendar className="w-4 h-4" /> },
+  { id: "profile", label: "Profile & Settings", icon: <Settings className="w-4 h-4" /> },
 ]
 
 function formatName(
@@ -378,6 +385,7 @@ function renderGradeBadge(grade: string | null | undefined) {
 }
 
 function TimetableGrid({ entries }: { entries: TimetableEntry[] }) {
+  const { t } = useTranslation()
   if (entries.length === 0) {
     return <EmptyState title="No timetable published" description="Timetable entries from Supabase will appear here once the school publishes them." />
   }
@@ -451,6 +459,34 @@ function TimetableGrid({ entries }: { entries: TimetableEntry[] }) {
   )
 }
 
+function AttendanceHistory({ records }: { records: AttendanceRecord[] }) {
+  const { t } = useTranslation()
+  if (records.length === 0) {
+    return <EmptyState title="No attendance records yet" description="Attendance history will appear here after a teacher records it." />
+  }
+  return (
+    <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
+      <div className="border-b border-border px-5 py-4">
+        <h3 className="font-bold text-foreground">{t("Attendance History")}</h3>
+      </div>
+      <div className="overflow-x-auto">
+        <table className="w-full min-w-[560px]">
+          <thead><tr className="border-b border-border bg-muted/40">{["Date", "Lesson", "Status"].map((item) => <th key={item} className="px-5 py-3 text-left text-xs font-semibold text-muted-foreground">{t(item)}</th>)}</tr></thead>
+          <tbody>
+            {records.map((record) => (
+              <tr key={record.id} className="border-b border-border last:border-0">
+                <td className="px-5 py-3 text-sm text-foreground">{formatDate(record.lessons?.lesson_date ?? record.recorded_at)}</td>
+                <td className="px-5 py-3 text-sm font-semibold text-foreground">{record.lessons?.title ?? t("Lesson")}</td>
+                <td className="px-5 py-3"><Badge color={record.status === "present" ? "green" : record.status === "late" ? "yellow" : record.status === "excused" ? "blue" : "red"}>{t(record.status.charAt(0).toUpperCase() + record.status.slice(1), record.status)}</Badge></td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  )
+}
+
 function MessageCenter({
   currentUserId,
   contacts,
@@ -472,6 +508,7 @@ function MessageCenter({
   onSend: () => void
   sendLabel: string
 }) {
+  const { t } = useTranslation()
   const activeConversation = conversations.find((conversation) => conversation.partnerId === selectedPartnerId) ?? null
   const sortedMessages = activeConversation ? activeConversation.messages.slice().sort((left, right) => new Date(left.created_at).getTime() - new Date(right.created_at).getTime()) : []
   const activeContact = contacts.find((contact) => contact.id === selectedPartnerId) ?? null
@@ -490,8 +527,8 @@ function MessageCenter({
       <div className="flex h-full">
         <div className="w-72 border-r border-border flex flex-col">
           <div className="px-4 py-3 border-b border-border">
-            <h3 className="text-sm font-bold text-foreground">{sendLabel}</h3>
-            <p className="text-xs text-muted-foreground mt-1">Conversations and teacher contacts from Supabase</p>
+            <h3 className="text-sm font-bold text-foreground">{t(sendLabel)}</h3>
+            <p className="text-xs text-muted-foreground mt-1">{t("Conversations and teacher contacts from Supabase")}</p>
           </div>
           <div className="flex-1 overflow-y-auto">
             {contacts.length === 0 && (
@@ -550,11 +587,11 @@ function MessageCenter({
                   <input
                     value={draft}
                     onChange={(event) => setDraft(event.target.value)}
-                    placeholder="Type your message"
+                    placeholder={t("Type your message")}
                     className="flex-1 px-4 py-2.5 rounded-xl border border-border bg-muted text-sm outline-none focus:ring-2 focus:ring-primary/30"
                   />
                   <Btn icon={<Send className="w-4 h-4" />} onClick={onSend}>
-                    Send
+                    {t("Send")}
                   </Btn>
                 </div>
               </div>
@@ -710,6 +747,7 @@ function AssessmentRunner({
 }
 
 export function StudentPortal({ view, setView, onLogout, schoolId, user }: StudentPortalProps) {
+  const { t } = useTranslation()
   const userId = user?.id ?? null
   const profileQuery = useProfile(userId)
   const enrollmentQuery = useStudentEnrollment(schoolId, userId)
@@ -1039,8 +1077,7 @@ export function StudentPortal({ view, setView, onLogout, schoolId, user }: Stude
         activeView={view}
         onSelect={setView}
         onLogout={onLogout}
-        headerTitle={
-          {
+        headerTitle={t(({
             dashboard: "My Dashboard",
             courses: selectedCourse ? selectedCourse.name : "My Courses",
             tests: "Monthly Tests",
@@ -1048,8 +1085,9 @@ export function StudentPortal({ view, setView, onLogout, schoolId, user }: Stude
             timetable: "Timetable",
             announcements: "Announcements",
             messages: "Messages",
-          }[view] ?? "Student Portal"
-        }
+            attendance: "Attendance History",
+            profile: "Profile & Settings",
+          } as Record<string, string>)[view] ?? "Student Portal")}
         userName={studentName}
         userRole={studentRole}
         userId={userId}
@@ -1275,6 +1313,7 @@ export function StudentPortal({ view, setView, onLogout, schoolId, user }: Stude
                       </div>
                     </div>
                     <p className="text-sm text-muted-foreground leading-relaxed">{selectedLesson.description || "No description was added for this lesson yet."}</p>
+                    <LessonLinkPreview url={selectedLessonVideoUrl} />
                     <div>
                       <h4 className="text-sm font-bold text-foreground mb-3">Attachments</h4>
                       <div className="space-y-2">
@@ -1530,6 +1569,7 @@ export function StudentPortal({ view, setView, onLogout, schoolId, user }: Stude
         )}
 
         {classId && !activeTest && !activeHomework && view === "timetable" && <TimetableGrid entries={timetableQuery.entries} />}
+        {!activeTest && !activeHomework && view === "attendance" && <AttendanceHistory records={attendanceQuery.records} />}
 
         {classId && !activeTest && !activeHomework && view === "announcements" && (
           <div className="space-y-4">
@@ -1571,6 +1611,7 @@ export function StudentPortal({ view, setView, onLogout, schoolId, user }: Stude
             sendLabel="Teacher Messages"
           />
         )}
+        {!activeTest && !activeHomework && view === "profile" && <ProfileSettingsPanel userId={userId} />}
       </AppShell>
       {toast && <Toast message={toast.msg} type={toast.type} onClose={() => setToast(null)} />}
     </>
@@ -1578,6 +1619,7 @@ export function StudentPortal({ view, setView, onLogout, schoolId, user }: Stude
 }
 
 export function ParentPortal({ view, setView, onLogout, schoolId, user }: ParentPortalProps) {
+  const { t } = useTranslation()
   const userId = user?.id ?? null
   const profileQuery = useProfile(userId)
   const childrenQuery = useParentChildren(userId, schoolId)
@@ -1594,6 +1636,7 @@ export function ParentPortal({ view, setView, onLogout, schoolId, user }: Parent
     academicYearId: selectedChild?.academic_year_id ?? null,
   })
   const attendanceQuery = useAttendance({ schoolId, studentId: selectedChild?.student_id ?? null })
+  const timetableQuery = useTimetable(schoolId, { classId: selectedChild?.class_id ?? undefined, academicYearId: selectedChild?.academic_year_id ?? undefined })
   const announcementsQuery = useAnnouncements(schoolId)
   const messagesQuery = useMessages(userId, schoolId)
 
@@ -1670,6 +1713,18 @@ export function ParentPortal({ view, setView, onLogout, schoolId, user }: Parent
   }
 
   const parentName = profileQuery.displayName || user?.email || "Parent"
+  const parentTitle = ({
+    dashboard: "Parent Dashboard",
+    progress: "Child Progress",
+    attendance: "Attendance",
+    homework: "Homework Results",
+    tests: "Test Results",
+    grades: "Final Grades",
+    announcements: "Announcements",
+    messages: "Messages",
+    timetable: "Timetable",
+    profile: "Profile & Settings",
+  } as Record<string, string>)[view] ?? "Parent Portal"
 
   if (!userId || !schoolId) {
     return <LoadingState label="Connecting your parent portal..." />
@@ -1686,18 +1741,7 @@ export function ParentPortal({ view, setView, onLogout, schoolId, user }: Parent
         activeView={view}
         onSelect={setView}
         onLogout={onLogout}
-        headerTitle={
-          {
-            dashboard: "Parent Dashboard",
-            progress: "Child Progress",
-            attendance: "Attendance",
-            homework: "Homework Results",
-            tests: "Test Results",
-            grades: "Final Grades",
-            announcements: "Announcements",
-            messages: "Messages",
-          }[view] ?? "Parent Portal"
-        }
+        headerTitle={t(parentTitle)}
         userName={parentName}
         userRole="Parent"
         userId={userId}
@@ -1726,7 +1770,7 @@ export function ParentPortal({ view, setView, onLogout, schoolId, user }: Parent
                 <div>
                   <p className="text-sm font-bold text-foreground">{formatName(selectedChild, "Student")}</p>
                   <p className="text-xs text-muted-foreground">
-                    {selectedChild.class_name ?? "No class"} {selectedChild.academic_year_name ? `- ${selectedChild.academic_year_name}` : ""}
+                    {selectedChild.class_name ?? t("No class")} {selectedChild.academic_year_name ? `- ${selectedChild.academic_year_name}` : ""}
                   </p>
                 </div>
               </div>
@@ -1742,7 +1786,7 @@ export function ParentPortal({ view, setView, onLogout, schoolId, user }: Parent
                 </div>
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
                   <div className="lg:col-span-2 bg-card rounded-2xl p-5 border border-border shadow-sm">
-                    <h3 className="font-bold text-foreground mb-4">Academic Performance Trend</h3>
+                    <h3 className="font-bold text-foreground mb-4">{t("Academic Performance Trend")}</h3>
                     {performanceTrend.length > 0 ? (
                       <ResponsiveContainer width="100%" height={220}>
                         <LineChart data={performanceTrend}>
@@ -1758,14 +1802,14 @@ export function ParentPortal({ view, setView, onLogout, schoolId, user }: Parent
                   </div>
                   <div className="space-y-4">
                     <div className="bg-card rounded-2xl p-5 border border-border shadow-sm">
-                      <h4 className="font-bold text-foreground text-sm mb-3">Subject Performance</h4>
+                      <h4 className="font-bold text-foreground text-sm mb-3">{t("Subject Performance")}</h4>
                       <div className="space-y-3">
                         {gradesQuery.grades.slice(0, 4).map((item) => {
                           const score = item.grade_value ?? 0
                           return (
                             <div key={item.id}>
                               <div className="flex justify-between text-xs mb-1">
-                                <span className="font-medium text-foreground">{item.subjects?.name ?? "Course"}</span>
+                                <span className="font-medium text-foreground">{item.subjects?.name ?? t("Course")}</span>
                                 <span className="font-semibold text-primary">{score}%</span>
                               </div>
                               <div className="h-2 bg-muted rounded-full">
@@ -1774,11 +1818,11 @@ export function ParentPortal({ view, setView, onLogout, schoolId, user }: Parent
                             </div>
                           )
                         })}
-                        {gradesQuery.grades.length === 0 && <p className="text-sm text-muted-foreground">No subject grades published yet.</p>}
+                        {gradesQuery.grades.length === 0 && <p className="text-sm text-muted-foreground">{t("No subject grades published yet.")}</p>}
                       </div>
                     </div>
                     <div className="bg-card rounded-2xl p-5 border border-border shadow-sm">
-                      <h4 className="font-bold text-foreground text-sm mb-2">Recent Announcements</h4>
+                      <h4 className="font-bold text-foreground text-sm mb-2">{t("Recent Announcements")}</h4>
                       <div className="space-y-3">
                         {announcements.slice(0, 3).map((item) => (
                           <div key={item.id} className="text-xs">
@@ -1786,7 +1830,7 @@ export function ParentPortal({ view, setView, onLogout, schoolId, user }: Parent
                             <p className="text-muted-foreground mt-1">{formatDate(item.published_at || item.created_at)}</p>
                           </div>
                         ))}
-                        {announcements.length === 0 && <p className="text-sm text-muted-foreground">No announcements published for parents yet.</p>}
+                        {announcements.length === 0 && <p className="text-sm text-muted-foreground">{t("No announcements published for parents yet.")}</p>}
                       </div>
                     </div>
                   </div>
@@ -1803,14 +1847,14 @@ export function ParentPortal({ view, setView, onLogout, schoolId, user }: Parent
                   <StatCard icon={<TrendingUp className="w-5 h-5" />} label="Overall Average" value={overallAverage != null ? `${Math.round(overallAverage)}%` : "-"} color="#F59E0B" />
                 </div>
                 <div className="bg-card rounded-2xl p-5 border border-border shadow-sm">
-                  <h3 className="font-bold text-foreground mb-4">Subject-wise Performance</h3>
+                  <h3 className="font-bold text-foreground mb-4">{t("Subject-wise Performance")}</h3>
                   <div className="space-y-4">
                     {gradesQuery.grades.map((item) => {
                       const score = item.grade_value ?? 0
                       const gradeLabel = item.grade_letter || scoreToLetter(score)
                       return (
                         <div key={item.id} className="flex items-center gap-4">
-                          <span className="text-sm font-semibold text-foreground w-40 shrink-0">{item.subjects?.name ?? "Course"}</span>
+                          <span className="text-sm font-semibold text-foreground w-40 shrink-0">{item.subjects?.name ?? t("Course")}</span>
                           <div className="flex-1 h-3 bg-muted rounded-full overflow-hidden">
                             <div className="h-3 rounded-full bg-primary" style={{ width: `${score}%` }} />
                           </div>
@@ -1833,7 +1877,7 @@ export function ParentPortal({ view, setView, onLogout, schoolId, user }: Parent
                   <StatCard icon={<CheckSquare className="w-5 h-5" />} label="Total Records" value={String(attendanceQuery.records.length)} color="#3B82F6" />
                 </div>
                 <div className="bg-card rounded-2xl p-5 border border-border shadow-sm">
-                  <h3 className="font-bold text-foreground mb-4">Monthly Attendance Trend</h3>
+                  <h3 className="font-bold text-foreground mb-4">{t("Monthly Attendance Trend")}</h3>
                   {attendanceTrend.length > 0 ? (
                     <ResponsiveContainer width="100%" height={240}>
                       <BarChart data={attendanceTrend}>
@@ -1849,6 +1893,7 @@ export function ParentPortal({ view, setView, onLogout, schoolId, user }: Parent
                     <EmptyState title="No attendance records yet" description="Attendance recorded in Supabase will appear here for the selected child." />
                   )}
                 </div>
+                <AttendanceHistory records={attendanceQuery.records} />
               </div>
             )}
 
@@ -1859,17 +1904,17 @@ export function ParentPortal({ view, setView, onLogout, schoolId, user }: Parent
                     <div className="flex items-start justify-between gap-4">
                       <div>
                         <div className="flex items-center gap-2 mb-2">
-                          <Badge color="purple">{entry.item.lessons?.title ?? "Lesson"}</Badge>
-                          {entry.submission ? <Badge color="green">Submitted</Badge> : <Badge color="yellow">Pending</Badge>}
+                          <Badge color="purple">{entry.item.lessons?.title ?? t("Lesson")}</Badge>
+                          {entry.submission ? <Badge color="green">{t("Submitted")}</Badge> : <Badge color="yellow">{t("Pending")}</Badge>}
                         </div>
                         <h3 className="font-bold text-foreground">{entry.item.title}</h3>
                         <p className="text-xs text-muted-foreground mt-2">
-                          Due {formatDate(entry.item.due_date)} {selectedChild.class_name ? `- ${selectedChild.class_name}` : ""}
+                          {t("Due")} {formatDate(entry.item.due_date)} {selectedChild.class_name ? `- ${selectedChild.class_name}` : ""}
                         </p>
                       </div>
                       <div className="text-right shrink-0">
-                        <p className="text-2xl font-bold text-primary">{entry.submission?.score != null ? `${Math.round(entry.submission.score)}%` : "Pending"}</p>
-                        <p className="text-xs text-muted-foreground mt-1">{entry.submission ? formatDate(entry.submission.submitted_at) : "Waiting for submission"}</p>
+                        <p className="text-2xl font-bold text-primary">{entry.submission?.score != null ? `${Math.round(entry.submission.score)}%` : t("Pending")}</p>
+                        <p className="text-xs text-muted-foreground mt-1">{entry.submission ? formatDate(entry.submission.submitted_at) : t("Waiting for submission")}</p>
                       </div>
                     </div>
                   </div>
@@ -1885,8 +1930,8 @@ export function ParentPortal({ view, setView, onLogout, schoolId, user }: Parent
                     <div className="flex items-start justify-between gap-4">
                       <div>
                         <div className="flex items-center gap-2 mb-2">
-                          <Badge color="purple">{entry.item.subjects?.name ?? "Course"}</Badge>
-                          {entry.submission ? <Badge color="green">Completed</Badge> : <Badge color="blue">Scheduled</Badge>}
+                          <Badge color="purple">{entry.item.subjects?.name ?? t("Course")}</Badge>
+                          {entry.submission ? <Badge color="green">{t("Completed")}</Badge> : <Badge color="blue">{t("Scheduled")}</Badge>}
                         </div>
                         <h3 className="font-bold text-foreground">{entry.item.title}</h3>
                         <p className="text-xs text-muted-foreground mt-2">
@@ -1894,8 +1939,8 @@ export function ParentPortal({ view, setView, onLogout, schoolId, user }: Parent
                         </p>
                       </div>
                       <div className="text-right shrink-0">
-                        <p className="text-2xl font-bold text-primary">{entry.submission?.score != null ? `${Math.round(entry.submission.score)}%` : "Pending"}</p>
-                        <p className="text-xs text-muted-foreground mt-1">{entry.submission ? formatDate(entry.submission.submitted_at) : "Awaiting completion"}</p>
+                        <p className="text-2xl font-bold text-primary">{entry.submission?.score != null ? `${Math.round(entry.submission.score)}%` : t("Pending")}</p>
+                        <p className="text-xs text-muted-foreground mt-1">{entry.submission ? formatDate(entry.submission.submitted_at) : t("Awaiting completion")}</p>
                       </div>
                     </div>
                   </div>
@@ -1913,7 +1958,7 @@ export function ParentPortal({ view, setView, onLogout, schoolId, user }: Parent
                 </div>
                 <div className="bg-card rounded-2xl border border-border shadow-sm overflow-hidden">
                   <div className="px-6 py-4 border-b border-border">
-                    <h3 className="font-bold text-foreground">Final Results</h3>
+                    <h3 className="font-bold text-foreground">{t("Final Results")}</h3>
                   </div>
                   <div className="overflow-x-auto">
                     <table className="w-full min-w-[620px]">
@@ -1921,7 +1966,7 @@ export function ParentPortal({ view, setView, onLogout, schoolId, user }: Parent
                         <tr className="bg-muted/40 border-b border-border">
                           {["Course", "Score", "GPA", "Grade", "Status"].map((header) => (
                             <th key={header} className="px-6 py-3 text-left text-xs font-semibold text-muted-foreground">
-                              {header}
+                              {t(header)}
                             </th>
                           ))}
                         </tr>
@@ -1932,11 +1977,11 @@ export function ParentPortal({ view, setView, onLogout, schoolId, user }: Parent
                           const gradeLabel = item.grade_letter || scoreToLetter(score)
                           return (
                             <tr key={item.id} className="border-b border-border last:border-0">
-                              <td className="px-6 py-4 text-sm font-semibold text-foreground">{item.subjects?.name ?? "Course"}</td>
+                              <td className="px-6 py-4 text-sm font-semibold text-foreground">{item.subjects?.name ?? t("Course")}</td>
                               <td className="px-6 py-4 text-sm text-foreground">{score ?? "-"}</td>
                               <td className="px-6 py-4 text-sm text-foreground">{scoreToGpa(score)}</td>
                               <td className="px-6 py-4">{renderGradeBadge(gradeLabel)}</td>
-                              <td className="px-6 py-4 text-sm capitalize text-muted-foreground">{item.status}</td>
+                              <td className="px-6 py-4 text-sm capitalize text-muted-foreground">{t(item.status.charAt(0).toUpperCase() + item.status.slice(1), item.status)}</td>
                             </tr>
                           )
                         })}
@@ -1994,8 +2039,11 @@ export function ParentPortal({ view, setView, onLogout, schoolId, user }: Parent
                 sendLabel="Teacher Messages"
               />
             )}
+
+            {view === "timetable" && <TimetableGrid entries={timetableQuery.entries} />}
           </>
         )}
+        {view === "profile" && <ProfileSettingsPanel userId={userId} />}
       </AppShell>
       {toast && <Toast message={toast.msg} type={toast.type} onClose={() => setToast(null)} />}
     </>

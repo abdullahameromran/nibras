@@ -1,5 +1,6 @@
+// @refresh reset
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
-import { Award, BookOpen, Calendar, CheckCircle, ChevronLeft, Clock, Download, FileText, Home, Layers, MessageSquare, Plus, Send, Users } from "lucide-react"
+import { Award, BookOpen, Calendar, CheckCircle, ChevronLeft, Clock, Download, FileText, Home, Layers, MessageSquare, Plus, Send, Settings, Users } from "lucide-react"
 import { Bar, BarChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts"
 import { useAcademicYears } from "@/hooks/useAcademicYears"
 import { useAttendance } from "@/hooks/useAttendance"
@@ -14,6 +15,7 @@ import { useTimetable, useTimeSlots, useWorkingDays } from "@/hooks/useTimetable
 import { formatDisplayName, shouldPreferFallbackDisplayName } from "@/lib/display"
 import { AppShell, Avatar, Badge, Btn, EmptyState, Input, LoadingState, Modal, NavItem, Select, StatCard, Toast, useTranslation } from "./shared"
 import { TeacherClassesSectionLive } from "./TeacherClassesSectionLive"
+import { ProfileSettingsPanel } from "./ProfileSettingsPanel"
 
 const TEACHER_NAV: NavItem[] = [
   { id: "dashboard", label: "Home Page", icon: <Home className="w-4 h-4" /> },
@@ -23,6 +25,7 @@ const TEACHER_NAV: NavItem[] = [
   { id: "students", label: "My Students", icon: <Users className="w-4 h-4" /> },
   { id: "messages", label: "Ticketing System", icon: <MessageSquare className="w-4 h-4" /> },
   { id: "timetable", label: "Time Table", icon: <Calendar className="w-4 h-4" /> },
+  { id: "profile", label: "Profile & Settings", icon: <Settings className="w-4 h-4" /> },
 ]
 
 type ToastState = { msg: string; type: "success" | "error" } | null
@@ -133,6 +136,17 @@ function formatTimetableLabel(start: string, end: string) {
   return `${start} - ${end}`
 }
 
+function downloadCsv(filename: string, headings: string[], rows: Array<Array<string | number>>) {
+  const escape = (value: string | number) => `"${String(value).replace(/"/g, '""')}"`
+  const csv = `\uFEFF${[headings, ...rows].map((row) => row.map(escape).join(",")).join("\r\n")}`
+  const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }))
+  const anchor = document.createElement("a")
+  anchor.href = url
+  anchor.download = filename
+  anchor.click()
+  URL.revokeObjectURL(url)
+}
+
 export function TeacherPortalLive({
   view,
   setView,
@@ -220,9 +234,11 @@ export function TeacherPortalLive({
       })
       .map((schoolClass) => ({
         value: schoolClass.id,
-        label: `${schoolClass.grade_levels?.name ?? "Grade"} - ${schoolClass.name}`,
+        label: schoolClass.grade_levels?.name && schoolClass.name.includes(schoolClass.grade_levels.name)
+          ? schoolClass.name
+          : `${schoolClass.grade_levels?.name ?? t("Grade")} - ${schoolClass.name}`,
       }))
-  }, [teacherAssignments])
+  }, [t, teacherAssignments])
 
   const subjectsByClassId = useMemo(() => {
     const map = new Map<string, Array<{ value: string; label: string }>>()
@@ -628,17 +644,22 @@ export function TeacherPortalLive({
       .filter((student) => student.classId === resultClassId)
       .map((student) => {
         const grade = dbFinalGrades.grades.find((item) => item.student_id === student.id && item.class_id === resultClassId && item.subject_id === resultSubjectId) ?? null
-        return { student, grade }
+        const assessmentScores = teacherTests
+          .filter((test) => test.class_id === resultClassId && test.subject_id === resultSubjectId)
+          .flatMap((test) => (test.test_submissions ?? []).filter((submission) => submission.student_id === student.id).map((submission) => submission.score))
+          .filter((score): score is number => typeof score === "number")
+        const calculatedScore = average(assessmentScores)
+        return { student, grade, score: grade?.grade_value ?? calculatedScore }
       })
       .sort((left, right) => {
-        const leftValue = left.grade?.grade_value ?? -1
-        const rightValue = right.grade?.grade_value ?? -1
+        const leftValue = left.score ?? -1
+        const rightValue = right.score ?? -1
         return rightValue - leftValue || left.student.name.localeCompare(right.student.name)
       })
-  }, [dbFinalGrades.grades, resultClassId, resultSubjectId, teacherStudents])
+  }, [dbFinalGrades.grades, resultClassId, resultSubjectId, teacherStudents, teacherTests])
 
   const resultAverage = useMemo(() => {
-    const values = resultRows.map((row) => row.grade?.grade_value).filter((value): value is number => typeof value === "number")
+    const values = resultRows.map((row) => row.score).filter((value): value is number => typeof value === "number")
     return average(values)
   }, [resultRows])
 
@@ -675,6 +696,7 @@ export function TeacherPortalLive({
       students: "My Students",
       messages: "Ticketing System",
       timetable: "Time Table",
+      profile: "Profile & Settings",
     }[view] ?? "Teacher Dashboard"
 
   useEffect(() => {
@@ -1162,7 +1184,7 @@ export function TeacherPortalLive({
         {!showInitialLoader && view === "tests" && selectedTest && (
           <div className="space-y-5">
             <button onClick={() => setSelectedTestId(null)} className="flex items-center gap-2 text-sm text-muted-foreground transition-colors hover:text-foreground">
-              <ChevronLeft className="w-4 h-4" /> Back to Tests
+              <ChevronLeft className="w-4 h-4" /> {t("Back to Tests")}
             </button>
 
             <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
@@ -1189,17 +1211,17 @@ export function TeacherPortalLive({
                     {selectedTest.subjects?.name ?? "Subject"} • {selectedTest.classes?.name ?? "Class"}
                   </p>
                 </div>
-                <button className="flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-xs font-medium hover:bg-muted transition-colors">
-                  <Download className="w-3 h-3" /> Export
+                <button onClick={() => downloadCsv(`${selectedTest.title}.csv`, [t("Student Name"), t("Result"), t("Max Score"), t("GPA"), t("Grade")], testResultRows.map((row) => [row.name, row.score ?? t("Pending"), 100, scoreToGpa(row.score), t(scoreToLetter(row.score))]))} className="flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-xs font-medium hover:bg-muted transition-colors">
+                  <Download className="w-3 h-3" /> {t("Export")}
                 </button>
               </div>
               <div className="border-b border-border p-5">
                 <div className="mb-3 flex items-center justify-between gap-3">
                   <div>
-                    <h4 className="text-sm font-bold text-foreground">Questions & Choices</h4>
-                    <p className="text-xs text-muted-foreground">Saved MCQ questions for this test.</p>
+                    <h4 className="text-sm font-bold text-foreground">{t("Questions & Choices")}</h4>
+                    <p className="text-xs text-muted-foreground">{t("Saved MCQ questions for this test.")}</p>
                   </div>
-                  <Badge color="purple">{selectedTestQuestionRows.length} questions</Badge>
+                  <Badge color="purple">{selectedTestQuestionRows.length} {t("questions")}</Badge>
                 </div>
                 <div className="space-y-3">
                   {selectedTestQuestionRows.map((question, index) => (
@@ -1209,9 +1231,9 @@ export function TeacherPortalLive({
                           <p className="text-sm font-semibold text-foreground">
                             {index + 1}. {question.question_text}
                           </p>
-                          <p className="text-xs text-muted-foreground">{question.test_choices?.length ?? 0} choices</p>
+                          <p className="text-xs text-muted-foreground">{question.test_choices?.length ?? 0} {t("choices")}</p>
                         </div>
-                        <Badge color="blue">MCQ</Badge>
+                        <Badge color="blue">{t("Multiple Choice")}</Badge>
                       </div>
                       <div className="grid gap-2 sm:grid-cols-2">
                         {(question.test_choices ?? []).map((choice) => (
@@ -1220,14 +1242,14 @@ export function TeacherPortalLive({
                             className={`rounded-lg border px-3 py-2 text-sm ${choice.is_correct ? "border-green-200 bg-green-50 text-green-800" : "border-border bg-card text-foreground"}`}
                           >
                             <span className="font-medium">{choice.choice_text}</span>
-                            {choice.is_correct && <span className="ml-2 text-xs font-semibold">(Correct)</span>}
+                            {choice.is_correct && <span className="ms-2 text-xs font-semibold">({t("Correct")})</span>}
                           </div>
                         ))}
                       </div>
                     </div>
                   ))}
                   {selectedTestQuestionRows.length === 0 && (
-                    <EmptyState title="No questions saved" description="Add MCQ questions when creating the test so this section can show the real exam content." />
+                    <EmptyState title={t("No questions saved")} description={t("Add MCQ questions when creating the test so this section can show the real exam content.")} />
                   )}
                 </div>
               </div>
@@ -1237,7 +1259,7 @@ export function TeacherPortalLive({
                     <tr className="border-b border-border bg-muted/20">
                       {["#", "Student Name", "Result", "Max Score", "GPA", "Grade"].map((heading) => (
                         <th key={heading} className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground">
-                          {heading}
+                          {t(heading)}
                         </th>
                       ))}
                     </tr>
@@ -1252,18 +1274,18 @@ export function TeacherPortalLive({
                             <span className="text-sm font-semibold text-foreground">{row.name}</span>
                           </div>
                         </td>
-                        <td className="px-4 py-3 text-sm font-bold text-foreground">{row.score ?? "Pending"}</td>
+                        <td className="px-4 py-3 text-sm font-bold text-foreground">{row.score ?? t("Pending")}</td>
                         <td className="px-4 py-3 text-sm text-muted-foreground">100</td>
                         <td className="px-4 py-3 text-sm font-bold text-primary">{scoreToGpa(row.score)}</td>
                         <td className="px-4 py-3">
-                          <Badge color={scoreToLetter(row.score).startsWith("A") ? "green" : scoreToLetter(row.score).startsWith("B") ? "blue" : "gray"}>{scoreToLetter(row.score)}</Badge>
+                          <Badge color={scoreToLetter(row.score).startsWith("A") ? "green" : scoreToLetter(row.score).startsWith("B") ? "blue" : "gray"}>{t(scoreToLetter(row.score))}</Badge>
                         </td>
                       </tr>
                     ))}
                     {testResultRows.length === 0 && (
                       <tr>
                         <td colSpan={6} className="px-4 py-10">
-                          <EmptyState title="No test submissions yet" description="Student results will appear here after they submit this test." />
+                          <EmptyState title={t("No test submissions yet")} description={t("Student results will appear here after they submit this test.")} />
                         </td>
                       </tr>
                     )}
@@ -1296,11 +1318,11 @@ export function TeacherPortalLive({
             <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
               <div className="flex items-center justify-between border-b border-border bg-muted/40 px-5 py-3">
                 <div>
-                  <h3 className="text-sm font-bold text-foreground">Final Results • {resultClassOptions.find((option) => option.value === resultClassId)?.label ?? "Class"}</h3>
-                  <p className="mt-0.5 text-xs text-muted-foreground">{resultSubjectOptions.find((option) => option.value === resultSubjectId)?.label ?? "Subject"}</p>
+                  <h3 className="text-sm font-bold text-foreground">{t("Final Results")} • {resultClassOptions.find((option) => option.value === resultClassId)?.label ?? t("Class")}</h3>
+                  <p className="mt-0.5 text-xs text-muted-foreground">{resultSubjectOptions.find((option) => option.value === resultSubjectId)?.label ?? t("Subject")}</p>
                 </div>
-                <button className="flex items-center gap-1.5 rounded-lg border border-border px-4 py-1.5 text-xs font-medium hover:bg-muted transition-colors">
-                  <Download className="w-3 h-3" /> Export
+                <button onClick={() => downloadCsv("final-results.csv", [t("Student Name"), t("Result"), t("Max Score"), t("GPA"), t("Grade")], resultRows.map((row) => { const score = row.score; const letter = row.grade?.grade_letter ?? scoreToLetter(score); return [row.student.name, score ?? t("Pending"), 100, score == null ? t("Pending") : scoreToGpa(score), t(letter)] }))} className="flex items-center gap-1.5 rounded-lg border border-border px-4 py-1.5 text-xs font-medium hover:bg-muted transition-colors">
+                  <Download className="w-3 h-3" /> {t("Export")}
                 </button>
               </div>
               <div className="overflow-x-auto">
@@ -1309,14 +1331,14 @@ export function TeacherPortalLive({
                     <tr className="border-b border-border bg-muted/20">
                       {["#", "Student Name", "Result", "Max Score", "GPA", "Grade"].map((heading) => (
                         <th key={heading} className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground">
-                          {heading}
+                          {t(heading)}
                         </th>
                       ))}
                     </tr>
                   </thead>
                   <tbody>
                     {resultRows.map((row, index) => {
-                      const score = row.grade?.grade_value ?? null
+                      const score = row.score
                       const gradeLabel = row.grade?.grade_letter ?? scoreToLetter(score)
                       return (
                         <tr key={row.student.id} className="border-b border-border last:border-0">
@@ -1327,11 +1349,11 @@ export function TeacherPortalLive({
                               <span className="text-sm font-semibold text-foreground">{row.student.name}</span>
                             </div>
                           </td>
-                          <td className="px-4 py-3 text-sm font-bold text-foreground">{score ?? "Pending"}</td>
+                          <td className="px-4 py-3 text-sm font-bold text-foreground">{score ?? t("Pending")}</td>
                           <td className="px-4 py-3 text-sm text-muted-foreground">100</td>
-                          <td className="px-4 py-3 text-sm font-bold text-primary">{scoreToGpa(score)}</td>
+                          <td className="px-4 py-3 text-sm font-bold text-primary">{score == null ? t("Pending") : scoreToGpa(score)}</td>
                           <td className="px-4 py-3">
-                            <Badge color={gradeLabel.startsWith("A") ? "green" : gradeLabel.startsWith("B") ? "blue" : "gray"}>{gradeLabel}</Badge>
+                            <Badge color={gradeLabel.startsWith("A") ? "green" : gradeLabel.startsWith("B") ? "blue" : "gray"}>{t(gradeLabel)}</Badge>
                           </td>
                         </tr>
                       )
@@ -1380,6 +1402,8 @@ export function TeacherPortalLive({
             </div>
           </div>
         )}
+
+        {!showInitialLoader && view === "profile" && <ProfileSettingsPanel userId={user?.id ?? null} />}
 
         {!showInitialLoader && view === "messages" && (
           <div className="h-[calc(100vh-180px)] overflow-hidden rounded-2xl border border-border bg-card shadow-sm">

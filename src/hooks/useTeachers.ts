@@ -12,6 +12,7 @@ export interface Teacher {
   is_active: boolean;
   role_id?: string;
   school_id?: string;
+  role_active?: boolean;
   subjects?: Array<{ id: string; name: string }>;
 }
 
@@ -42,13 +43,13 @@ export function useTeachers(schoolId: string | null) {
         id,
         user_id,
         school_id,
+        is_active,
         profiles (
           id, email, first_name, last_name, avatar_url, phone, is_active
         )
       `)
       .eq("school_id", schoolId)
-      .eq("role", "teacher")
-      .eq("is_active", true);
+      .eq("role", "teacher");
     if (err) { setError(err.message); setLoading(false); return; }
 
     // Flatten: each row has a profiles object
@@ -56,6 +57,7 @@ export function useTeachers(schoolId: string | null) {
       id: string;
       user_id: string;
       school_id: string;
+      is_active: boolean;
       profiles: Partial<Teacher> | Array<Partial<Teacher>> | null;
     }>;
     const seen = new Set<string>();
@@ -72,6 +74,7 @@ export function useTeachers(schoolId: string | null) {
           is_active: profile?.is_active ?? true,
           role_id: row.id,
           school_id: row.school_id,
+          role_active: (row as { is_active?: boolean }).is_active ?? true,
         } satisfies Teacher;
       })
       .filter((teacher) => {
@@ -115,5 +118,17 @@ export function useTeachers(schoolId: string | null) {
     return { error: null };
   }, [schoolId, fetchTeachers]);
 
-  return { teachers, loading, error, fetchTeachers, inviteTeacher, deactivateTeacher };
+  const updateTeacher = useCallback(async (userId: string, updates: { first_name: string; last_name?: string; phone?: string; is_active: boolean }) => {
+    if (!schoolId) return { error: "No school selected" };
+    const { error: err } = await supabase.rpc("manage_school_member", {
+      p_school_id: schoolId, p_user_id: userId, p_role: "teacher",
+      p_first_name: updates.first_name, p_last_name: updates.last_name ?? null,
+      p_phone: updates.phone ?? null, p_role_active: updates.is_active,
+    });
+    if (err) return { error: err.message };
+    await fetchTeachers();
+    return { error: null };
+  }, [schoolId, fetchTeachers]);
+
+  return { teachers, loading, error, fetchTeachers, inviteTeacher, deactivateTeacher, updateTeacher };
 }

@@ -11,6 +11,7 @@ export interface ParentUser {
   phone: string | null;
   is_active: boolean;
   role_id?: string;
+  role_active?: boolean;
   school_id?: string;
   linked_student_ids: string[];
 }
@@ -19,6 +20,7 @@ type ParentRoleRow = {
   id: string;
   user_id: string;
   school_id: string;
+  is_active: boolean;
   profiles:
     | {
         id?: string;
@@ -75,6 +77,7 @@ export function useParents(schoolId: string | null) {
           id,
           user_id,
           school_id,
+          is_active,
           profiles (
             id,
             email,
@@ -86,8 +89,7 @@ export function useParents(schoolId: string | null) {
           )
         `)
         .eq("school_id", schoolId)
-        .eq("role", "parent")
-        .eq("is_active", true),
+        .eq("role", "parent"),
       supabase
         .from("parent_student_links")
         .select("parent_id, student_id")
@@ -127,6 +129,7 @@ export function useParents(schoolId: string | null) {
           is_active: profile?.is_active ?? true,
           role_id: row.id,
           school_id: row.school_id,
+          role_active: (row as { is_active?: boolean }).is_active ?? true,
           linked_student_ids: linkedStudentIdsByParent.get(parentId) ?? [],
         } satisfies ParentUser;
       })
@@ -196,6 +199,18 @@ export function useParents(schoolId: string | null) {
     return { error: null };
   }, [fetchParents]);
 
+  const updateParent = useCallback(async (userId: string, updates: { first_name: string; last_name?: string; phone?: string; is_active: boolean }) => {
+    if (!schoolId) return { error: "No school selected" };
+    const { error: memberError } = await supabase.rpc("manage_school_member", {
+      p_school_id: schoolId, p_user_id: userId, p_role: "parent",
+      p_first_name: updates.first_name, p_last_name: updates.last_name ?? null,
+      p_phone: updates.phone ?? null, p_role_active: updates.is_active,
+    });
+    if (memberError) return { error: memberError.message };
+    await fetchParents();
+    return { error: null };
+  }, [schoolId, fetchParents]);
+
   return {
     parents,
     loading,
@@ -204,5 +219,6 @@ export function useParents(schoolId: string | null) {
     inviteParent,
     linkParentToStudent,
     unlinkParentFromStudent,
+    updateParent,
   };
 }

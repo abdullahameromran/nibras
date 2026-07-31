@@ -148,6 +148,13 @@ export function useHomework(filters: {
     return { error: null };
   }, [fetchHomework]);
 
+  const updateHomework = useCallback(async (id: string, updates: { title?: string; due_date?: string }) => {
+    const { error: err } = await supabase.from("homework").update(updates).eq("id", id);
+    if (err) return { error: err.message };
+    await fetchHomework();
+    return { error: null };
+  }, [fetchHomework]);
+
   const submitHomework = useCallback(async (payload: {
     homework_id: string;
     student_id: string;
@@ -170,5 +177,5 @@ export function useHomework(filters: {
     return { error: null };
   }, [fetchHomework]);
 
-  return { homework, loading, error, fetchHomework, createHomework, deleteHomework, submitHomework };
+  return { homework, loading, error, fetchHomework, createHomework, updateHomework, deleteHomework, submitHomework };
 }

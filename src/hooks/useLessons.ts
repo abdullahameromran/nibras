@@ -126,6 +126,17 @@ export function useLessons(filters: {
     return { error: null };
   }, [fetchLessons]);
 
+  const deleteAttachment = useCallback(async (attachment: LessonAttachment) => {
+    const { error: deleteError } = await supabase.from("lesson_attachments").delete().eq("id", attachment.id);
+    if (deleteError) return { error: deleteError.message };
+    if (!/^https?:\/\//i.test(attachment.file_url)) {
+      const { error: storageError } = await supabase.storage.from("lesson-attachments").remove([attachment.file_url]);
+      if (storageError) console.error("deleteAttachment storage:", storageError);
+    }
+    await fetchLessons();
+    return { error: null };
+  }, [fetchLessons]);
+
   const markComplete = useCallback(async (lessonId: string, studentId: string, schoolId: string) => {
     const { error: err } = await supabase
       .from("student_lesson_progress")
@@ -139,5 +150,5 @@ export function useLessons(filters: {
     return { error: err?.message ?? null };
   }, []);
 
-  return { lessons, loading, error, fetchLessons, createLesson, updateLesson, deleteLesson, addAttachment, markComplete };
+  return { lessons, loading, error, fetchLessons, createLesson, updateLesson, deleteLesson, addAttachment, deleteAttachment, markComplete };
 }

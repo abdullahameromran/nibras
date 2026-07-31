@@ -169,15 +169,15 @@ async function authHeader(): Promise<Record<string, string>> {
 
 /** Upload a user avatar to the `avatars` bucket. Returns the public URL. */
 export async function uploadAvatar(userId: string, file: File): Promise<string | null> {
-  const ext = file.name.split(".").pop()
+  const ext = file.name.split(".").pop()?.toLowerCase() || "png"
   const path = `${userId}/avatar.${ext}`
-  const { error } = await supabase.storage.from("avatars").upload(path, file, { upsert: true })
+  const { error } = await supabase.storage.from("avatars").upload(path, file, { upsert: true, contentType: file.type, cacheControl: "3600" })
   if (error) {
     console.error("uploadAvatar:", error)
     return null
   }
   const { data } = supabase.storage.from("avatars").getPublicUrl(path)
-  return data.publicUrl
+  return `${data.publicUrl}?v=${Date.now()}`
 }
 
 /** Upload a lesson attachment. Returns the stored object path. */

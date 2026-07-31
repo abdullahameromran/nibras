@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react"
-import { BookOpen, Calendar, CheckSquare, ChevronLeft, Eye, FileText, Layers, Plus, PlayCircle, Upload, Users, Video } from "lucide-react"
-import { Avatar, Badge, Btn, EmptyState, Input, LoadingState, Modal, StatCard, Toast, useTranslation } from "./shared"
+import { BookOpen, Calendar, CheckSquare, ChevronLeft, Edit, Eye, FileText, Layers, Plus, PlayCircle, Trash2, Upload, Users, Video } from "lucide-react"
+import { Avatar, Badge, Btn, EmptyState, Input, LessonLinkPreview, LoadingState, Modal, StatCard, Toast, useTranslation } from "./shared"
 import { useAttendance, type AttendanceStatus } from "@/hooks/useAttendance"
 import { useClasses } from "@/hooks/useClasses"
 import { useHomework, type Homework } from "@/hooks/useHomework"
@@ -34,6 +34,8 @@ type LessonAttachmentDraft = {
   file_kind: string
   file: File | null
 }
+
+type HomeworkEditorState = { id: string | null; title: string; due_date: string; questions: Array<{ text: string; choices: string[]; correctIndex: number }> }
 
 type LessonFormState = {
   title: string
@@ -87,6 +89,11 @@ export function TeacherClassesSectionLive({ schoolId, teacherId }: { schoolId?: 
   const [toast, setToast] = useState<ToastState>(null)
   const [showCreateLesson, setShowCreateLesson] = useState(false)
   const [creatingLesson, setCreatingLesson] = useState(false)
+  const [showEditLesson, setShowEditLesson] = useState(false)
+  const [showAddAttachments, setShowAddAttachments] = useState(false)
+  const [attachmentDrafts, setAttachmentDrafts] = useState<LessonAttachmentDraft[]>([{ file_name: "", file_url: "", file_kind: "pdf", file: null }])
+  const [homeworkEditor, setHomeworkEditor] = useState<HomeworkEditorState | null>(null)
+  const [savingHomework, setSavingHomework] = useState(false)
   const [lessonForm, setLessonForm] = useState<LessonFormState>({
     title: "",
     description: "",
@@ -469,6 +476,96 @@ export function TeacherClassesSectionLive({ schoolId, teacherId }: { schoolId?: 
     showToast(t("Lesson saved successfully."))
   }
 
+  const openLessonEditor = () => {
+    if (!selectedLesson) return
+    setLessonForm({ title: selectedLesson.title, description: selectedLesson.description ?? "", lesson_date: selectedLesson.lesson_date, video_url: selectedLesson.video_url ?? "", attachments: [] })
+    setShowEditLesson(true)
+  }
+
+  const saveLessonEdits = async () => {
+    if (!selectedLesson || !lessonForm.title.trim() || !lessonForm.lesson_date) return
+    setCreatingLesson(true)
+    const result = await dbLessons.updateLesson(selectedLesson.id, {
+      title: lessonForm.title.trim(), description: lessonForm.description.trim() || null,
+      video_url: lessonForm.video_url.trim() || null, lesson_date: lessonForm.lesson_date,
+    })
+    setCreatingLesson(false)
+    if (result.error) return showToast(result.error, "error")
+    setShowEditLesson(false)
+    showToast(t("Lesson updated successfully."))
+  }
+
+  const removeLesson = async () => {
+    if (!selectedLesson || !window.confirm(t("Delete this lesson and hide all related content?"))) return
+    for (const homework of selectedLessonHomework) {
+      const homeworkResult = await dbHomework.deleteHomework(homework.id)
+      if (homeworkResult.error) return showToast(homeworkResult.error, "error")
+    }
+    const result = await dbLessons.deleteLesson(selectedLesson.id)
+    if (result.error) return showToast(result.error, "error")
+    setSelectedLessonId(null)
+    showToast(t("Lesson deleted successfully."))
+  }
+
+  const saveNewAttachments = async () => {
+    if (!schoolId || !selectedLesson) return
+    setCreatingLesson(true)
+    for (const attachment of attachmentDrafts) {
+      const name = attachment.file_name.trim() || attachment.file?.name || ""
+      if (!name || (!attachment.file && !attachment.file_url.trim())) continue
+      const path = attachment.file ? await uploadLessonAttachment(schoolId, selectedLesson.id, attachment.file) : attachment.file_url.trim()
+      if (!path) { setCreatingLesson(false); return showToast(t("Could not upload attachment. Please check the file and try again."), "error") }
+      const result = await dbLessons.addAttachment(selectedLesson.id, { file_name: name, file_url: path, file_kind: attachment.file ? getAttachmentKind(attachment.file) : attachment.file_kind || "file" })
+      if (result.error) { setCreatingLesson(false); return showToast(result.error, "error") }
+    }
+    setCreatingLesson(false)
+    setShowAddAttachments(false)
+    setAttachmentDrafts([{ file_name: "", file_url: "", file_kind: "pdf", file: null }])
+    showToast(t("Attachments added successfully."))
+  }
+
+  const removeAttachment = async (attachment: NonNullable<Lesson["lesson_attachments"]>[number]) => {
+    if (!window.confirm(t("Remove this attachment?"))) return
+    const result = await dbLessons.deleteAttachment(attachment)
+    showToast(result.error ?? t("Attachment removed."), result.error ? "error" : "success")
+  }
+
+  const openHomeworkEditor = (item?: Homework) => setHomeworkEditor({
+    id: item?.id ?? null, title: item?.title ?? "", due_date: item?.due_date?.slice(0, 10) ?? "",
+    questions: item ? [] : [{ text: "", choices: ["", ""], correctIndex: 0 }],
+  })
+
+  const saveHomework = async () => {
+    if (!schoolId || !selectedLesson || !homeworkEditor?.title.trim() || !homeworkEditor.due_date) return
+    if (!homeworkEditor.id) {
+      const incomplete = homeworkEditor.questions.length === 0 || homeworkEditor.questions.some((question) => {
+        const nonEmptyChoices = question.choices.filter((choice) => choice.trim())
+        return !question.text.trim() || nonEmptyChoices.length < 2 || !question.choices[question.correctIndex]?.trim()
+      })
+      if (incomplete) return showToast(t("Please complete every question with at least two choices and one correct answer."), "error")
+    }
+    setSavingHomework(true)
+    const result = homeworkEditor.id
+      ? await dbHomework.updateHomework(homeworkEditor.id, { title: homeworkEditor.title.trim(), due_date: homeworkEditor.due_date })
+      : await dbHomework.createHomework({
+          school_id: schoolId, lesson_id: selectedLesson.id, title: homeworkEditor.title.trim(), due_date: homeworkEditor.due_date,
+          questions: homeworkEditor.questions.filter((question) => question.text.trim()).map((question, questionIndex) => ({
+            question_text: question.text.trim(), sort_order: questionIndex,
+            choices: question.choices.map((choice, originalIndex) => ({ choice, originalIndex })).filter(({ choice }) => choice.trim()).map(({ choice, originalIndex }, choiceIndex) => ({ choice_text: choice.trim(), is_correct: originalIndex === question.correctIndex, sort_order: choiceIndex })),
+          })),
+        })
+    setSavingHomework(false)
+    if (result.error) return showToast(result.error, "error")
+    setHomeworkEditor(null)
+    showToast(t(homeworkEditor.id ? "Homework updated." : "Homework created."))
+  }
+
+  const removeHomework = async (item: Homework) => {
+    if (!window.confirm(t("Delete this homework?"))) return
+    const result = await dbHomework.deleteHomework(item.id)
+    showToast(result.error ?? t("Homework deleted."), result.error ? "error" : "success")
+  }
+
   const saveAttendance = async () => {
     if (!schoolId || !teacherId || !selectedLesson) return
     const rows = selectedLessonStudentRows
@@ -739,18 +836,23 @@ export function TeacherClassesSectionLive({ schoolId, teacherId }: { schoolId?: 
                       {selectedLesson ? `${formatDate(selectedLesson.lesson_date, locale)} • ${selectedClass.subjectLabel}` : t("Choose a lesson from the left to view its live data.")}
                     </p>
                   </div>
-                  {selectedLesson && (
-                    <Badge color="purple">{lessonKind(selectedLesson) === "video" ? (language === "ar" ? "فيديو" : "Video") : lessonKind(selectedLesson) === "pdf" ? "PDF" : t("Lesson")}</Badge>
-                  )}
+                  {selectedLesson && <div className="flex flex-wrap items-center justify-end gap-2">
+                    <Badge color="purple">{lessonKind(selectedLesson) === "video" ? t("Video") : lessonKind(selectedLesson) === "pdf" ? "PDF" : t("Lesson")}</Badge>
+                    <Btn size="sm" variant="secondary" onClick={openLessonEditor}><Edit className="h-3.5 w-3.5" /> {t("Edit Lesson")}</Btn>
+                    <Btn size="sm" variant="secondary" onClick={() => void removeLesson()}><Trash2 className="h-3.5 w-3.5" /> {t("Delete Lesson")}</Btn>
+                  </div>}
                 </div>
                 {selectedLesson?.description && <p className="mt-4 rounded-xl bg-gray-50 px-4 py-3 text-sm leading-6 text-[#344054]">{selectedLesson.description}</p>}
+                {selectedLessonVideoUrl && <div className="mt-4"><LessonLinkPreview url={selectedLessonVideoUrl} /></div>}
               </div>
 
               <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
                 <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
-                  <div className="mb-4 flex items-center gap-2">
+                  <div className="mb-4 flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2">
                     <BookOpen className="h-4 w-4 text-[#955AC3]" />
-                    <h3 className="text-[15px] font-semibold text-[#0E1B4A]">{t("Articles")}</h3>
+                    <h3 className="text-[15px] font-semibold text-[#0E1B4A]">{t("Attachments")}</h3></div>
+                    {selectedLesson && <button type="button" onClick={() => { setAttachmentDrafts([{ file_name: "", file_url: "", file_kind: "pdf", file: null }]); setShowAddAttachments(true) }} className="text-xs font-semibold text-[#955AC3]"><Plus className="me-1 inline h-3.5 w-3.5" />{t("Add")}</button>}
                   </div>
                   <div className="space-y-3">
                     {(selectedLesson?.lesson_attachments ?? []).map((attachment) => (
@@ -774,6 +876,7 @@ export function TeacherClassesSectionLive({ schoolId, teacherId }: { schoolId?: 
                             <Eye className="h-3.5 w-3.5" /> {t("Preparing file...")}
                           </span>
                         )}
+                        <button type="button" onClick={() => void removeAttachment(attachment)} className="ms-3 mt-3 inline-flex text-xs font-semibold text-red-600"><Trash2 className="h-3.5 w-3.5" /></button>
                       </div>
                     ))}
                     {(selectedLesson?.lesson_attachments?.length ?? 0) === 0 && <EmptyState title="No lesson files" description="Lesson attachments from Supabase will appear here." />}
@@ -781,9 +884,11 @@ export function TeacherClassesSectionLive({ schoolId, teacherId }: { schoolId?: 
                 </div>
 
                 <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
-                  <div className="mb-4 flex items-center gap-2">
+                  <div className="mb-4 flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2">
                     <FileText className="h-4 w-4 text-[#10B981]" />
-                    <h3 className="text-[15px] font-semibold text-[#0E1B4A]">Homework</h3>
+                    <h3 className="text-[15px] font-semibold text-[#0E1B4A]">{t("Homework")}</h3></div>
+                    {selectedLesson && <button type="button" onClick={() => openHomeworkEditor()} className="text-xs font-semibold text-[#10B981]"><Plus className="me-1 inline h-3.5 w-3.5" />{t("Create")}</button>}
                   </div>
                   <div className="space-y-3">
                     {selectedLessonHomework.map((item) => (
@@ -800,6 +905,10 @@ export function TeacherClassesSectionLive({ schoolId, teacherId }: { schoolId?: 
                         <p className="mt-2 text-xs text-[#5D7A70]">
                           {t("Due")} {formatDateTime(item.due_date, locale)}
                         </p>
+                        <div className="mt-3 flex gap-3">
+                          <button type="button" onClick={() => openHomeworkEditor(item)} className="text-xs font-semibold text-[#2B7A5E]"><Edit className="me-1 inline h-3.5 w-3.5" />{t("Edit")}</button>
+                          <button type="button" onClick={() => void removeHomework(item)} className="text-xs font-semibold text-red-600"><Trash2 className="me-1 inline h-3.5 w-3.5" />{t("Delete")}</button>
+                        </div>
                       </div>
                     ))}
                     {selectedLessonHomework.length === 0 && <EmptyState title="No homework yet" description="Homework linked to this lesson will appear here from Supabase." />}
@@ -965,6 +1074,56 @@ export function TeacherClassesSectionLive({ schoolId, teacherId }: { schoolId?: 
                   {t("Cancel")}
                 </Btn>
               </div>
+            </div>
+          </Modal>
+        )}
+
+        {showEditLesson && (
+          <Modal title={t("Edit Lesson")} onClose={() => setShowEditLesson(false)}>
+            <div className="space-y-4">
+              <Input label={t("Lesson Title")} value={lessonForm.title} onChange={(value) => setLessonForm((current) => ({ ...current, title: value }))} required />
+              <Input label={t("Lesson Date")} type="date" value={lessonForm.lesson_date} onChange={(value) => setLessonForm((current) => ({ ...current, lesson_date: value }))} required />
+              <Input label={t("Lesson Description")} value={lessonForm.description} onChange={(value) => setLessonForm((current) => ({ ...current, description: value }))} />
+              <Input label={t("Video URL")} value={lessonForm.video_url} onChange={(value) => setLessonForm((current) => ({ ...current, video_url: value }))} />
+              <div className="flex gap-3"><Btn onClick={() => void saveLessonEdits()} className="flex-1" disabled={creatingLesson}>{creatingLesson ? t("Saving...") : t("Save Changes")}</Btn><Btn variant="secondary" onClick={() => setShowEditLesson(false)}>{t("Cancel")}</Btn></div>
+            </div>
+          </Modal>
+        )}
+
+        {showAddAttachments && (
+          <Modal title={t("Add Attachment")} onClose={() => setShowAddAttachments(false)}>
+            <div className="space-y-4">
+              {attachmentDrafts.map((attachment, index) => (
+                <div key={index} className="space-y-3 rounded-xl border border-border p-4">
+                  <div className="flex items-center justify-between"><strong className="text-sm">{t("Attachment")} {index + 1}</strong>{attachmentDrafts.length > 1 && <button type="button" className="text-xs text-red-600" onClick={() => setAttachmentDrafts((rows) => rows.filter((_, rowIndex) => rowIndex !== index))}>{t("Remove")}</button>}</div>
+                  <Input label={t("Attachment Name")} value={attachment.file_name} onChange={(value) => setAttachmentDrafts((rows) => rows.map((row, rowIndex) => rowIndex === index ? { ...row, file_name: value } : row))} />
+                  <Input label={t("Attachment URL")} value={attachment.file_url} onChange={(value) => setAttachmentDrafts((rows) => rows.map((row, rowIndex) => rowIndex === index ? { ...row, file_url: value } : row))} />
+                  <Input label={t("Attachment Type")} value={attachment.file_kind} onChange={(value) => setAttachmentDrafts((rows) => rows.map((row, rowIndex) => rowIndex === index ? { ...row, file_kind: value } : row))} />
+                  <label className="flex cursor-pointer items-center justify-between rounded-xl border border-dashed border-primary/30 bg-primary/5 p-3 text-sm font-semibold text-primary"><span><Upload className="me-2 inline h-4 w-4" />{t("Upload file")}</span><input type="file" className="sr-only" onChange={(event) => { const file = event.target.files?.[0]; if (file) setAttachmentDrafts((rows) => rows.map((row, rowIndex) => rowIndex === index ? { ...row, file, file_name: row.file_name || file.name, file_kind: getAttachmentKind(file) } : row)) }} /><span className="text-xs text-muted-foreground">{attachment.file?.name ?? t("No file selected")}</span></label>
+                </div>
+              ))}
+              <Btn type="button" variant="secondary" onClick={() => setAttachmentDrafts((rows) => [...rows, { file_name: "", file_url: "", file_kind: "pdf", file: null }])}><Plus className="h-4 w-4" />{t("Add Attachment")}</Btn>
+              <div className="flex gap-3"><Btn onClick={() => void saveNewAttachments()} className="flex-1" disabled={creatingLesson}>{creatingLesson ? t("Saving...") : t("Save")}</Btn><Btn variant="secondary" onClick={() => setShowAddAttachments(false)}>{t("Cancel")}</Btn></div>
+            </div>
+          </Modal>
+        )}
+
+        {homeworkEditor && (
+          <Modal title={t(homeworkEditor.id ? "Edit Homework" : "Create Homework")} onClose={() => setHomeworkEditor(null)}>
+            <div className="space-y-4">
+              <Input label={t("Homework Title")} value={homeworkEditor.title} onChange={(value) => setHomeworkEditor((current) => current ? { ...current, title: value } : current)} required />
+              <Input label={t("Deadline Date")} type="date" value={homeworkEditor.due_date} onChange={(value) => setHomeworkEditor((current) => current ? { ...current, due_date: value } : current)} required />
+              {!homeworkEditor.id && <div className="space-y-4">
+                {homeworkEditor.questions.map((question, questionIndex) => <div key={questionIndex} className="space-y-3 rounded-xl border border-border p-4">
+                  <div className="flex items-center justify-between"><strong className="text-sm">{t("Question")} {questionIndex + 1}</strong>{homeworkEditor.questions.length > 1 && <button type="button" className="text-xs text-red-600" onClick={() => setHomeworkEditor((current) => current ? { ...current, questions: current.questions.filter((_, index) => index !== questionIndex) } : current)}>{t("Remove")}</button>}</div>
+                  <Input label={t("Question text")} value={question.text} onChange={(value) => setHomeworkEditor((current) => current ? { ...current, questions: current.questions.map((row, index) => index === questionIndex ? { ...row, text: value } : row) } : current)} />
+                  {question.choices.map((choice, choiceIndex) => <div key={choiceIndex} className="flex items-end gap-2"><input type="radio" aria-label={t("Correct Answer")} checked={question.correctIndex === choiceIndex} onChange={() => setHomeworkEditor((current) => current ? { ...current, questions: current.questions.map((row, index) => index === questionIndex ? { ...row, correctIndex: choiceIndex } : row) } : current)} className="mb-3" /><div className="flex-1"><Input label={`${t("Choice")} ${choiceIndex + 1}`} value={choice} onChange={(value) => setHomeworkEditor((current) => current ? { ...current, questions: current.questions.map((row, index) => index === questionIndex ? { ...row, choices: row.choices.map((item, itemIndex) => itemIndex === choiceIndex ? value : item) } : row) } : current)} /></div>{question.choices.length > 2 && <button type="button" className="mb-3 text-red-600" onClick={() => setHomeworkEditor((current) => current ? { ...current, questions: current.questions.map((row, index) => index === questionIndex ? { ...row, choices: row.choices.filter((_, itemIndex) => itemIndex !== choiceIndex), correctIndex: 0 } : row) } : current)}><Trash2 className="h-4 w-4" /></button>}</div>)}
+                  <button type="button" className="text-xs font-semibold text-primary" onClick={() => setHomeworkEditor((current) => current ? { ...current, questions: current.questions.map((row, index) => index === questionIndex ? { ...row, choices: [...row.choices, ""] } : row) } : current)}><Plus className="me-1 inline h-3.5 w-3.5" />{t("Add Choice")}</button>
+                </div>)}
+                <Btn variant="secondary" onClick={() => setHomeworkEditor((current) => current ? { ...current, questions: [...current.questions, { text: "", choices: ["", ""], correctIndex: 0 }] } : current)}><Plus className="h-4 w-4" />{t("Add Question")}</Btn>
+              </div>}
+              {homeworkEditor.id && <p className="rounded-xl bg-muted p-3 text-xs text-muted-foreground">{t("Existing questions remain unchanged to protect student submissions.")}</p>}
+              <div className="flex gap-3"><Btn onClick={() => void saveHomework()} className="flex-1" disabled={savingHomework}>{savingHomework ? t("Saving...") : t("Save")}</Btn><Btn variant="secondary" onClick={() => setHomeworkEditor(null)}>{t("Cancel")}</Btn></div>
             </div>
           </Modal>
         )}
