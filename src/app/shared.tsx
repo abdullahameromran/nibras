@@ -334,7 +334,6 @@ const ARABIC_TRANSLATIONS: Record<string, string> = {
   "Type your message": "اكتب رسالتك",
   "Choose a teacher contact to read messages or send a new one.": "اختر معلماً لقراءة الرسائل أو إرسال رسالة جديدة.",
   "Connecting your parent portal...": "جارٍ الاتصال ببوابة ولي الأمر...",
-  "Loading your parent portal from Supabase...": "جارٍ تحميل بوابة ولي الأمر...",
   "Write a message before sending.": "اكتب رسالة قبل الإرسال.",
   "Message sent.": "تم إرسال الرسالة.",
   "Profile & Settings": "الملف الشخصي والإعدادات",
@@ -1045,7 +1044,6 @@ Object.assign(ARABIC_TRANSLATIONS, {
   "Loading school administration data...": "جارٍ تحميل بيانات إدارة المدرسة...",
   "Connecting your student portal...": "جارٍ تجهيز بوابة الطالب...",
   "Connecting your parent portal...": "جارٍ تجهيز بوابة ولي الأمر...",
-  "Loading your parent portal from Supabase...": "جارٍ تحميل بيانات بوابة ولي الأمر من سوبابيس...",
   "Connecting to your workspace": "جارٍ ربط مساحة العمل الخاصة بك",
   "Fetching your account, school context, and role permissions.": "جارٍ جلب حسابك وسياق المدرسة وصلاحيات الدور.",
 })

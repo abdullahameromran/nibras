@@ -1731,7 +1731,7 @@ export function ParentPortal({ view, setView, onLogout, schoolId, user }: Parent
   }
 
   if (profileQuery.loading || childrenQuery.loading) {
-    return <LoadingState label="Loading your parent portal from Supabase..." />
+    return <LoadingState label="Loading data..." />
   }
 
   return (
