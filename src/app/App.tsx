@@ -2752,9 +2752,9 @@ function StudentPortal({ view, setView, onLogout }: { view: string; setView: (v:
         )}
 
         {view === "messages" && (
-          <div className="bg-card rounded-2xl border border-border shadow-sm overflow-hidden h-[calc(100vh-180px)]">
-            <div className="flex h-full">
-              <div className="w-64 border-r border-border flex flex-col">
+          <div className="h-[calc(100dvh-140px)] min-h-[32rem] overflow-hidden rounded-2xl border border-border bg-card shadow-sm sm:h-[calc(100dvh-180px)]">
+            <div className="flex h-full min-h-0 flex-col md:flex-row">
+              <div className="flex max-h-[45%] w-full shrink-0 flex-col border-b border-border md:max-h-none md:w-64 md:border-b-0 md:border-r">
                 <div className="p-4 border-b border-border">
                   <Btn icon={<Plus className="w-4 h-4" />} className="w-full justify-center" size="sm">
                     New Message
@@ -2774,7 +2774,7 @@ function StudentPortal({ view, setView, onLogout }: { view: string; setView: (v:
                   ))}
                 </div>
               </div>
-              <div className="flex-1 flex items-center justify-center text-muted-foreground">
+              <div className="flex min-h-0 min-w-0 flex-1 items-center justify-center p-4 text-muted-foreground">
                 <div className="text-center">
                   <MessageSquare className="w-12 h-12 mx-auto mb-3 opacity-30" />
                   <p className="text-sm font-semibold">Select a conversation</p>
@@ -3101,9 +3101,9 @@ function ParentPortal({ view, setView, onLogout }: { view: string; setView: (v: 
         )}
 
         {view === "messages" && (
-          <div className="bg-card rounded-2xl border border-border shadow-sm overflow-hidden h-[calc(100vh-200px)]">
-            <div className="flex h-full">
-              <div className="w-64 border-r border-border flex flex-col">
+          <div className="h-[calc(100dvh-140px)] min-h-[32rem] overflow-hidden rounded-2xl border border-border bg-card shadow-sm sm:h-[calc(100dvh-200px)]">
+            <div className="flex h-full min-h-0 flex-col md:flex-row">
+              <div className="flex max-h-[45%] w-full shrink-0 flex-col border-b border-border md:max-h-none md:w-64 md:border-b-0 md:border-r">
                 <div className="p-4 border-b border-border">
                   <Btn icon={<Plus className="w-4 h-4" />} className="w-full justify-center" size="sm">
                     Message Teacher
@@ -3123,7 +3123,7 @@ function ParentPortal({ view, setView, onLogout }: { view: string; setView: (v: 
                   ))}
                 </div>
               </div>
-              <div className="flex-1 flex items-center justify-center text-muted-foreground">
+              <div className="flex min-h-0 min-w-0 flex-1 items-center justify-center p-4 text-muted-foreground">
                 <div className="text-center">
                   <MessageSquare className="w-12 h-12 mx-auto mb-3 opacity-30" />
                   <p className="text-sm font-semibold">Select a teacher to message</p>

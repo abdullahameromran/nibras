@@ -523,9 +523,9 @@ function MessageCenter({
   }, [selectedPartnerId, sortedMessages.length, sortedMessages.at(-1)?.id])
 
   return (
-    <div className="bg-card rounded-2xl border border-border shadow-sm overflow-hidden h-[calc(100vh-200px)]">
-      <div className="flex h-full">
-        <div className="w-72 border-r border-border flex flex-col">
+    <div className="h-[calc(100dvh-140px)] min-h-[32rem] overflow-hidden rounded-2xl border border-border bg-card shadow-sm sm:h-[calc(100dvh-200px)]">
+      <div className="flex h-full min-h-0 flex-col md:flex-row">
+        <div className="flex max-h-[40%] w-full shrink-0 flex-col border-b border-border md:max-h-none md:w-72 md:border-b-0 md:border-r">
           <div className="px-4 py-3 border-b border-border">
             <h3 className="text-sm font-bold text-foreground">{t(sendLabel)}</h3>
             <p className="text-xs text-muted-foreground mt-1">{t("Conversations and teacher contacts from Supabase")}</p>
@@ -557,7 +557,7 @@ function MessageCenter({
             ))}
           </div>
         </div>
-        <div className="flex-1 flex flex-col">
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col">
           {activeContact ? (
             <>
               <div className="px-5 py-4 border-b border-border flex items-center gap-3">
@@ -567,28 +567,28 @@ function MessageCenter({
                   <p className="text-xs text-muted-foreground">{activeContact.subtitle}</p>
                 </div>
               </div>
-              <div ref={messageListRef} className="flex-1 overflow-y-auto p-4 bg-muted/20 space-y-4">
+              <div ref={messageListRef} className="flex-1 space-y-4 overflow-y-auto bg-muted/20 p-3 sm:p-4">
                 {sortedMessages.length === 0 && <EmptyState title="No messages yet" description="Start the conversation and your message will be sent through Supabase." />}
                 {sortedMessages.map((message) => {
                   const mine = message.sender_id === currentUserId
                   return (
                     <div key={message.id} className={`flex ${mine ? "justify-end" : "justify-start"}`}>
-                      <div className={`max-w-md rounded-2xl px-4 py-3 shadow-sm ${mine ? "bg-primary text-white rounded-tr-md" : "bg-card text-foreground rounded-tl-md border border-border"}`}>
+                      <div className={`w-fit max-w-[85%] min-w-0 rounded-2xl px-4 py-3 shadow-sm sm:max-w-md ${mine ? "bg-primary text-white rounded-tr-md" : "bg-card text-foreground rounded-tl-md border border-border"}`}>
                         {message.subject && <p className={`text-xs font-semibold mb-1 ${mine ? "text-white/80" : "text-primary"}`}>{message.subject}</p>}
-                        <p className="text-sm leading-relaxed">{message.body}</p>
+                        <p className="whitespace-pre-wrap break-words text-sm leading-relaxed">{message.body}</p>
                         <p className={`text-[10px] mt-2 ${mine ? "text-white/70" : "text-muted-foreground"}`}>{formatDateTime(message.created_at)}</p>
                       </div>
                     </div>
                   )
                 })}
               </div>
-              <div className="p-4 border-t border-border">
+              <div className="border-t border-border p-3 sm:p-4">
                 <div className="flex items-center gap-3">
                   <input
                     value={draft}
                     onChange={(event) => setDraft(event.target.value)}
                     placeholder={t("Type your message")}
-                    className="flex-1 px-4 py-2.5 rounded-xl border border-border bg-muted text-sm outline-none focus:ring-2 focus:ring-primary/30"
+                    className="min-w-0 flex-1 rounded-xl border border-border bg-muted px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary/30"
                   />
                   <Btn icon={<Send className="w-4 h-4" />} onClick={onSend}>
                     {t("Send")}

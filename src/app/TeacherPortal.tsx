@@ -2034,17 +2034,17 @@ export function TeacherPortal({ view, setView, onLogout, schoolId, user }: { vie
                 <div className="flex-1 p-4 space-y-4 overflow-y-auto bg-muted/30">
                   <div className="flex gap-3">
                     <Avatar name="Mayowa Ade" size="sm" />
-                    <div className="bg-card rounded-2xl rounded-tl-none p-3 max-w-xs shadow-sm">
-                      <p className="text-sm text-foreground">Good morning ma, I wanted to ask about the assignment you gave yesterday…</p>
+                    <div className="w-fit min-w-0 max-w-[calc(100%-2.75rem)] rounded-2xl rounded-tl-none bg-card p-3 shadow-sm sm:max-w-xs">
+                      <p className="break-words text-sm text-foreground">Good morning ma, I wanted to ask about the assignment you gave yesterday…</p>
                       <p className="text-[10px] text-muted-foreground mt-1">09:24 am</p>
                     </div>
                   </div>
                 </div>
                 <div className="p-4 border-t border-border">
-                  <div className="flex items-center gap-3">
+                  <div className="flex min-w-0 items-center gap-3">
                     <input
                       placeholder="Type a message…"
-                      className="flex-1 px-4 py-2.5 rounded-xl border border-border bg-muted text-sm outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
+                      className="min-w-0 flex-1 px-4 py-2.5 rounded-xl border border-border bg-muted text-sm outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
                     />
                     <Btn icon={<Send className="w-4 h-4" />} onClick={() => showToast("Message sent")}>
                       Send
