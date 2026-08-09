@@ -71,15 +71,16 @@ export function useTimetable(schoolId: string | null, filters?: {
     id: string,
     updates: Partial<Omit<TimetableEntry, "id" | "working_days" | "time_slots" | "classes" | "subjects" | "profiles">>,
   ) => {
-    const { data, error: err } = await supabase
+    // Do not coerce the update response to one JSON object. Older databases can
+    // contain duplicate timetable rows, and PostgREST rejects `.single()` even
+    // though the update itself succeeded.
+    const { error: err } = await supabase
       .from("timetable_entries")
       .update(updates)
-      .eq("id", id)
-      .select("id, school_id, academic_year_id, working_day_id, time_slot_id, class_id, subject_id, teacher_id")
-      .single();
+      .eq("id", id);
     if (err) return { error: err.message, data: null };
     await fetchTimetable();
-    return { error: null, data };
+    return { error: null, data: { id, ...updates } };
   }, [fetchTimetable]);
 
   const deleteEntry = useCallback(async (id: string) => {

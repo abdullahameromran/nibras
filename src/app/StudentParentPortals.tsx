@@ -502,7 +502,7 @@ function MessageCenter({
   contacts: ContactListItem[]
   conversations: Conversation[]
   selectedPartnerId: string | null
-  onSelectPartner: (partnerId: string) => void
+  onSelectPartner: (partnerId: string | null) => void
   draft: string
   setDraft: (value: string) => void
   onSend: () => void
@@ -523,9 +523,9 @@ function MessageCenter({
   }, [selectedPartnerId, sortedMessages.length, sortedMessages.at(-1)?.id])
 
   return (
-    <div className="h-[calc(100dvh-140px)] min-h-[32rem] overflow-hidden rounded-2xl border border-border bg-card shadow-sm sm:h-[calc(100dvh-200px)]">
-      <div className="flex h-full min-h-0 flex-col md:flex-row">
-        <div className="flex max-h-[40%] w-full shrink-0 flex-col border-b border-border md:max-h-none md:w-72 md:border-b-0 md:border-r">
+    <div className="h-[calc(100dvh-112px)] min-h-[30rem] overflow-hidden rounded-2xl border border-border bg-card shadow-sm sm:h-[calc(100dvh-180px)]">
+      <div className="flex h-full min-h-0">
+        <div className={`${selectedPartnerId ? "hidden" : "flex"} w-full shrink-0 flex-col border-border md:flex md:w-80 md:border-e`}>
           <div className="px-4 py-3 border-b border-border">
             <h3 className="text-sm font-bold text-foreground">{t(sendLabel)}</h3>
             <p className="text-xs text-muted-foreground mt-1">{t("Conversations and teacher contacts from Supabase")}</p>
@@ -557,42 +557,41 @@ function MessageCenter({
             ))}
           </div>
         </div>
-        <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+        <div className={`${selectedPartnerId ? "flex" : "hidden"} min-h-0 min-w-0 flex-1 flex-col md:flex`}>
           {activeContact ? (
             <>
-              <div className="px-5 py-4 border-b border-border flex items-center gap-3">
+              <div className="flex items-center gap-3 border-b border-border bg-card px-3 py-3 sm:px-5 sm:py-4">
+                <button type="button" onClick={() => onSelectPartner(null)} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full hover:bg-muted md:hidden" aria-label={t("Back")}><ChevronLeft className="h-5 w-5 rtl:rotate-180" /></button>
                 <Avatar name={activeContact.name} size="sm" />
                 <div>
                   <p className="text-sm font-bold text-foreground">{activeContact.name}</p>
                   <p className="text-xs text-muted-foreground">{activeContact.subtitle}</p>
                 </div>
               </div>
-              <div ref={messageListRef} className="flex-1 space-y-4 overflow-y-auto bg-muted/20 p-3 sm:p-4">
+              <div ref={messageListRef} className="flex-1 space-y-2 overflow-y-auto bg-[#efeae2] p-3 sm:p-5">
                 {sortedMessages.length === 0 && <EmptyState title="No messages yet" description="Start the conversation and your message will be sent through Supabase." />}
                 {sortedMessages.map((message) => {
                   const mine = message.sender_id === currentUserId
                   return (
                     <div key={message.id} className={`flex ${mine ? "justify-end" : "justify-start"}`}>
-                      <div className={`w-fit max-w-[85%] min-w-0 rounded-2xl px-4 py-3 shadow-sm sm:max-w-md ${mine ? "bg-primary text-white rounded-tr-md" : "bg-card text-foreground rounded-tl-md border border-border"}`}>
-                        {message.subject && <p className={`text-xs font-semibold mb-1 ${mine ? "text-white/80" : "text-primary"}`}>{message.subject}</p>}
+                      <div className={`w-fit max-w-[88%] min-w-0 rounded-lg px-3 py-2 shadow-sm sm:max-w-[70%] ${mine ? "bg-[#d9fdd3] text-[#111b21] rounded-tr-none" : "bg-white text-[#111b21] rounded-tl-none"}`}>
+                        {message.subject && <p className="mb-1 text-xs font-semibold text-[#008069]">{message.subject}</p>}
                         <p className="whitespace-pre-wrap break-words text-sm leading-relaxed">{message.body}</p>
-                        <p className={`text-[10px] mt-2 ${mine ? "text-white/70" : "text-muted-foreground"}`}>{formatDateTime(message.created_at)}</p>
+                        <p className="mt-1 text-end text-[10px] text-[#667781]">{formatDateTime(message.created_at)}</p>
                       </div>
                     </div>
                   )
                 })}
               </div>
-              <div className="border-t border-border p-3 sm:p-4">
-                <div className="flex items-center gap-3">
+              <div className="border-t border-border bg-[#f0f2f5] p-2 sm:p-3">
+                <div className="flex items-center gap-2">
                   <input
                     value={draft}
                     onChange={(event) => setDraft(event.target.value)}
                     placeholder={t("Type your message")}
-                    className="min-w-0 flex-1 rounded-xl border border-border bg-muted px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary/30"
+                    className="min-w-0 flex-1 rounded-full border-0 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-[#00a884]/30"
                   />
-                  <Btn icon={<Send className="w-4 h-4" />} onClick={onSend}>
-                    {t("Send")}
-                  </Btn>
+                  <button type="button" onClick={onSend} className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#00a884] text-white shadow-sm" aria-label={t("Send")}><Send className="h-5 w-5 rtl:rotate-180" /></button>
                 </div>
               </div>
             </>

@@ -725,13 +725,6 @@ export function SchoolAdminPortalLive({
     setParentManager({ studentId: studentRows[0].id });
   }, [parentManager, studentRows]);
 
-  useEffect(() => {
-    if (selectedConversationId) return;
-    if (dbMessages.conversations.length > 0) {
-      setSelectedConversationId(dbMessages.conversations[0].partnerId);
-    }
-  }, [dbMessages.conversations, selectedConversationId]);
-
   const selectedConversation = useMemo(
     () => dbMessages.conversations.find((conversation) => conversation.partnerId === selectedConversationId) ?? null,
     [dbMessages.conversations, selectedConversationId],
@@ -1848,11 +1841,11 @@ export function SchoolAdminPortalLive({
 
   const saveManualTimetableEntry = async () => {
     if (!schoolId || !dbYears.currentYear || !timetableClassId || !timetableEditor) {
-      showToast("Choose a class and current academic year first.", "error");
+      showToast(t("Choose a class and current academic year first."), "error");
       return;
     }
     if (!timetableEntryForm.subjectId || !timetableEntryForm.teacherId) {
-      showToast("Choose the subject and teacher first.", "error");
+      showToast(t("Choose the subject and teacher first."), "error");
       return;
     }
     const payload = {
@@ -1872,7 +1865,7 @@ export function SchoolAdminPortalLive({
       return;
     }
     closeTimetableEditor();
-    showToast(timetableEditor.entryId ? "Timetable entry updated" : "Timetable entry created");
+    showToast(t(timetableEditor.entryId ? "Timetable entry updated" : "Timetable entry created"));
   };
 
   const deleteManualTimetableEntry = async () => {
@@ -1883,7 +1876,7 @@ export function SchoolAdminPortalLive({
       return;
     }
     closeTimetableEditor();
-    showToast("Timetable entry removed");
+    showToast(t("Timetable entry removed"));
   };
 
   const toggleTimetablePublished = async () => {
@@ -3005,9 +2998,9 @@ export function SchoolAdminPortalLive({
         )}
 
         {!showInitialLoader && view === "messages" && (
-          <div className="h-[calc(100dvh-140px)] min-h-[32rem] overflow-hidden rounded-2xl border border-border bg-card shadow-sm sm:h-[calc(100dvh-180px)]">
-            <div className="flex h-full min-h-0 flex-col md:flex-row">
-              <div className="flex max-h-[42%] w-full shrink-0 flex-col border-b border-border md:max-h-none md:w-80 md:border-b-0 md:border-r">
+          <div className="h-[calc(100dvh-112px)] min-h-[30rem] overflow-hidden rounded-2xl border border-border bg-card shadow-sm sm:h-[calc(100dvh-180px)]">
+            <div className="flex h-full min-h-0">
+              <div className={`${selectedConversation ? "hidden" : "flex"} w-full shrink-0 flex-col border-border md:flex md:w-80 md:border-e`}>
                 <div className="space-y-3 border-b border-border p-4">
                   <Select label="Start New Conversation" value={composeRecipientId} onChange={setComposeRecipientId} options={recipientOptions} />
                 </div>
@@ -3030,34 +3023,36 @@ export function SchoolAdminPortalLive({
                   {dbMessages.conversations.length === 0 && <div className="p-6"><EmptyState title="No conversations yet" description="Choose a teacher or student above to start messaging from the live Supabase inbox." /></div>}
                 </div>
               </div>
-              <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-                <div className="border-b border-border p-4">
+              <div className={`${selectedConversation ? "flex" : "hidden"} min-h-0 min-w-0 flex-1 flex-col md:flex`}>
+                <div className="flex items-center gap-3 border-b border-border bg-card p-3 sm:p-4">
+                  {selectedConversation && <button type="button" onClick={() => setSelectedConversationId(null)} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full hover:bg-muted md:hidden" aria-label={t("Back")}><ChevronLeft className="h-5 w-5 rtl:rotate-180" /></button>}
+                  <div className="min-w-0">
                   <p className="text-sm font-bold text-foreground">{selectedConversation?.partnerName ?? "Choose a conversation"}</p>
                   <p className="text-xs text-muted-foreground">{selectedConversation ? "Messages are synced from Supabase." : "Select an existing thread or choose a recipient to start a new one."}</p>
+                  </div>
                 </div>
-                <div ref={messageListRef} className="flex-1 space-y-4 overflow-y-auto bg-muted/30 p-4">
+                <div ref={messageListRef} className="flex-1 space-y-2 overflow-y-auto bg-[#efeae2] p-3 sm:p-5">
                   {selectedConversation?.messages
                     .slice()
                     .sort((left, right) => new Date(left.created_at).getTime() - new Date(right.created_at).getTime())
                     .map((message) => {
                       const mine = message.sender_id === user?.id;
                       return (
-                        <div key={message.id} className={`flex min-w-0 gap-2 sm:gap-3 ${mine ? "flex-row-reverse" : ""}`}>
-                          <Avatar name={mine ? userName : selectedConversation.partnerName} size="sm" />
-                          <div className={`w-fit min-w-0 max-w-[calc(100%-2.75rem)] rounded-2xl p-3 shadow-sm sm:max-w-md ${mine ? "rounded-tr-none bg-primary text-white" : "rounded-tl-none bg-card text-foreground"}`}>
-                            {message.subject && <p className={`mb-1 text-[10px] font-semibold ${mine ? "text-purple-100" : "text-muted-foreground"}`}>{message.subject}</p>}
+                        <div key={message.id} className={`flex min-w-0 ${mine ? "justify-end" : "justify-start"}`}>
+                          <div className={`w-fit min-w-0 max-w-[88%] rounded-lg px-3 py-2 shadow-sm sm:max-w-[70%] ${mine ? "rounded-tr-none bg-[#d9fdd3] text-[#111b21]" : "rounded-tl-none bg-white text-[#111b21]"}`}>
+                            {message.subject && <p className="mb-1 text-[10px] font-semibold text-[#008069]">{message.subject}</p>}
                             <p className="whitespace-pre-wrap break-words text-sm">{message.body}</p>
-                            <p className={`mt-1 text-[10px] ${mine ? "text-purple-100" : "text-muted-foreground"}`}>{formatDateTime(message.created_at)}</p>
+                            <p className="mt-1 text-end text-[10px] text-[#667781]">{formatDateTime(message.created_at)}</p>
                           </div>
                         </div>
                       );
                     })}
                   {!selectedConversation && <EmptyState title="No message thread selected" description="Choose a conversation on the left or start one from the recipient picker." />}
                 </div>
-                <div className="border-t border-border p-3 sm:p-4">
-                  <div className="flex items-center gap-3">
-                    <input value={messageDraft} onChange={(event) => setMessageDraft(event.target.value)} placeholder="Type a message..." className="min-w-0 flex-1 rounded-xl border border-border bg-muted px-4 py-2.5 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/30" />
-                    <Btn icon={<Send className="w-4 h-4" />} onClick={() => void sendMessage()}>Send</Btn>
+                <div className="border-t border-border bg-[#f0f2f5] p-2 sm:p-3">
+                  <div className="flex items-center gap-2">
+                    <input value={messageDraft} onChange={(event) => setMessageDraft(event.target.value)} placeholder="Type a message..." className="min-w-0 flex-1 rounded-full border-0 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-[#00a884]/30" />
+                    <button type="button" onClick={() => void sendMessage()} className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#00a884] text-white shadow-sm" aria-label={t("Send")}><Send className="h-5 w-5 rtl:rotate-180" /></button>
                   </div>
                 </div>
               </div>
@@ -3336,13 +3331,13 @@ export function SchoolAdminPortalLive({
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="rounded-xl bg-muted p-3">
                 <p className="text-xs text-muted-foreground">{t("Day")}</p>
-                <p className="text-sm font-semibold text-foreground">
+                <p className="text-sm font-semibold text-foreground" dir="auto">
                   {timetableDays.find((day) => day.id === timetableEditor.dayId)?.label ?? "Not assigned"}
                 </p>
               </div>
               <div className="rounded-xl bg-muted p-3">
                 <p className="text-xs text-muted-foreground">{t("Time Slot")}</p>
-                <p className="text-sm font-semibold text-foreground">
+                <p className="text-sm font-semibold text-foreground" dir="ltr">
                   {timetableSlots.find((slot) => slot.id === timetableEditor.slotId)?.label ?? "Not assigned"}
                 </p>
               </div>

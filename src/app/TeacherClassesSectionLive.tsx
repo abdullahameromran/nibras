@@ -281,8 +281,8 @@ export function TeacherClassesSectionLive({
       setSelectedLessonId(null)
       return
     }
-    if (!selectedLessonId || !selectedClass.lessons.some((lesson) => lesson.id === selectedLessonId)) {
-      setSelectedLessonId(selectedClass.lessons[0]?.id ?? null)
+    if (selectedLessonId && !selectedClass.lessons.some((lesson) => lesson.id === selectedLessonId)) {
+      setSelectedLessonId(null)
     }
   }, [selectedClass, selectedLessonId])
 
@@ -673,9 +673,9 @@ export function TeacherClassesSectionLive({
     return (
       <>
         <div className="space-y-5" style={{ fontFamily: "'Poppins', sans-serif" }}>
-          <div className="flex items-start justify-between gap-4">
+          <div className="flex flex-col items-start justify-between gap-4 sm:flex-row">
             <div className="flex items-start gap-3">
-              <button onClick={() => setView("list")} className="mt-1 flex h-9 w-9 items-center justify-center rounded-xl border border-gray-200 bg-white shadow-sm transition-colors hover:bg-gray-50">
+              <button onClick={() => selectedLesson ? setSelectedLessonId(null) : setView("list")} className="mt-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-gray-200 bg-white shadow-sm transition-colors hover:bg-gray-50">
                 <ChevronLeft className="h-5 w-5 text-[#3F434A]" />
               </button>
               <div>
@@ -688,8 +688,8 @@ export function TeacherClassesSectionLive({
                 </p>
               </div>
             </div>
-            <div className="flex flex-wrap items-center gap-2">
-              {selectedLessonVideoUrl ? (
+            <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:justify-end">
+              {selectedLesson && (selectedLessonVideoUrl ? (
                 <a
                   href={selectedLessonVideoUrl}
                   target="_blank"
@@ -706,15 +706,83 @@ export function TeacherClassesSectionLive({
                 <Btn variant="secondary" className="pointer-events-none opacity-70">
                   <Video className="h-4 w-4" /> {t("No lesson video")}
                 </Btn>
-              )}
+              ))}
               <Btn onClick={openCreateLesson} icon={<Plus className="h-4 w-4" />}>
                 {t("Add Lesson")}
               </Btn>
             </div>
           </div>
 
-          <div className="grid grid-cols-12 gap-5">
-            <div className="col-span-4 space-y-4">
+          {!selectedLesson && (
+            <div className="grid gap-5 xl:grid-cols-[minmax(0,1.65fr)_minmax(280px,0.85fr)]">
+              <div className="space-y-5">
+                <div className="overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm">
+                  <div className="flex flex-wrap items-center justify-between gap-3 border-b border-gray-100 px-4 py-4 sm:px-5">
+                    <div>
+                      <h3 className="text-[15px] font-semibold text-[#0E1B4A]">{t("Lessons")}</h3>
+                      <p className="mt-1 text-xs text-[#999]">{t("Select a lesson to open its details, attendance, attachments and homework.")}</p>
+                    </div>
+                    <span className="rounded-full bg-[#F5F0FF] px-3 py-1 text-xs font-semibold text-[#955AC3]">
+                      {language === "ar" ? `${t("Total")} ${selectedClass.lessons.length.toLocaleString("ar-EG")}` : `${selectedClass.lessons.length} ${t("Total")}`}
+                    </span>
+                  </div>
+                  <div className="divide-y divide-gray-100">
+                    {selectedClass.lessons.map((lesson, index) => {
+                      const kind = lessonKind(lesson)
+                      const hasHomework = selectedClass.homework.some((item) => item.lesson_id === lesson.id)
+                      return (
+                        <button key={lesson.id} type="button" onClick={() => setSelectedLessonId(lesson.id)} className="flex w-full items-center gap-3 px-4 py-4 text-start transition hover:bg-[#FBF8FE] sm:px-5">
+                          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#F5F0FF]">
+                            {kind === "video" ? <PlayCircle className="h-4 w-4 text-[#955AC3]" /> : kind === "pdf" ? <FileText className="h-4 w-4 text-[#955AC3]" /> : <BookOpen className="h-4 w-4 text-[#955AC3]" />}
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate text-sm font-semibold text-[#0E1B4A]" dir={language === "ar" ? "rtl" : "ltr"}>
+                              {language === "ar" ? `درس ${(selectedClass.lessons.length - index).toLocaleString("ar-EG")}: ${lesson.title}` : `${t("Lesson")} ${selectedClass.lessons.length - index}: ${lesson.title}`}
+                            </p>
+                            <p className="mt-1 text-xs text-[#999]" dir={language === "ar" ? "rtl" : "ltr"}>{formatDate(lesson.lesson_date, locale)} <span aria-hidden="true">•</span> {selectedClass.subjectLabel}</p>
+                          </div>
+                          {hasHomework && <Badge color="purple">{t("Homework")}</Badge>}
+                          <ChevronLeft className={`h-4 w-4 shrink-0 text-[#B5A9BD] ${language === "ar" ? "" : "rotate-180"}`} />
+                        </button>
+                      )
+                    })}
+                    {selectedClass.lessons.length === 0 && <div className="p-6"><EmptyState title="No lessons yet" description="Add the first lesson for this class to begin lesson management." /></div>}
+                  </div>
+                </div>
+
+                <div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm sm:p-5">
+                  <div className="mb-4 flex items-center justify-between gap-3">
+                    <h3 className="text-[15px] font-semibold text-[#0E1B4A]">{t("Homework")}</h3>
+                    <span className="text-xs font-semibold text-[#955AC3]">{selectedClass.homework.length} {t("Total")}</span>
+                  </div>
+                  <div className="grid gap-3 sm:grid-cols-3">
+                    <div className="rounded-xl bg-[#F5F0FF] p-4 text-center"><p className="text-xl font-bold text-[#955AC3]">{selectedClass.homework.length}</p><p className="mt-1 text-xs font-medium text-[#955AC3]">{t("Assigned")}</p></div>
+                    <div className="rounded-xl bg-[#ECFDF5] p-4 text-center"><p className="text-xl font-bold text-[#10B981]">{selectedClass.homework.reduce((sum, item) => sum + (item.homework_submissions?.length ?? 0), 0)}</p><p className="mt-1 text-xs font-medium text-[#10B981]">{t("Submitted")}</p></div>
+                    <div className="rounded-xl bg-[#FFF8E8] p-4 text-center"><p className="text-xl font-bold text-[#F59E0B]">{Math.max(0, selectedClass.studentCount * selectedClass.homework.length - selectedClass.homework.reduce((sum, item) => sum + (item.homework_submissions?.length ?? 0), 0))}</p><p className="mt-1 text-xs font-medium text-[#F59E0B]">{t("Pending")}</p></div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-5">
+                <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
+                  <h3 className="mb-4 text-[15px] font-semibold text-[#0E1B4A]">{t("Class Overview")}</h3>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="rounded-xl bg-[#F5F0FF] p-4 text-center"><p className="text-xl font-bold text-[#955AC3]">{selectedClass.studentCount}</p><p className="mt-1 text-xs text-[#955AC3]">{t("Students")}</p></div>
+                    <div className="rounded-xl bg-[#EEF5FF] p-4 text-center"><p className="text-xl font-bold text-[#3B82F6]">{selectedClass.lessons.length}</p><p className="mt-1 text-xs text-[#3B82F6]">{t("Lessons")}</p></div>
+                    <div className="rounded-xl bg-[#ECFDF5] p-4 text-center"><p className="text-xl font-bold text-[#10B981]">{selectedClass.homework.length}</p><p className="mt-1 text-xs text-[#10B981]">{t("Homework")}</p></div>
+                    <div className="rounded-xl bg-[#FFF7ED] p-4 text-center"><p className="text-xl font-bold text-[#F59E0B]">{selectedClass.assessments.length}</p><p className="mt-1 text-xs text-[#F59E0B]">{t("Tasks")}</p></div>
+                  </div>
+                </div>
+                <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
+                  <h3 className="text-[15px] font-semibold text-[#0E1B4A]">{t("Recent lessons")}</h3>
+                  <div className="mt-3 space-y-3">{selectedClass.lessons.slice(0, 4).map((lesson) => <button type="button" key={lesson.id} onClick={() => setSelectedLessonId(lesson.id)} className="flex w-full items-center justify-between gap-3 rounded-xl bg-[#FAF8FC] p-3 text-start hover:bg-[#F5F0FF]"><span className="min-w-0 truncate text-xs font-semibold text-[#0E1B4A]">{lesson.title}</span><span className="shrink-0 text-[10px] text-[#999]">{formatDate(lesson.lesson_date, locale)}</span></button>)}</div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          <div className={`${selectedLesson ? "grid" : "hidden"} grid-cols-1 gap-5 xl:grid-cols-12`}>
+            <div className="col-span-1 space-y-4 xl:col-span-4">
               <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <div>
@@ -865,7 +933,7 @@ export function TeacherClassesSectionLive({
               </div>
             </div>
 
-            <div className="col-span-8 space-y-5">
+            <div className="col-span-1 space-y-5 xl:col-span-8">
               <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
                 <div className="flex items-start justify-between gap-4">
                   <div>
@@ -1233,6 +1301,7 @@ export function TeacherClassesSectionLive({
                   style={{ color: item.color }}
                   onClick={() => {
                     setSelectedClassId(item.id)
+                    setSelectedLessonId(null)
                     setView("detail")
                   }}
                 >
