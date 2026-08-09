@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from "react"
-import { AlertCircle, ArrowRight, BookOpen, Building2, CheckCircle2, Eye, EyeOff, KeyRound, Mail, ShieldCheck, Sparkles, Users } from "lucide-react"
+import { AlertCircle, ArrowRight, BookOpen, Building2, CheckCircle2, Eye, EyeOff, KeyRound, Mail, ShieldCheck, Sparkles, Users, X } from "lucide-react"
 import { resetPassword as requestPasswordReset, sendMagicLink as requestMagicLink, type SchoolSignupPayload, updatePassword } from "@/lib/auth"
 import { LanguageSwitcher, useTranslation } from "./shared"
 import nibrasLogo from "@/imports/WhatsApp_Image_2026-07-16_at_3.02.45_PM.jpeg"
+import loginIllustration from "@/imports/login-illustration.jpg"
 
 type AuthMode = "login" | "signup"
 type NoticeType = "error" | "success" | "info"
@@ -223,18 +224,18 @@ function AuthField({
 }) {
   return (
     <label className="block space-y-1.5">
-      <span className="text-xs font-bold uppercase tracking-wider text-[#1e0f3e]">{label}</span>
+      <span className="text-sm font-medium text-[#9857cf]">{label}</span>
       <div
-        className={`flex items-center rounded-2xl border bg-white px-4 py-3.5 shadow-sm transition-all focus-within:border-[#7c3aed] focus-within:ring-2 focus-within:ring-[#7c3aed]/20 ${error ? "border-red-400 ring-1 ring-red-200" : "border-purple-900/15"}`}
+        className={`flex items-center rounded-lg border px-3 py-3 transition-all focus-within:border-[#9857cf] focus-within:ring-2 focus-within:ring-[#9857cf]/15 ${error ? "border-red-400 bg-red-50/40" : "border-transparent bg-[#f1eaf7]"}`}
       >
-        <span className="ml-3 text-purple-600/70 shrink-0">{icon}</span>
+        <span className="mx-2 shrink-0 text-[#9857cf]">{icon}</span>
         <input
           type={type}
           value={value}
           onChange={(event) => onChange(event.target.value)}
           placeholder={placeholder}
           autoComplete={autoComplete}
-          className="min-w-0 flex-1 bg-transparent text-sm text-[#1e0f3e] outline-none placeholder:text-slate-400 font-medium"
+          className="min-w-0 flex-1 bg-transparent text-sm text-[#111b4b] outline-none placeholder:text-[#8f8798]"
         />
         {trailingAction}
       </div>
@@ -247,16 +248,9 @@ function AuthShell({ children }: { children: React.ReactNode }) {
   const { isRTL } = useTranslation()
 
   return (
-    <div data-no-translate className="relative min-h-screen overflow-hidden bg-[linear-gradient(135deg,#180838_0%,#2e1065_40%,#4c1d95_70%,#6d28d9_100%)]" dir={isRTL ? "rtl" : "ltr"}>
-      {/* Decorative ambient background glows */}
-      <div className="pointer-events-none absolute inset-0 overflow-hidden">
-        <div className="absolute left-[-10rem] top-[-10rem] h-96 w-96 rounded-full bg-[#7c3aed]/25 blur-3xl" />
-        <div className="absolute right-[-8rem] top-1/4 h-[500px] w-[500px] rounded-full bg-[#f59e0b]/15 blur-3xl" />
-        <div className="absolute bottom-[-10rem] left-1/3 h-[450px] w-[450px] rounded-full bg-[#6d28d9]/30 blur-3xl" />
-      </div>
-
-      <div className="relative mx-auto flex min-h-screen max-w-7xl items-center px-4 py-8 sm:px-6 lg:px-8">
-        <div className="grid w-full overflow-hidden rounded-[32px] border border-white/20 bg-white/95 shadow-[0_35px_90px_-20px_rgba(15,8,38,0.55)] backdrop-blur-xl xl:grid-cols-[1.05fr_0.95fr]">
+    <div data-no-translate className="min-h-screen bg-[linear-gradient(105deg,#d1afe5_0%,#e3d0ee_45%,#f8f5fb_100%)]" dir={isRTL ? "rtl" : "ltr"}>
+      <div className="mx-auto flex min-h-screen max-w-[1054px] items-center px-4 py-8">
+        <div className="grid w-full overflow-hidden rounded-2xl border border-white/70 bg-[#fbfbfc] shadow-[0_12px_40px_rgba(74,42,103,0.10)] lg:min-h-[604px] lg:grid-cols-[442px_1fr]">
           {children}
         </div>
       </div>
@@ -269,21 +263,20 @@ function MarketingPanel() {
   const t = AUTH_TEXT[language === "ar" ? "ar" : "en"]
 
   return (
-    <div className="relative overflow-hidden bg-[linear-gradient(160deg,#1e0f3e_0%,#2e1065_60%,#4c1d95_100%)] px-6 py-8 text-white sm:px-10 sm:py-10 lg:px-12 lg:py-12 flex flex-col justify-between">
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(124,58,237,0.25),transparent_40%),radial-gradient(circle_at_bottom_left,rgba(245,158,11,0.18),transparent_40%)] pointer-events-none" />
+    <div className="relative flex min-h-[300px] overflow-hidden bg-[#955ac3]/[0.12] sm:min-h-[360px] lg:h-[604px] lg:min-h-[604px]">
 
-      <div className="relative z-10">
+      <div className="relative z-10 min-h-0 w-full">
         {/* Header bar with Nibras Logo & Language Switcher */}
-        <div className="mb-10 flex items-center justify-between gap-4">
-          <div className="inline-flex items-center gap-3 rounded-2xl border border-white/20 bg-white/10 px-4 py-2 backdrop-blur-md">
+        <div className="absolute left-5 top-4 flex items-center gap-4 lg:left-[33px] lg:top-[22px]">
+          <div className="inline-flex items-center gap-3 [&_img]:h-[75px] [&_img]:w-[104px] [&_img]:bg-transparent [&_img]:object-contain [&_img]:p-0">
             <img src={nibrasLogo} alt="نبراس" className="h-9 w-auto object-contain rounded-xl bg-white p-1" />
-            <span className="font-bold text-sm tracking-wide text-white">{t.brandName}</span>
+            <span className="hidden">Nibras</span>
           </div>
-          <LanguageSwitcher />
+          <span className="hidden"><LanguageSwitcher /></span>
         </div>
 
         {/* Hero Section */}
-        <div className="max-w-xl">
+        <div className="hidden">
           <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-amber-400/30 bg-amber-500/10 px-4 py-1.5 text-xs font-bold text-amber-300 backdrop-blur-md">
             <Sparkles className="h-4 w-4" />
             {t.secureLoginBadge}
@@ -293,7 +286,7 @@ function MarketingPanel() {
         </div>
 
         {/* Feature Cards Grid */}
-        <div className="mt-10 grid gap-4 sm:grid-cols-3">
+        <div className="hidden">
           <div className="rounded-2xl border border-white/15 bg-white/10 p-4.5 backdrop-blur-md transition-all hover:bg-white/15">
             <div className="h-10 w-10 rounded-xl bg-purple-500/20 flex items-center justify-center text-purple-300 mb-3">
               <Building2 className="h-5 w-5" />
@@ -318,10 +311,13 @@ function MarketingPanel() {
             <p className="mt-1.5 text-xs leading-relaxed text-purple-200/80">{t.feature3Desc}</p>
           </div>
         </div>
+        <div className="absolute inset-x-0 bottom-3 flex justify-center lg:inset-auto lg:left-[70px] lg:top-[143px] lg:h-[350px] lg:w-[327px]">
+          <img src={loginIllustration} alt="Login illustration" className="h-[230px] w-[215px] object-contain mix-blend-multiply sm:h-[270px] sm:w-[255px] lg:h-[350px] lg:w-[327px]" />
+        </div>
       </div>
 
       {/* Footer Feature Pills */}
-      <div className="relative z-10 mt-10 hidden pt-6 xl:block border-t border-white/10">
+      <div className="hidden">
         <div className="grid gap-3 sm:grid-cols-3">
           <div className="rounded-xl border border-white/10 bg-white/5 p-3 backdrop-blur-sm">
             <p className="text-[10px] uppercase font-bold tracking-wider text-purple-300/70">{t.pill1Label}</p>
@@ -540,22 +536,27 @@ export function AuthPage({
       <MarketingPanel />
 
       {/* Form Section */}
-      <div className="bg-white px-6 py-8 sm:px-10 sm:py-10 lg:px-12 lg:py-12 flex flex-col justify-between">
-        <div className="mx-auto flex h-full w-full max-w-xl flex-col">
+      <div className="flex max-h-[calc(100vh-4rem)] flex-col overflow-y-auto bg-[#fbfbfc] px-6 py-7 sm:px-10 lg:px-16">
+        <div className="mx-auto flex h-full w-full max-w-md flex-col">
+          <div className="mb-12 flex items-center justify-between gap-4">
+            <LanguageSwitcher />
+            <p className="text-sm text-[#111b4b]">
+              {mode === "login" ? (language === "ar" ? "مستخدم جديد؟" : "New User?") : (language === "ar" ? "لديك حساب؟" : "Already registered?")}{" "}
+              <button type="button" onClick={() => switchMode(mode === "login" ? "signup" : "login")} className="font-bold text-[#9857cf]">
+                {mode === "login" ? t.tabSignup : t.tabLogin}
+              </button>
+            </p>
+          </div>
           {/* Top Form Header */}
-          <div className="mb-6 flex items-center justify-between gap-4">
+          <div className="mb-8">
             <div>
-              <span className="inline-block rounded-full bg-purple-100 px-3 py-1 text-xs font-bold text-purple-700">{t.cardBadge}</span>
-              <h2 className="mt-2 text-2xl sm:text-3xl font-black text-[#1e0f3e]">{mode === "login" ? t.loginTitle : t.signupTitle}</h2>
-              <p className="mt-2 text-xs sm:text-sm leading-relaxed text-slate-500 font-medium">{mode === "login" ? t.loginSubtitle : t.signupSubtitle}</p>
-            </div>
-            <div className="hidden rounded-2xl border border-purple-100 bg-purple-50/50 p-3 text-purple-700 sm:block shrink-0">
-              <ShieldCheck className="h-7 w-7 text-purple-600" />
+              <h2 className="text-3xl font-bold text-[#06154f]">{mode === "login" ? (language === "ar" ? "مرحبًا بعودتك!" : "Welcome Back!") : t.signupTitle}</h2>
+              <p className="mt-1 text-base text-[#465178]">{mode === "login" ? (language === "ar" ? "سجّل الدخول للمتابعة" : "Login to continue") : t.signupSubtitle}</p>
             </div>
           </div>
 
           {/* Mode Switcher Tabs */}
-          <div className="mb-6 grid grid-cols-2 rounded-2xl bg-purple-50 p-1.5 border border-purple-100/60">
+          <div className="hidden">
             <button
               type="button"
               onClick={() => switchMode("login")}
@@ -577,7 +578,7 @@ export function AuthPage({
           </div>
 
           {/* Main Form Container */}
-          <div className="space-y-5 rounded-3xl border border-purple-100 bg-purple-50/20 p-6 shadow-sm sm:p-7">
+          <div className="space-y-5">
             <NoticeBanner notice={notice ?? (authError ? { type: "error", message: authError } : null)} />
 
             {mode === "login" ? (
@@ -618,15 +619,18 @@ export function AuthPage({
                     }
                   />
 
-                  <div className="flex flex-col gap-2 text-xs text-slate-500 sm:flex-row sm:items-center sm:justify-between pt-1">
-                    <p className="font-medium">{t.helperLoginInfo}</p>
+                  <div className="flex items-center justify-between gap-3 pt-1 text-xs">
+                    <label className="flex items-center gap-2 font-medium text-[#9857cf]">
+                      <input type="checkbox" defaultChecked className="h-4 w-4 accent-[#9857cf]" />
+                      <span>{language === "ar" ? "تذكرني" : "Keep me logged in"}</span>
+                    </label>
                     <button
                       type="button"
                       onClick={() => {
                         setShowReset((current) => !current)
                         setNotice(null)
                       }}
-                      className="font-bold text-purple-600 transition hover:text-purple-800 shrink-0"
+                      className="shrink-0 font-semibold text-[#b77bdc] transition hover:text-[#9857cf]"
                     >
                       {t.forgotPassword}
                     </button>
@@ -635,17 +639,16 @@ export function AuthPage({
                   <button
                     type="submit"
                     disabled={isBusy}
-                    className="inline-flex w-full items-center justify-center gap-2 rounded-2xl py-3.5 px-6 font-bold text-white shadow-lg transition-all hover:opacity-95 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-70 mt-2"
+                    className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-lg px-6 py-3 font-bold text-white transition hover:opacity-95 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-70"
                     style={{
-                      background: "linear-gradient(135deg, #4c1d95 0%, #7c3aed 100%)",
-                      boxShadow: "0 10px 25px -5px rgba(124, 58, 237, 0.35)",
+                      background: "#9857cf",
                     }}
                   >
                     <span>{isBusy ? t.loginBusy : t.loginButton}</span>
                     {!isBusy && <ArrowRight className={`h-4 w-4 ${isRTL ? "rotate-180" : ""}`} />}
                   </button>
 
-                  <div className="relative my-3 text-center">
+                  <div className="hidden">
                     <div className="absolute inset-0 flex items-center">
                       <div className="w-full border-t border-purple-100" />
                     </div>
@@ -656,7 +659,7 @@ export function AuthPage({
                     type="button"
                     disabled={isBusy}
                     onClick={handleMagicLinkRequest}
-                    className="w-full rounded-2xl border border-purple-200 bg-white py-3 px-4 text-xs font-bold text-purple-700 transition hover:bg-purple-50 hover:border-purple-300 disabled:opacity-70 shadow-sm flex items-center justify-center gap-2"
+                    className="hidden"
                   >
                     <Mail className="h-4 w-4 text-purple-500" />
                     <span>{language === "ar" ? "إرسال رابط الدخول المباشر (Magic Link)" : "Send Magic Link for passwordless login"}</span>
@@ -664,29 +667,34 @@ export function AuthPage({
                 </form>
 
                 {showReset && (
-                  <form onSubmit={handleResetRequest} className="mt-4 rounded-2xl border border-purple-100 bg-white p-4.5 shadow-sm space-y-3">
-                    <p className="text-sm font-bold text-[#1e0f3e]">{t.resetTitle}</p>
-                    <p className="text-xs text-slate-500">{t.resetSubtitle}</p>
-                    <AuthField
-                      label={t.emailLabel}
-                      icon={<Mail className="h-5 w-5" />}
-                      type="email"
-                      value={resetEmail}
-                      onChange={(value) => {
-                        setResetEmail(value)
-                        setNotice(null)
-                      }}
-                      placeholder={t.emailPlaceholder}
-                      autoComplete="email"
-                    />
-                    <button
-                      type="submit"
-                      disabled={isBusy}
-                      className="w-full rounded-xl border border-purple-200 bg-purple-50 py-3 text-xs font-bold text-purple-700 transition hover:bg-purple-100 disabled:opacity-70"
-                    >
-                      {isBusy ? t.sendingReset : t.sendResetButton}
-                    </button>
-                  </form>
+                  <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+                    <button type="button" aria-label="Close reset password" onClick={() => { setShowReset(false); setNotice(null) }} className="absolute inset-0 bg-[#17131f]/45 backdrop-blur-[2px]" />
+                    <form onSubmit={handleResetRequest} className="relative w-full max-w-[480px] overflow-hidden rounded-2xl bg-white shadow-[0_24px_70px_rgba(22,16,31,0.28)]">
+                      <div className="flex items-center justify-between border-b border-[#e9e4ed] px-6 py-6">
+                        <h3 className="text-lg font-bold text-[#171735]">{language === "ar" ? "إعادة تعيين كلمة المرور" : "Reset your password"}</h3>
+                        <button type="button" onClick={() => { setShowReset(false); setNotice(null) }} className="rounded-lg p-1.5 text-slate-500 transition hover:bg-slate-100" aria-label="Close">
+                          <X className="h-4 w-4" />
+                        </button>
+                      </div>
+                      <div className="space-y-4 px-6 py-6">
+                        <p className="text-sm leading-relaxed text-[#737889]">{language === "ar" ? "سنتحقق من بريدك الإلكتروني قبل اختيار كلمة مرور جديدة." : "We will verify your email before you choose a new password."}</p>
+                        {notice && <NoticeBanner notice={notice} />}
+                        <label className="block space-y-2">
+                          <span className="text-sm font-semibold text-[#171735]">{language === "ar" ? "البريد الإلكتروني" : "Email"}<span className="text-red-500"> *</span></span>
+                          <input
+                            type="email"
+                            value={resetEmail}
+                            onChange={(event) => { setResetEmail(event.target.value); setNotice(null) }}
+                            autoComplete="email"
+                            className="h-11 w-full rounded-2xl border border-[#ddcef0] bg-[#f0eafa] px-4 text-sm text-[#171735] outline-none transition focus:border-[#955ac3] focus:ring-2 focus:ring-[#955ac3]/15"
+                          />
+                        </label>
+                        <button type="submit" disabled={isBusy} className="h-11 w-full rounded-2xl bg-[#8659c6] px-5 text-sm font-bold text-white shadow-md shadow-purple-900/15 transition hover:bg-[#784ab9] disabled:cursor-not-allowed disabled:opacity-60">
+                          {isBusy ? t.sendingReset : (language === "ar" ? "إرسال رابط التحقق" : "Send verification link")}
+                        </button>
+                      </div>
+                    </form>
+                  </div>
                 )}
               </>
             ) : (
@@ -832,10 +840,9 @@ export function AuthPage({
                 <button
                   type="submit"
                   disabled={isBusy}
-                  className="inline-flex w-full items-center justify-center gap-2 rounded-2xl py-3.5 px-6 font-bold text-white shadow-lg transition-all hover:opacity-95 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-70 mt-2"
+                  className="mt-2 inline-flex w-full items-center justify-center gap-2 rounded-lg px-6 py-3 font-bold text-white transition hover:opacity-95 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-70"
                   style={{
-                    background: "linear-gradient(135deg, #4c1d95 0%, #7c3aed 100%)",
-                    boxShadow: "0 10px 25px -5px rgba(124, 58, 237, 0.35)",
+                    background: "#9857cf",
                   }}
                 >
                   <span>{isBusy ? t.creatingSchoolBusy : t.createSchoolButton}</span>
