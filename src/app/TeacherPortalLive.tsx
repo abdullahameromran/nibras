@@ -1628,7 +1628,7 @@ export function TeacherPortalLive({
                   <p className="text-xs text-muted-foreground">{activeContact?.subtitle ?? "Select a student, parent, or existing thread to start messaging."}</p>
                   </div>
                 </div>
-                <div ref={messageListRef} className="flex-1 space-y-2 overflow-y-auto bg-[#efeae2] p-3 sm:p-5">
+                <div ref={messageListRef} className="flex-1 space-y-2 overflow-y-auto bg-muted/30 p-3 sm:p-5">
                   {(selectedConversation?.messages ?? [])
                     .slice()
                     .sort((left, right) => new Date(left.created_at).getTime() - new Date(right.created_at).getTime())
@@ -1636,10 +1636,10 @@ export function TeacherPortalLive({
                       const mine = message.sender_id === user?.id
                       return (
                         <div key={message.id} className={`flex min-w-0 ${mine ? "justify-end" : "justify-start"}`}>
-                          <div className={`w-fit min-w-0 max-w-[88%] rounded-lg px-3 py-2 shadow-sm sm:max-w-[70%] ${mine ? "rounded-tr-none bg-[#d9fdd3] text-[#111b21]" : "rounded-tl-none bg-white text-[#111b21]"}`}>
-                            {message.subject && <p className="mb-1 text-[10px] font-semibold text-[#008069]">{message.subject}</p>}
+                          <div className={`w-fit min-w-0 max-w-[88%] rounded-lg px-3 py-2 shadow-sm sm:max-w-[70%] ${mine ? "rounded-tr-none bg-primary text-white" : "rounded-tl-none border border-border bg-card text-foreground"}`}>
+                            {message.subject && <p className={`mb-1 text-[10px] font-semibold ${mine ? "text-white/80" : "text-primary"}`}>{message.subject}</p>}
                             <p className="whitespace-pre-wrap break-words text-sm">{message.body}</p>
-                            <p className="mt-1 text-end text-[10px] text-[#667781]">{formatDateTime(message.created_at)}</p>
+                            <p className={`mt-1 text-end text-[10px] ${mine ? "text-white/70" : "text-muted-foreground"}`}>{formatDateTime(message.created_at)}</p>
                           </div>
                         </div>
                       )
@@ -1647,15 +1647,15 @@ export function TeacherPortalLive({
                   {!selectedConversation && activeContact && <EmptyState title="No messages yet" description={`Start your first conversation with ${activeContact.name}.`} />}
                   {!activeContact && <EmptyState title="No conversation selected" description="Choose a thread on the left to read or send live messages." />}
                 </div>
-                <div className="border-t border-border bg-[#f0f2f5] p-2 sm:p-3">
+                <div className="border-t border-border bg-muted/50 p-2 sm:p-3">
                   <div className="flex items-center gap-2">
                     <input
                       value={messageDraft}
                       onChange={(event) => setMessageDraft(event.target.value)}
                       placeholder="Type a message..."
-                      className="min-w-0 flex-1 rounded-full border-0 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-[#00a884]/30"
+                      className="min-w-0 flex-1 rounded-full border border-border bg-card px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-primary/30"
                     />
-                    <button type="button" onClick={() => void sendMessage()} className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#00a884] text-white shadow-sm" aria-label={t("Send")}><Send className="h-5 w-5 rtl:rotate-180" /></button>
+                    <button type="button" onClick={() => void sendMessage()} className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-primary text-white shadow-sm transition hover:opacity-90" aria-label={t("Send")}><Send className="h-5 w-5 rtl:rotate-180" /></button>
                   </div>
                 </div>
               </div>

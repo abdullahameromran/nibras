@@ -2502,24 +2502,24 @@ export function AppShell({
         />
       </div>
       <div className="nibras-shell-content relative z-0 flex-1 flex flex-col min-w-0 overflow-hidden">
-        <div className="h-16 bg-card border-b border-border flex items-center justify-between px-4 sticky top-0 z-10">
-          <div className="flex items-center gap-3">
+        <div className="h-16 bg-card border-b border-border flex items-center justify-between gap-2 px-2 sm:px-4 sticky top-0 z-10">
+          <div className="flex min-w-0 items-center gap-2 sm:gap-3">
             <button
-              className="md:hidden w-10 h-10 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center hover:bg-purple-100 active:scale-95 transition-all"
+              className="md:hidden w-9 h-9 shrink-0 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center hover:bg-purple-100 active:scale-95 transition-all sm:h-10 sm:w-10"
               onClick={() => setSidebarOpen((p) => !p)}
               aria-label="Toggle Sidebar"
             >
               <Menu className="w-5 h-5 text-purple-600" />
             </button>
-            <h1 className="text-base font-bold text-foreground">{headerTitle}</h1>
+            <h1 className="min-w-0 truncate text-sm font-bold text-foreground sm:text-base">{headerTitle}</h1>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex shrink-0 items-center gap-1.5 sm:gap-3">
             <LanguageSwitcher />
             <NotificationBell userId={userId} />
-            <Avatar name={displayName} size="sm" />
+            <span className="hidden min-[390px]:inline-flex"><Avatar name={displayName} size="sm" /></span>
           </div>
         </div>
-        <main ref={contentRef} className="flex-1 overflow-y-auto p-4 md:p-6">
+        <main ref={contentRef} className="flex-1 overflow-y-auto p-3 sm:p-4 md:p-6">
           {children}
         </main>
       </div>

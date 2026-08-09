@@ -568,30 +568,30 @@ function MessageCenter({
                   <p className="text-xs text-muted-foreground">{activeContact.subtitle}</p>
                 </div>
               </div>
-              <div ref={messageListRef} className="flex-1 space-y-2 overflow-y-auto bg-[#efeae2] p-3 sm:p-5">
+              <div ref={messageListRef} className="flex-1 space-y-2 overflow-y-auto bg-muted/30 p-3 sm:p-5">
                 {sortedMessages.length === 0 && <EmptyState title="No messages yet" description="Start the conversation and your message will be sent through Supabase." />}
                 {sortedMessages.map((message) => {
                   const mine = message.sender_id === currentUserId
                   return (
                     <div key={message.id} className={`flex ${mine ? "justify-end" : "justify-start"}`}>
-                      <div className={`w-fit max-w-[88%] min-w-0 rounded-lg px-3 py-2 shadow-sm sm:max-w-[70%] ${mine ? "bg-[#d9fdd3] text-[#111b21] rounded-tr-none" : "bg-white text-[#111b21] rounded-tl-none"}`}>
-                        {message.subject && <p className="mb-1 text-xs font-semibold text-[#008069]">{message.subject}</p>}
+                      <div className={`w-fit max-w-[88%] min-w-0 rounded-lg px-3 py-2 shadow-sm sm:max-w-[70%] ${mine ? "bg-primary text-white rounded-tr-none" : "border border-border bg-card text-foreground rounded-tl-none"}`}>
+                        {message.subject && <p className={`mb-1 text-xs font-semibold ${mine ? "text-white/80" : "text-primary"}`}>{message.subject}</p>}
                         <p className="whitespace-pre-wrap break-words text-sm leading-relaxed">{message.body}</p>
-                        <p className="mt-1 text-end text-[10px] text-[#667781]">{formatDateTime(message.created_at)}</p>
+                        <p className={`mt-1 text-end text-[10px] ${mine ? "text-white/70" : "text-muted-foreground"}`}>{formatDateTime(message.created_at)}</p>
                       </div>
                     </div>
                   )
                 })}
               </div>
-              <div className="border-t border-border bg-[#f0f2f5] p-2 sm:p-3">
+              <div className="border-t border-border bg-muted/50 p-2 sm:p-3">
                 <div className="flex items-center gap-2">
                   <input
                     value={draft}
                     onChange={(event) => setDraft(event.target.value)}
                     placeholder={t("Type your message")}
-                    className="min-w-0 flex-1 rounded-full border-0 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-[#00a884]/30"
+                    className="min-w-0 flex-1 rounded-full border border-border bg-card px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-primary/30"
                   />
-                  <button type="button" onClick={onSend} className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#00a884] text-white shadow-sm" aria-label={t("Send")}><Send className="h-5 w-5 rtl:rotate-180" /></button>
+                  <button type="button" onClick={onSend} className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-primary text-white shadow-sm transition hover:opacity-90" aria-label={t("Send")}><Send className="h-5 w-5 rtl:rotate-180" /></button>
                 </div>
               </div>
             </>
@@ -1525,7 +1525,7 @@ export function StudentPortal({ view, setView, onLogout, schoolId, user }: Stude
 
         {classId && !activeTest && !activeHomework && view === "grades" && (
           <div className="space-y-5">
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 sm:gap-4">
               <StatCard icon={<Award className="w-5 h-5" />} label="Average GPA" value={scoreToGpa(overallAverage)} color="#7C5CBF" />
               <StatCard icon={<TrendingUp className="w-5 h-5" />} label="Scored Subjects" value={String(finalGradeScores.length)} color="#3B82F6" />
               <StatCard icon={<CheckCircle className="w-5 h-5" />} label="Approved Grades" value={String(gradesQuery.grades.filter((item) => item.status === "approved").length)} color="#10B981" />
@@ -1535,11 +1535,11 @@ export function StudentPortal({ view, setView, onLogout, schoolId, user }: Stude
                 <h3 className="text-sm font-bold text-foreground">{t("Final Grades")}</h3>
               </div>
               <div className="overflow-x-auto">
-                <table className="w-full min-w-[620px]">
+                <table className="w-full table-fixed sm:min-w-[620px] sm:table-auto">
                   <thead>
                     <tr className="bg-muted/40 border-b border-border">
                       {["Course", "Score", "GPA", "Grade", "Status"].map((header) => (
-                        <th key={header} className="px-6 py-3 text-left text-xs font-semibold text-muted-foreground">
+                        <th key={header} className={`${header === "Grade" || header === "Status" ? "hidden sm:table-cell" : ""} px-3 py-3 text-start text-xs font-semibold text-muted-foreground sm:px-6`}>
                           {t(header)}
                         </th>
                       ))}
@@ -1551,11 +1551,11 @@ export function StudentPortal({ view, setView, onLogout, schoolId, user }: Stude
                       const gradeLabel = item.grade_letter || scoreToLetter(score)
                       return (
                         <tr key={item.id} className="border-b border-border last:border-0">
-                          <td className="px-6 py-4 text-sm font-semibold text-foreground">{item.subjects?.name ?? t("Course")}</td>
-                          <td className="px-6 py-4 text-sm text-foreground">{score ?? "-"}</td>
-                          <td className="px-6 py-4 text-sm text-foreground">{scoreToGpa(score)}</td>
-                          <td className="px-6 py-4">{renderGradeBadge(gradeLabel)}</td>
-                          <td className="px-6 py-4 text-sm capitalize text-muted-foreground">{t(item.status)}</td>
+                          <td className="break-words px-3 py-4 text-sm font-semibold text-foreground sm:px-6">{item.subjects?.name ?? t("Course")}</td>
+                          <td className="px-3 py-4 text-sm text-foreground sm:px-6">{score ?? "-"}</td>
+                          <td className="px-3 py-4 text-sm text-foreground sm:px-6">{scoreToGpa(score)}</td>
+                          <td className="hidden px-6 py-4 sm:table-cell">{renderGradeBadge(gradeLabel)}</td>
+                          <td className="hidden px-6 py-4 text-sm capitalize text-muted-foreground sm:table-cell">{t(item.status)}</td>
                         </tr>
                       )
                     })}
@@ -1919,7 +1919,7 @@ export function ParentPortal({ view, setView, onLogout, schoolId, user }: Parent
 
             {view === "attendance" && (
               <div className="space-y-5">
-                <div className="grid grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 sm:gap-4">
                   <StatCard icon={<CheckCircle className="w-5 h-5" />} label="Present or Late" value={String(attendancePresent)} color="#10B981" />
                   <StatCard icon={<Activity className="w-5 h-5" />} label="Attendance Rate" value={`${attendanceRate}%`} color="#7C5CBF" />
                   <StatCard icon={<CheckSquare className="w-5 h-5" />} label="Total Records" value={String(attendanceQuery.records.length)} color="#3B82F6" />
@@ -2009,11 +2009,11 @@ export function ParentPortal({ view, setView, onLogout, schoolId, user }: Parent
                     <h3 className="font-bold text-foreground">{t("Final Results")}</h3>
                   </div>
                   <div className="overflow-x-auto">
-                    <table className="w-full min-w-[620px]">
+                    <table className="w-full table-fixed sm:min-w-[620px] sm:table-auto">
                       <thead>
                         <tr className="bg-muted/40 border-b border-border">
                           {["Course", "Score", "GPA", "Grade", "Status"].map((header) => (
-                            <th key={header} className="px-6 py-3 text-left text-xs font-semibold text-muted-foreground">
+                            <th key={header} className={`${header === "Grade" || header === "Status" ? "hidden sm:table-cell" : ""} px-3 py-3 text-start text-xs font-semibold text-muted-foreground sm:px-6`}>
                               {t(header)}
                             </th>
                           ))}
@@ -2025,11 +2025,11 @@ export function ParentPortal({ view, setView, onLogout, schoolId, user }: Parent
                           const gradeLabel = item.grade_letter || scoreToLetter(score)
                           return (
                             <tr key={item.id} className="border-b border-border last:border-0">
-                              <td className="px-6 py-4 text-sm font-semibold text-foreground">{item.subjects?.name ?? t("Course")}</td>
-                              <td className="px-6 py-4 text-sm text-foreground">{score ?? "-"}</td>
-                              <td className="px-6 py-4 text-sm text-foreground">{scoreToGpa(score)}</td>
-                              <td className="px-6 py-4">{renderGradeBadge(gradeLabel)}</td>
-                              <td className="px-6 py-4 text-sm capitalize text-muted-foreground">{t(item.status.charAt(0).toUpperCase() + item.status.slice(1), item.status)}</td>
+                              <td className="break-words px-3 py-4 text-sm font-semibold text-foreground sm:px-6">{item.subjects?.name ?? t("Course")}</td>
+                              <td className="px-3 py-4 text-sm text-foreground sm:px-6">{score ?? "-"}</td>
+                              <td className="px-3 py-4 text-sm text-foreground sm:px-6">{scoreToGpa(score)}</td>
+                              <td className="hidden px-6 py-4 sm:table-cell">{renderGradeBadge(gradeLabel)}</td>
+                              <td className="hidden px-6 py-4 text-sm capitalize text-muted-foreground sm:table-cell">{t(item.status.charAt(0).toUpperCase() + item.status.slice(1), item.status)}</td>
                             </tr>
                           )
                         })}
