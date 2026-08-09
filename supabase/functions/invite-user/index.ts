@@ -42,6 +42,7 @@ Deno.serve(async (req) => {
     if (!["school_admin", "teacher", "student", "parent"].includes(role)) {
       return json({ error: "invalid role for invite-user (super_admin uses provision-school)" }, 400)
     }
+    const normalizedEmail = String(email).trim().toLowerCase()
     const normalizedNationalId = typeof national_id === "string" ? national_id.trim() : ""
     if (role === "student" && normalizedNationalId && !/^\d{14}$/.test(normalizedNationalId)) {
       return json({ error: "National ID must contain exactly 14 digits." }, 400)
@@ -56,6 +57,13 @@ Deno.serve(async (req) => {
     if (!callerProfile || !school || (!roleRow && !superRow)) {
       return json({ error: "not authorized to invite users to this school" }, 403)
     }
+    const { data: existingEmail, error: emailLookupError } = await admin
+      .from("profiles")
+      .select("id")
+      .ilike("email", normalizedEmail)
+      .maybeSingle()
+    if (emailLookupError) return json({ error: emailLookupError.message }, 400)
+    if (existingEmail) return json({ error: "This email already exists. Use a different email address." }, 409)
     if (role === "student" && normalizedNationalId) {
       const { data: duplicateNationalId } = await admin.from("profiles").select("id").eq("national_id", normalizedNationalId).maybeSingle()
       if (duplicateNationalId) return json({ error: "This National ID is already used by another student." }, 409)
@@ -66,18 +74,16 @@ Deno.serve(async (req) => {
       data: { first_name, last_name },
       redirectTo: INVITE_REDIRECT_URL,
     }
-    const { data: invited, error: inviteErr } = await admin.auth.admin.inviteUserByEmail(email, inviteOptions)
+    const { data: invited, error: inviteErr } = await admin.auth.admin.inviteUserByEmail(normalizedEmail, inviteOptions)
 
-    let userId: string
     if (inviteErr) {
       // Most common failure: user already exists — look them up instead of failing.
-      const { data: existing } = await admin.auth.admin.listUsers({ email })
-      const found = existing?.users?.find((u) => u.email === email)
-      if (!found) return json({ error: inviteErr.message }, 400)
-      userId = found.id
-    } else {
-      userId = invited.user!.id
+      const { data: existing } = await admin.auth.admin.listUsers({ email: normalizedEmail })
+      const found = existing?.users?.find((u) => u.email?.toLowerCase() === normalizedEmail)
+      if (found) return json({ error: "This email already exists. Use a different email address." }, 409)
+      return json({ error: inviteErr.message }, 400)
     }
+    const userId = invited.user!.id
 
     // Invitation screens create a single school role. Reusing an email that
     // already has another role would silently turn (for example) a teacher into
@@ -97,7 +103,7 @@ Deno.serve(async (req) => {
     // Ensure a profile row exists
     const { error: profileError } = await admin.from("profiles").upsert({
       id: userId,
-      email,
+      email: normalizedEmail,
       first_name,
       last_name,
       ...(role === "student" && normalizedNationalId ? { national_id: normalizedNationalId } : {}),
@@ -117,7 +123,7 @@ Deno.serve(async (req) => {
       action: "invite_user",
       entity_type: "profiles",
       entity_id: userId,
-      metadata: { email, role },
+      metadata: { email: normalizedEmail, role },
     })
 
     return json({ user_id: userId, status: "invited" }, 200)

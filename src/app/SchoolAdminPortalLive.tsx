@@ -67,6 +67,7 @@ import { useTests } from "@/hooks/useTests";
 import { useTimetable, useTimeSlots, useWorkingDays } from "@/hooks/useTimetable";
 import { formatDisplayName } from "@/lib/display";
 import { formatPlanDisplayName } from "@/lib/plans";
+import { downloadCsvTemplate, parseCsv } from "@/lib/csv";
 import { callExportData, uploadSchoolLogo } from "@/lib/storage";
 import { ProfileSettingsPanel } from "./ProfileSettingsPanel";
 
@@ -84,6 +85,7 @@ const SCHOOL_NAV: NavItem[] = [
 ];
 
 type ToastState = { msg: string; type: "success" | "error" } | null;
+type CsvInviteRow = { line: number; name: string; email: string; nationalId?: string };
 
 function scoreToLetter(score: number | null | undefined) {
   if (score == null) return "Pending";
@@ -278,6 +280,15 @@ export function SchoolAdminPortalLive({
   const [showTimeSlotForm, setShowTimeSlotForm] = useState(false);
   const [teacherForm, setTeacherForm] = useState({ name: "", email: "" });
   const [studentForm, setStudentForm] = useState({ name: "", email: "", nationalId: "", classId: "" });
+  const [teacherInviteMode, setTeacherInviteMode] = useState<"manual" | "csv">("manual");
+  const [studentInviteMode, setStudentInviteMode] = useState<"manual" | "csv">("manual");
+  const [teacherCsvRows, setTeacherCsvRows] = useState<CsvInviteRow[]>([]);
+  const [studentCsvRows, setStudentCsvRows] = useState<CsvInviteRow[]>([]);
+  const [teacherCsvFileName, setTeacherCsvFileName] = useState("");
+  const [studentCsvFileName, setStudentCsvFileName] = useState("");
+  const [studentCsvClassId, setStudentCsvClassId] = useState("");
+  const [csvErrors, setCsvErrors] = useState<string[]>([]);
+  const [bulkImporting, setBulkImporting] = useState(false);
   const [parentInviteForm, setParentInviteForm] = useState({ name: "", email: "", relationship: "parent" });
   const [existingParentLinkForm, setExistingParentLinkForm] = useState({ parentId: "", relationship: "parent" });
   const [announcementForm, setAnnouncementForm] = useState({ title: "", body: "", audience: "school" });
@@ -1483,6 +1494,94 @@ export function SchoolAdminPortalLive({
     setStudentForm({ name: "", email: "", nationalId: "", classId: "" });
     setShowAddStudent(false);
     showToast(language === "ar" ? "تمت دعوة الطالب بنجاح." : "Student invited successfully");
+  };
+
+  const loadInviteCsv = async (file: File | undefined, role: "teacher" | "student") => {
+    setCsvErrors([]);
+    if (!file) return;
+    if (role === "teacher") setTeacherCsvFileName(file.name);
+    else setStudentCsvFileName(file.name);
+    if (!file.name.toLowerCase().endsWith(".csv")) {
+      setCsvErrors(["Please choose a .csv file."]);
+      return;
+    }
+    const records = parseCsv(await file.text());
+    if (records.length === 0) {
+      setCsvErrors(["The CSV is empty. Include the header row and at least one person."]);
+      return;
+    }
+
+    const errors: string[] = [];
+    const seenEmails = new Set<string>();
+    const existingEmails = new Set(
+      (role === "teacher" ? dbTeachers.teachers : dbStudents.students).map((person) => person.email.toLowerCase()),
+    );
+    const rows = records.map((record, index) => {
+      const line = index + 2;
+      const name = (record.full_name ?? "").trim();
+      const email = (record.email ?? "").trim().toLowerCase();
+      const nationalId = (record.national_id ?? "").trim();
+      if (!name) errors.push(`Line ${line}: full_name is required.`);
+      if (!/^\S+@\S+\.\S+$/.test(email)) errors.push(`Line ${line}: enter a valid email.`);
+      if (email && seenEmails.has(email)) errors.push(`Line ${line}: ${email} is duplicated in this CSV.`);
+      if (email && existingEmails.has(email)) errors.push(`Line ${line}: ${email} already exists in this school.`);
+      if (role === "student" && nationalId && !/^\d{14}$/.test(nationalId)) errors.push(`Line ${line}: national_id must be exactly 14 digits or blank.`);
+      seenEmails.add(email);
+      return { line, name, email, nationalId };
+    });
+    setCsvErrors(errors);
+    if (role === "teacher") setTeacherCsvRows(rows);
+    else setStudentCsvRows(rows);
+  };
+
+  const importTeacherCsv = async () => {
+    if (teacherCsvRows.length === 0 || csvErrors.length > 0) return;
+    setBulkImporting(true);
+    const errors: string[] = [];
+    let invited = 0;
+    for (const row of teacherCsvRows) {
+      const [firstName = "", ...lastName] = row.name.split(/\s+/);
+      const result = await dbTeachers.inviteTeacher({ email: row.email, first_name: firstName, last_name: lastName.join(" ") || undefined });
+      if (result.error) errors.push(`Line ${row.line} (${row.email}): ${result.error}`);
+      else invited += 1;
+    }
+    setBulkImporting(false);
+    setCsvErrors(errors);
+    if (errors.length === 0) {
+      setTeacherCsvRows([]);
+      setShowAddTeacher(false);
+      showToast(`${invited} teacher${invited === 1 ? "" : "s"} invited successfully.`);
+    } else showToast(`${invited} invited; ${errors.length} failed. Review the errors in the CSV window.`, "error");
+  };
+
+  const importStudentCsv = async () => {
+    if (!studentCsvClassId) {
+      setCsvErrors(["Choose the class for these students before importing."]);
+      return;
+    }
+    if (studentCsvRows.length === 0 || csvErrors.length > 0) return;
+    setBulkImporting(true);
+    const errors: string[] = [];
+    let invited = 0;
+    for (const row of studentCsvRows) {
+      const [firstName = "", ...lastName] = row.name.split(/\s+/);
+      const result = await dbStudents.inviteStudent({
+        email: row.email,
+        first_name: firstName,
+        last_name: lastName.join(" ") || undefined,
+        national_id: row.nationalId,
+        class_id: studentCsvClassId,
+      });
+      if (result.error) errors.push(`Line ${row.line} (${row.email}): ${result.error}`);
+      else invited += 1;
+    }
+    setBulkImporting(false);
+    setCsvErrors(errors);
+    if (errors.length === 0) {
+      setStudentCsvRows([]);
+      setShowAddStudent(false);
+      showToast(`${invited} student${invited === 1 ? "" : "s"} invited and added to the selected class.`);
+    } else showToast(`${invited} invited; ${errors.length} failed. Review the errors in the CSV window.`, "error");
   };
 
   const openParentManager = (studentId?: string) => {
@@ -2968,29 +3067,68 @@ export function SchoolAdminPortalLive({
       </AppShell>
 
       {showAddTeacher && (
-        <Modal title="Invite Teacher" onClose={() => setShowAddTeacher(false)}>
+        <Modal title="Invite Teacher" onClose={() => { setShowAddTeacher(false); setTeacherCsvRows([]); setTeacherCsvFileName(""); setCsvErrors([]); }}>
           <div className="space-y-4">
-            <Input label="Full Name" value={teacherForm.name} onChange={(value) => setTeacherForm((current) => ({ ...current, name: value }))} required />
-            <Input label="Email" type="email" value={teacherForm.email} onChange={(value) => setTeacherForm((current) => ({ ...current, email: value }))} required />
-            <div className="flex gap-3">
-              <Btn onClick={() => void createTeacher()} className="flex-1">Invite Teacher</Btn>
-              <Btn variant="secondary" onClick={() => setShowAddTeacher(false)}>Cancel</Btn>
+            <div className="grid grid-cols-2 gap-2 rounded-xl bg-muted p-1">
+              <button type="button" onClick={() => { setTeacherInviteMode("manual"); setTeacherCsvRows([]); setTeacherCsvFileName(""); setCsvErrors([]); }} className={`rounded-lg px-3 py-2 text-sm font-semibold ${teacherInviteMode === "manual" ? "bg-card text-primary shadow-sm" : "text-muted-foreground"}`}>One teacher</button>
+              <button type="button" onClick={() => { setTeacherInviteMode("csv"); setCsvErrors([]); }} className={`rounded-lg px-3 py-2 text-sm font-semibold ${teacherInviteMode === "csv" ? "bg-card text-primary shadow-sm" : "text-muted-foreground"}`}>Upload CSV</button>
             </div>
+            {teacherInviteMode === "manual" ? <>
+              <Input label="Full Name" value={teacherForm.name} onChange={(value) => setTeacherForm((current) => ({ ...current, name: value }))} required />
+              <Input label="Email" type="email" value={teacherForm.email} onChange={(value) => setTeacherForm((current) => ({ ...current, email: value }))} required />
+              <Btn onClick={() => void createTeacher()} className="w-full">Invite Teacher</Btn>
+            </> : <>
+              <div className="rounded-xl border border-border bg-muted/40 p-4 text-sm">
+                <p className="font-bold text-foreground">Required CSV columns</p>
+                <code data-no-translate className="mt-2 block rounded-lg bg-card p-2 text-xs" dir="ltr">full_name,email</code>
+                <p className="mt-2 text-xs text-muted-foreground">Each valid email receives an invitation. Existing accounts and duplicate rows are rejected.</p>
+              </div>
+              <Btn variant="secondary" icon={<Download className="h-4 w-4" />} className="w-full justify-center" onClick={() => downloadCsvTemplate("teacher-import-template.csv", "full_name,email\nAhmed Hassan,ahmed.teacher@example.com\nMona Ali,mona.teacher@example.com\n")}>Download teacher CSV example</Btn>
+              <label className="flex cursor-pointer items-center gap-3 rounded-xl border border-border bg-card p-3 text-sm">
+                <span className="shrink-0 rounded-lg bg-primary px-3 py-2 font-semibold text-white">Choose CSV file</span>
+                <span data-no-translate={Boolean(teacherCsvFileName) || undefined} className="min-w-0 truncate text-muted-foreground">{teacherCsvFileName || t("No file chosen")}</span>
+                <input type="file" accept=".csv,text/csv" onChange={(event) => void loadInviteCsv(event.target.files?.[0], "teacher")} className="sr-only" />
+              </label>
+              {teacherCsvRows.length > 0 && <p className="text-sm font-semibold text-foreground">{language === "ar" ? `تم تحميل ${teacherCsvRows.length} صف للمعلمين.` : `${teacherCsvRows.length} teacher row${teacherCsvRows.length === 1 ? "" : "s"} loaded.`}</p>}
+              <Btn onClick={() => void importTeacherCsv()} disabled={bulkImporting || teacherCsvRows.length === 0 || csvErrors.length > 0} className="w-full">{bulkImporting ? "Sending invitations..." : "Import and invite teachers"}</Btn>
+            </>}
+            {csvErrors.length > 0 && <div className="max-h-40 overflow-y-auto rounded-xl border border-red-200 bg-red-50 p-3 text-xs text-red-700"><p className="mb-1 font-bold">Fix these errors:</p>{csvErrors.map((error, index) => <p key={`${error}-${index}`}>{error}</p>)}</div>}
+            <Btn variant="secondary" onClick={() => { setShowAddTeacher(false); setTeacherCsvRows([]); setTeacherCsvFileName(""); setCsvErrors([]); }} className="w-full">Cancel</Btn>
           </div>
         </Modal>
       )}
 
       {showAddStudent && (
-        <Modal title="Invite Student" onClose={() => setShowAddStudent(false)}>
+        <Modal title={language === "ar" ? "دعوة طالب" : "Invite Student"} onClose={() => { setShowAddStudent(false); setStudentCsvRows([]); setStudentCsvFileName(""); setCsvErrors([]); }}>
           <div className="space-y-4">
-            <Input label="Full Name" value={studentForm.name} onChange={(value) => setStudentForm((current) => ({ ...current, name: value }))} required />
-            <Input label="Email" type="email" value={studentForm.email} onChange={(value) => setStudentForm((current) => ({ ...current, email: value }))} required />
-            <Input label="National ID" value={studentForm.nationalId} onChange={(value) => setStudentForm((current) => ({ ...current, nationalId: value.replace(/\D/g, "").slice(0, 14) }))} placeholder="14 digits" />
-            <Select label="Class" value={studentForm.classId} onChange={(value) => setStudentForm((current) => ({ ...current, classId: value }))} options={classOptions} required />
-            <div className="flex gap-3">
-              <Btn onClick={() => void createStudent()} className="flex-1">Invite Student</Btn>
-              <Btn variant="secondary" onClick={() => setShowAddStudent(false)}>Cancel</Btn>
+            <div className="grid grid-cols-2 gap-2 rounded-xl bg-muted p-1">
+              <button data-no-translate type="button" onClick={() => { setStudentInviteMode("manual"); setStudentCsvRows([]); setStudentCsvFileName(""); setCsvErrors([]); }} className={`rounded-lg px-3 py-2 text-sm font-semibold ${studentInviteMode === "manual" ? "bg-card text-primary shadow-sm" : "text-muted-foreground"}`}>{language === "ar" ? "طالب واحد" : "One student"}</button>
+              <button data-no-translate type="button" onClick={() => { setStudentInviteMode("csv"); setCsvErrors([]); }} className={`rounded-lg px-3 py-2 text-sm font-semibold ${studentInviteMode === "csv" ? "bg-card text-primary shadow-sm" : "text-muted-foreground"}`}>{language === "ar" ? "رفع ملف CSV" : "Upload CSV"}</button>
             </div>
+            {studentInviteMode === "manual" ? <>
+              <Input label={language === "ar" ? "الاسم الكامل" : "Full Name"} value={studentForm.name} onChange={(value) => setStudentForm((current) => ({ ...current, name: value }))} required />
+              <Input label={language === "ar" ? "البريد الإلكتروني" : "Email"} type="email" value={studentForm.email} onChange={(value) => setStudentForm((current) => ({ ...current, email: value }))} required />
+              <Input label={language === "ar" ? "الرقم القومي" : "National ID"} value={studentForm.nationalId} onChange={(value) => setStudentForm((current) => ({ ...current, nationalId: value.replace(/\D/g, "").slice(0, 14) }))} placeholder={language === "ar" ? "14 رقمًا" : "14 digits"} />
+              <Select label={language === "ar" ? "الفصل" : "Class"} value={studentForm.classId} onChange={(value) => setStudentForm((current) => ({ ...current, classId: value }))} options={classOptions} required />
+              <Btn onClick={() => void createStudent()} className="w-full"><span data-no-translate>{language === "ar" ? "دعوة الطالب" : "Invite Student"}</span></Btn>
+            </> : <>
+              <Select label={language === "ar" ? "الفصل لجميع الطلاب في ملف CSV" : "Class for all students in this CSV"} value={studentCsvClassId} onChange={setStudentCsvClassId} options={classOptions} required />
+              <div className="rounded-xl border border-border bg-muted/40 p-4 text-sm">
+                <p data-no-translate className="font-bold text-foreground">{language === "ar" ? "أعمدة CSV الخاصة بالطلاب" : "Student CSV columns"}</p>
+                <code data-no-translate className="mt-2 block rounded-lg bg-card p-2 text-xs" dir="ltr">full_name,email,national_id</code>
+                <p data-no-translate className="mt-2 text-xs text-muted-foreground">{language === "ar" ? "يُطبق الفصل المحدد أعلاه على جميع الصفوف. الرقم القومي اختياري، وإذا أُدخل فيجب أن يتكون من 14 رقمًا بالضبط." : "The class is selected above and applies to every row. National ID is optional; when supplied it must contain exactly 14 digits."}</p>
+              </div>
+              <Btn variant="secondary" icon={<Download className="h-4 w-4" />} className="w-full justify-center" onClick={() => downloadCsvTemplate("student-import-template.csv", "full_name,email,national_id\nOmar Ahmed,omar.student@example.com,\nSalma Hassan,salma.student@example.com,29801011234567\n")}><span data-no-translate>{language === "ar" ? "تنزيل نموذج CSV للطلاب" : "Download student CSV example"}</span></Btn>
+              <label className="flex cursor-pointer flex-wrap items-center gap-3 rounded-xl border border-border bg-card p-3 text-sm">
+                <span data-no-translate className="shrink-0 rounded-lg bg-primary px-3 py-2 font-semibold text-white">{language === "ar" ? "اختيار ملف CSV" : "Choose CSV file"}</span>
+                <span data-no-translate className="min-w-0 flex-1 truncate text-muted-foreground">{studentCsvFileName || (language === "ar" ? "لم يتم اختيار ملف" : "No file chosen")}</span>
+                <input type="file" accept=".csv,text/csv" onChange={(event) => void loadInviteCsv(event.target.files?.[0], "student")} className="sr-only" />
+              </label>
+              {studentCsvRows.length > 0 && <p className="text-sm font-semibold text-foreground">{language === "ar" ? `تم تحميل ${studentCsvRows.length} صف للطلاب في الفصل المحدد.` : `${studentCsvRows.length} student row${studentCsvRows.length === 1 ? "" : "s"} loaded for the selected class.`}</p>}
+              <Btn onClick={() => void importStudentCsv()} disabled={bulkImporting || studentCsvRows.length === 0 || csvErrors.length > 0 || !studentCsvClassId} className="w-full"><span data-no-translate>{bulkImporting ? (language === "ar" ? "جارٍ إرسال الدعوات وتسجيل الطلاب..." : "Inviting and enrolling...") : (language === "ar" ? "استيراد الطلاب إلى الفصل" : "Import students into class")}</span></Btn>
+            </>}
+            {csvErrors.length > 0 && <div className="max-h-40 overflow-y-auto rounded-xl border border-red-200 bg-red-50 p-3 text-xs text-red-700"><p className="mb-1 font-bold">Fix these errors:</p>{csvErrors.map((error, index) => <p key={`${error}-${index}`}>{error}</p>)}</div>}
+            <Btn variant="secondary" onClick={() => { setShowAddStudent(false); setStudentCsvRows([]); setStudentCsvFileName(""); setCsvErrors([]); }} className="w-full"><span data-no-translate>{language === "ar" ? "إلغاء" : "Cancel"}</span></Btn>
           </div>
         </Modal>
       )}
