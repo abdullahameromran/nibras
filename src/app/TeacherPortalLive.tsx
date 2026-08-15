@@ -743,7 +743,7 @@ export function TeacherPortalLive({
     const targets = [{ target_type: "class" as const, target_id: announcementForm.classId }]
     const result = editingAnnouncementId
       ? await dbAnnouncements.updateAnnouncement(editingAnnouncementId, { title: announcementForm.title.trim(), body: announcementForm.body.trim(), targets })
-      : await dbAnnouncements.createAnnouncement({ school_id: schoolId, author_id: user.id, title: announcementForm.title.trim(), body: announcementForm.body.trim(), is_published: publish, targets })
+      : await dbAnnouncements.createAnnouncement({ school_id: schoolId, title: announcementForm.title.trim(), body: announcementForm.body.trim(), is_published: publish, targets })
     if (result.error) return showToast(result.error, "error")
     if (editingAnnouncementId) {
       const publicationResult = publish ? await dbAnnouncements.publishAnnouncement(editingAnnouncementId) : await dbAnnouncements.unpublishAnnouncement(editingAnnouncementId)

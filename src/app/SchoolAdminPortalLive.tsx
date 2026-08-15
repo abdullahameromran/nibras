@@ -1660,7 +1660,7 @@ export function SchoolAdminPortalLive({
           : [{ target_type: "school" as const }];
     const result = editingAnnouncementId
       ? await dbAnnouncements.updateAnnouncement(editingAnnouncementId, { title: announcementForm.title.trim(), body: announcementForm.body.trim(), targets })
-      : await dbAnnouncements.createAnnouncement({ school_id: schoolId, author_id: user.id, title: announcementForm.title.trim(), body: announcementForm.body.trim(), is_published: shouldPublish, targets });
+      : await dbAnnouncements.createAnnouncement({ school_id: schoolId, title: announcementForm.title.trim(), body: announcementForm.body.trim(), is_published: shouldPublish, targets });
     if (result.error) {
       showToast(result.error, "error");
       return;

@@ -58,7 +58,6 @@ export function useAnnouncements(schoolId: string | null) {
 
   const createAnnouncement = useCallback(async (payload: {
     school_id: string;
-    author_id: string;
     title: string;
     body: string;
     is_published?: boolean;
@@ -70,32 +69,24 @@ export function useAnnouncements(schoolId: string | null) {
   }) => {
     const { targets, ...annData } = payload;
     const { data: ann, error: annErr } = await supabase
-      .from("announcements")
-      .insert({
-        ...annData,
-        published_at: annData.is_published ? new Date().toISOString() : null,
-      })
-      .select("id, school_id, author_id, title, body, is_published, published_at, deleted_at, created_at")
-      .single();
+      .rpc("create_announcement_with_targets", {
+        p_school_id: annData.school_id,
+        p_title: annData.title,
+        p_body: annData.body,
+        p_is_published: annData.is_published ?? false,
+        p_targets: targets,
+      });
     if (annErr) return { error: annErr.message, data: null };
 
-    if (targets.length > 0) {
-      const { error: targetsError } = await supabase.from("announcement_targets").insert(
-        targets.map(t => ({ announcement_id: ann.id, ...t }))
-      );
-      if (targetsError) {
-        await supabase.from("announcements").delete().eq("id", ann.id);
-        return { error: targetsError.message, data: null };
-      }
-    }
+    const createdAnnouncement = ann as Announcement;
 
     // If published, trigger send-announcement edge function
     if (annData.is_published) {
-      callSendAnnouncement(ann.id).catch(console.error);
+      callSendAnnouncement(createdAnnouncement.id).catch(console.error);
     }
 
     await fetchAnnouncements();
-    return { error: null, data: ann };
+    return { error: null, data: createdAnnouncement };
   }, [fetchAnnouncements]);
 
   const publishAnnouncement = useCallback(async (id: string) => {
