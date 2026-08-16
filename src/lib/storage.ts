@@ -180,8 +180,21 @@ export async function uploadAvatar(userId: string, file: File): Promise<string |
   return `${data.publicUrl}?v=${Date.now()}`
 }
 
+export const LESSON_ATTACHMENT_MAX_SIZE_MB = 10
+export const LESSON_ATTACHMENT_MAX_SIZE_BYTES = LESSON_ATTACHMENT_MAX_SIZE_MB * 1024 * 1024
+export const LESSON_ATTACHMENT_SIZE_ERROR = "The selected file exceeds the 10 MB maximum size."
+
+export function getLessonAttachmentValidationError(file: File): string | null {
+  return file.size > LESSON_ATTACHMENT_MAX_SIZE_BYTES ? LESSON_ATTACHMENT_SIZE_ERROR : null
+}
+
 /** Upload a lesson attachment. Returns the stored object path. */
 export async function uploadLessonAttachment(schoolId: string, lessonId: string, file: File): Promise<string | null> {
+  const validationError = getLessonAttachmentValidationError(file)
+  if (validationError) {
+    console.warn("uploadLessonAttachment:", validationError)
+    return null
+  }
   const path = `${schoolId}/${lessonId}/${Date.now()}_${file.name}`
   const { error } = await supabase.storage.from("lesson-attachments").upload(path, file, { upsert: false })
   if (error) {

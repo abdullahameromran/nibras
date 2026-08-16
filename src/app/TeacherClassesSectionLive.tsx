@@ -10,7 +10,7 @@ import { useStorageObjectUrl, useStorageObjectUrlMap } from "@/hooks/useStorageU
 import { useStudents } from "@/hooks/useStudents"
 import { useTests, type MonthlyTest } from "@/hooks/useTests"
 import { formatDisplayName } from "@/lib/display"
-import { uploadLessonAttachment } from "@/lib/storage"
+import { getLessonAttachmentValidationError, uploadLessonAttachment } from "@/lib/storage"
 
 type DetailView = "list" | "detail"
 
@@ -35,7 +35,15 @@ type LessonAttachmentDraft = {
   file: File | null
 }
 
-type HomeworkEditorState = { id: string | null; title: string; due_date: string; questions: Array<{ text: string; choices: string[]; correctIndex: number }> }
+type HomeworkQuestionDraft = { text: string; choices: string[]; correctIndex: number | null }
+type HomeworkEditorState = { id: string | null; title: string; due_date: string; questions: HomeworkQuestionDraft[] }
+type HomeworkQuestionValidationErrors = { text?: string; choices?: string; correct?: string }
+type HomeworkValidationErrors = {
+  title?: string
+  dueDate?: string
+  form?: string
+  questions: Record<number, HomeworkQuestionValidationErrors>
+}
 
 type LessonFormState = {
   subject_id: string
@@ -102,6 +110,7 @@ export function TeacherClassesSectionLive({
   const [showAddAttachments, setShowAddAttachments] = useState(false)
   const [attachmentDrafts, setAttachmentDrafts] = useState<LessonAttachmentDraft[]>([{ file_name: "", file_url: "", file_kind: "pdf", file: null }])
   const [homeworkEditor, setHomeworkEditor] = useState<HomeworkEditorState | null>(null)
+  const [homeworkValidationErrors, setHomeworkValidationErrors] = useState<HomeworkValidationErrors>({ questions: {} })
   const [savingHomework, setSavingHomework] = useState(false)
   const [lessonForm, setLessonForm] = useState<LessonFormState>({
     subject_id: "",
@@ -117,6 +126,13 @@ export function TeacherClassesSectionLive({
   const showToast = (msg: string, type: "success" | "error" = "success") => {
     setToast({ msg, type })
     window.setTimeout(() => setToast(null), 3000)
+  }
+
+  const acceptLessonAttachmentFile = (file: File) => {
+    const validationError = getLessonAttachmentValidationError(file)
+    if (!validationError) return true
+    showToast(t(validationError), "error")
+    return false
   }
 
   const liveClasses = useMemo<LiveClassSummary[]>(() => {
@@ -464,6 +480,12 @@ export function TeacherClassesSectionLive({
       }))
       .filter((attachment) => attachment.file_name.length > 0 && (attachment.file_url.length > 0 || attachment.file))
 
+    const invalidAttachment = attachments.find((attachment) => attachment.file && getLessonAttachmentValidationError(attachment.file))
+    if (invalidAttachment?.file) {
+      showToast(t(getLessonAttachmentValidationError(invalidAttachment.file)!), "error")
+      return
+    }
+
     setCreatingLesson(true)
     const result = await dbLessons.createLesson({
       school_id: schoolId,
@@ -548,6 +570,8 @@ export function TeacherClassesSectionLive({
 
   const saveNewAttachments = async () => {
     if (!schoolId || !selectedLesson) return
+    const invalidAttachment = attachmentDrafts.find((attachment) => attachment.file && getLessonAttachmentValidationError(attachment.file))
+    if (invalidAttachment?.file) return showToast(t(getLessonAttachmentValidationError(invalidAttachment.file)!), "error")
     setCreatingLesson(true)
     for (const attachment of attachmentDrafts) {
       const name = attachment.file_name.trim() || attachment.file?.name || ""
@@ -569,20 +593,60 @@ export function TeacherClassesSectionLive({
     showToast(result.error ?? t("Attachment removed."), result.error ? "error" : "success")
   }
 
-  const openHomeworkEditor = (item?: Homework) => setHomeworkEditor({
-    id: item?.id ?? null, title: item?.title ?? "", due_date: item?.due_date?.slice(0, 10) ?? "",
-    questions: item ? [] : [{ text: "", choices: ["", ""], correctIndex: 0 }],
-  })
+  const openHomeworkEditor = (item?: Homework) => {
+    setHomeworkValidationErrors({ questions: {} })
+    setHomeworkEditor({
+      id: item?.id ?? null, title: item?.title ?? "", due_date: item?.due_date?.slice(0, 10) ?? "",
+      questions: item ? [] : [{ text: "", choices: ["", ""], correctIndex: null }],
+    })
+  }
 
   const saveHomework = async () => {
-    if (!schoolId || !selectedLesson || !homeworkEditor?.title.trim() || !homeworkEditor.due_date) return
-    if (!homeworkEditor.id) {
-      const incomplete = homeworkEditor.questions.length === 0 || homeworkEditor.questions.some((question) => {
-        const nonEmptyChoices = question.choices.filter((choice) => choice.trim())
-        return !question.text.trim() || nonEmptyChoices.length < 2 || !question.choices[question.correctIndex]?.trim()
-      })
-      if (incomplete) return showToast(t("Please complete every question with at least two choices and one correct answer."), "error")
+    if (!homeworkEditor) {
+      return showToast(t("Homework form is unavailable. Reopen it and try again."), "error")
     }
+
+    const validationErrors: HomeworkValidationErrors = { questions: {} }
+    if (!homeworkEditor.title.trim()) validationErrors.title = "Homework Title is required."
+    if (!homeworkEditor.due_date) validationErrors.dueDate = "Deadline Date is required."
+
+    if (!homeworkEditor.id) {
+      if (homeworkEditor.questions.length === 0) {
+        validationErrors.form = "At least one homework question is required."
+      }
+      homeworkEditor.questions.forEach((question, questionIndex) => {
+        const questionErrors: HomeworkQuestionValidationErrors = {}
+        const nonEmptyChoices = question.choices.filter((choice) => choice.trim())
+        if (!question.text.trim()) questionErrors.text = "Question text is required."
+        if (nonEmptyChoices.length < 2) questionErrors.choices = "At least two answer choices are required."
+        if (question.correctIndex === null) {
+          questionErrors.correct = "Mark one answer as correct."
+        } else if (!question.choices[question.correctIndex]?.trim()) {
+          questionErrors.correct = "The correct answer choice cannot be empty."
+        }
+        if (Object.keys(questionErrors).length > 0) validationErrors.questions[questionIndex] = questionErrors
+      })
+    }
+
+    const firstQuestionError = Object.values(validationErrors.questions)[0]
+    const firstError = validationErrors.title
+      ?? validationErrors.dueDate
+      ?? validationErrors.form
+      ?? firstQuestionError?.text
+      ?? firstQuestionError?.choices
+      ?? firstQuestionError?.correct
+    if (firstError) {
+      setHomeworkValidationErrors(validationErrors)
+      return showToast(t(firstError), "error")
+    }
+
+    if (!schoolId || !selectedLesson) {
+      validationErrors.form = "Homework context is unavailable. Reopen the lesson and try again."
+      setHomeworkValidationErrors(validationErrors)
+      return showToast(t(validationErrors.form), "error")
+    }
+
+    setHomeworkValidationErrors({ questions: {} })
     setSavingHomework(true)
     const result = homeworkEditor.id
       ? await dbHomework.updateHomework(homeworkEditor.id, { title: homeworkEditor.title.trim(), due_date: homeworkEditor.due_date })
@@ -1107,6 +1171,7 @@ export function TeacherClassesSectionLive({
                         ? "يمكنك إضافة ملف PDF أو صورة أو أي رابط مرفق آخر."
                         : "Upload a file from your device or add an external link. Uploaded files are saved securely in the system."}
                     </p>
+                    <p className="mt-1 text-xs font-medium text-muted-foreground">{t("Maximum file size: 10 MB.")}</p>
                   </div>
                   <Btn type="button" variant="secondary" size="sm" onClick={addAttachmentDraft}>
                     {t("Add Attachment")}
@@ -1142,6 +1207,10 @@ export function TeacherClassesSectionLive({
                             onChange={(event) => {
                               const file = event.target.files?.[0] ?? null
                               if (!file) return
+                              if (!acceptLessonAttachmentFile(file)) {
+                                event.currentTarget.value = ""
+                                return
+                              }
                               updateAttachmentDraft(index, {
                                 file,
                                 file_name: attachment.file_name || file.name,
@@ -1190,7 +1259,8 @@ export function TeacherClassesSectionLive({
                   <Input label={t("Attachment Name")} value={attachment.file_name} onChange={(value) => setAttachmentDrafts((rows) => rows.map((row, rowIndex) => rowIndex === index ? { ...row, file_name: value } : row))} />
                   <Input label={t("Attachment URL")} value={attachment.file_url} onChange={(value) => setAttachmentDrafts((rows) => rows.map((row, rowIndex) => rowIndex === index ? { ...row, file_url: value } : row))} />
                   <Input label={t("Attachment Type")} value={attachment.file_kind} onChange={(value) => setAttachmentDrafts((rows) => rows.map((row, rowIndex) => rowIndex === index ? { ...row, file_kind: value } : row))} />
-                  <label className="flex cursor-pointer items-center justify-between rounded-xl border border-dashed border-primary/30 bg-primary/5 p-3 text-sm font-semibold text-primary"><span><Upload className="me-2 inline h-4 w-4" />{t("Upload file")}</span><input type="file" className="sr-only" onChange={(event) => { const file = event.target.files?.[0]; if (file) setAttachmentDrafts((rows) => rows.map((row, rowIndex) => rowIndex === index ? { ...row, file, file_name: row.file_name || file.name, file_kind: getAttachmentKind(file) } : row)) }} /><span className="text-xs text-muted-foreground">{attachment.file?.name ?? t("No file selected")}</span></label>
+                  <label className="flex cursor-pointer items-center justify-between rounded-xl border border-dashed border-primary/30 bg-primary/5 p-3 text-sm font-semibold text-primary"><span><Upload className="me-2 inline h-4 w-4" />{t("Upload file")}</span><input type="file" className="sr-only" accept=".pdf,image/*,video/*,.doc,.docx,.ppt,.pptx,.xls,.xlsx" onChange={(event) => { const file = event.target.files?.[0]; if (!file) return; if (!acceptLessonAttachmentFile(file)) { event.currentTarget.value = ""; return } setAttachmentDrafts((rows) => rows.map((row, rowIndex) => rowIndex === index ? { ...row, file, file_name: row.file_name || file.name, file_kind: getAttachmentKind(file) } : row)) }} /><span className="text-xs text-muted-foreground">{attachment.file?.name ?? t("No file selected")}</span></label>
+                  <p className="text-xs font-medium text-muted-foreground">{t("Maximum file size: 10 MB.")}</p>
                 </div>
               ))}
               <Btn type="button" variant="secondary" onClick={() => setAttachmentDrafts((rows) => [...rows, { file_name: "", file_url: "", file_kind: "pdf", file: null }])}><Plus className="h-4 w-4" />{t("Add Attachment")}</Btn>
@@ -1202,16 +1272,19 @@ export function TeacherClassesSectionLive({
         {homeworkEditor && (
           <Modal title={t(homeworkEditor.id ? "Edit Homework" : "Create Homework")} onClose={() => setHomeworkEditor(null)}>
             <div className="space-y-4">
-              <Input label={t("Homework Title")} value={homeworkEditor.title} onChange={(value) => setHomeworkEditor((current) => current ? { ...current, title: value } : current)} required />
-              <Input label={t("Deadline Date")} type="date" value={homeworkEditor.due_date} onChange={(value) => setHomeworkEditor((current) => current ? { ...current, due_date: value } : current)} required />
+              <Input label={t("Homework Title")} value={homeworkEditor.title} onChange={(value) => { setHomeworkValidationErrors({ questions: {} }); setHomeworkEditor((current) => current ? { ...current, title: value } : current) }} error={homeworkValidationErrors.title} required />
+              <Input label={t("Deadline Date")} type="date" value={homeworkEditor.due_date} onChange={(value) => { setHomeworkValidationErrors({ questions: {} }); setHomeworkEditor((current) => current ? { ...current, due_date: value } : current) }} error={homeworkValidationErrors.dueDate} required />
+              {homeworkValidationErrors.form && <p className="rounded-lg bg-red-50 px-3 py-2 text-xs font-medium text-red-600">{t(homeworkValidationErrors.form)}</p>}
               {!homeworkEditor.id && <div className="space-y-4">
                 {homeworkEditor.questions.map((question, questionIndex) => <div key={questionIndex} className="space-y-3 rounded-xl border border-border p-4">
-                  <div className="flex items-center justify-between"><strong className="text-sm">{t("Question")} {questionIndex + 1}</strong>{homeworkEditor.questions.length > 1 && <button type="button" className="text-xs text-red-600" onClick={() => setHomeworkEditor((current) => current ? { ...current, questions: current.questions.filter((_, index) => index !== questionIndex) } : current)}>{t("Remove")}</button>}</div>
-                  <Input label={t("Question text")} value={question.text} onChange={(value) => setHomeworkEditor((current) => current ? { ...current, questions: current.questions.map((row, index) => index === questionIndex ? { ...row, text: value } : row) } : current)} />
-                  {question.choices.map((choice, choiceIndex) => <div key={choiceIndex} className="flex items-end gap-2"><input type="radio" aria-label={t("Correct Answer")} checked={question.correctIndex === choiceIndex} onChange={() => setHomeworkEditor((current) => current ? { ...current, questions: current.questions.map((row, index) => index === questionIndex ? { ...row, correctIndex: choiceIndex } : row) } : current)} className="mb-3" /><div className="flex-1"><Input label={`${t("Choice")} ${choiceIndex + 1}`} value={choice} onChange={(value) => setHomeworkEditor((current) => current ? { ...current, questions: current.questions.map((row, index) => index === questionIndex ? { ...row, choices: row.choices.map((item, itemIndex) => itemIndex === choiceIndex ? value : item) } : row) } : current)} /></div>{question.choices.length > 2 && <button type="button" className="mb-3 text-red-600" onClick={() => setHomeworkEditor((current) => current ? { ...current, questions: current.questions.map((row, index) => index === questionIndex ? { ...row, choices: row.choices.filter((_, itemIndex) => itemIndex !== choiceIndex), correctIndex: 0 } : row) } : current)}><Trash2 className="h-4 w-4" /></button>}</div>)}
-                  <button type="button" className="text-xs font-semibold text-primary" onClick={() => setHomeworkEditor((current) => current ? { ...current, questions: current.questions.map((row, index) => index === questionIndex ? { ...row, choices: [...row.choices, ""] } : row) } : current)}><Plus className="me-1 inline h-3.5 w-3.5" />{t("Add Choice")}</button>
+                  <div className="flex items-center justify-between"><strong className="text-sm">{t("Question")} {questionIndex + 1}</strong>{homeworkEditor.questions.length > 1 && <button type="button" className="text-xs text-red-600" onClick={() => { setHomeworkValidationErrors({ questions: {} }); setHomeworkEditor((current) => current ? { ...current, questions: current.questions.filter((_, index) => index !== questionIndex) } : current) }}>{t("Remove")}</button>}</div>
+                  <Input label={t("Question text")} value={question.text} onChange={(value) => { setHomeworkValidationErrors({ questions: {} }); setHomeworkEditor((current) => current ? { ...current, questions: current.questions.map((row, index) => index === questionIndex ? { ...row, text: value } : row) } : current) }} error={homeworkValidationErrors.questions[questionIndex]?.text} />
+                  {question.choices.map((choice, choiceIndex) => <div key={choiceIndex} className="flex items-end gap-2"><input type="radio" aria-label={t("Correct Answer")} checked={question.correctIndex === choiceIndex} onChange={() => { setHomeworkValidationErrors({ questions: {} }); setHomeworkEditor((current) => current ? { ...current, questions: current.questions.map((row, index) => index === questionIndex ? { ...row, correctIndex: choiceIndex } : row) } : current) }} className="mb-3" /><div className="flex-1"><Input label={`${t("Choice")} ${choiceIndex + 1}`} value={choice} onChange={(value) => { setHomeworkValidationErrors({ questions: {} }); setHomeworkEditor((current) => current ? { ...current, questions: current.questions.map((row, index) => index === questionIndex ? { ...row, choices: row.choices.map((item, itemIndex) => itemIndex === choiceIndex ? value : item) } : row) } : current) }} /></div>{question.choices.length > 2 && <button type="button" className="mb-3 text-red-600" onClick={() => { setHomeworkValidationErrors({ questions: {} }); setHomeworkEditor((current) => current ? { ...current, questions: current.questions.map((row, index) => { if (index !== questionIndex) return row; const nextCorrectIndex = row.correctIndex === choiceIndex ? null : row.correctIndex !== null && row.correctIndex > choiceIndex ? row.correctIndex - 1 : row.correctIndex; return { ...row, choices: row.choices.filter((_, itemIndex) => itemIndex !== choiceIndex), correctIndex: nextCorrectIndex } }) } : current) }}><Trash2 className="h-4 w-4" /></button>}</div>)}
+                  {homeworkValidationErrors.questions[questionIndex]?.choices && <p className="text-xs font-medium text-red-600">{t(homeworkValidationErrors.questions[questionIndex].choices!)}</p>}
+                  {homeworkValidationErrors.questions[questionIndex]?.correct && <p className="text-xs font-medium text-red-600">{t(homeworkValidationErrors.questions[questionIndex].correct!)}</p>}
+                  <button type="button" className="text-xs font-semibold text-primary" onClick={() => { setHomeworkValidationErrors({ questions: {} }); setHomeworkEditor((current) => current ? { ...current, questions: current.questions.map((row, index) => index === questionIndex ? { ...row, choices: [...row.choices, ""] } : row) } : current) }}><Plus className="me-1 inline h-3.5 w-3.5" />{t("Add Choice")}</button>
                 </div>)}
-                <Btn variant="secondary" onClick={() => setHomeworkEditor((current) => current ? { ...current, questions: [...current.questions, { text: "", choices: ["", ""], correctIndex: 0 }] } : current)}><Plus className="h-4 w-4" />{t("Add Question")}</Btn>
+                <Btn variant="secondary" onClick={() => { setHomeworkValidationErrors({ questions: {} }); setHomeworkEditor((current) => current ? { ...current, questions: [...current.questions, { text: "", choices: ["", ""], correctIndex: null }] } : current) }}><Plus className="h-4 w-4" />{t("Add Question")}</Btn>
               </div>}
               {homeworkEditor.id && <p className="rounded-xl bg-muted p-3 text-xs text-muted-foreground">{t("Existing questions remain unchanged to protect student submissions.")}</p>}
               <div className="flex gap-3"><Btn onClick={() => void saveHomework()} className="flex-1" disabled={savingHomework}>{savingHomework ? t("Saving...") : t("Save")}</Btn><Btn variant="secondary" onClick={() => setHomeworkEditor(null)}>{t("Cancel")}</Btn></div>
